@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+    background-color: theme('colors.background');
+    color: theme('colors.text');
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+    .invoice-card {
+        @apply bg-[#FFFFFF] border border-border rounded-lg p-5 w-full max-w-3xl mx-auto shadow-card transition-all duration-300 hover:shadow-lg hover:border-blue-300 hover:scale-[1.02];
+    }
+    
+    .action-button {
+        @apply px-4 py-2 border border-primary text-primary rounded font-medium transition-all duration-200 hover:bg-primary hover:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50;
+    }
+    
+    .secondary-button {
+        @apply px-4 py-2 border border-secondary text-secondary rounded font-medium transition-all duration-200 hover:bg-secondary hover:text-white focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-opacity-50;
+    }
+    
+    .modal-desktop {
+        @apply fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm;
+    }
+    
+    .modal-content {
+        @apply bg-gray-50 p-6 rounded-lg shadow-xl max-w-md w-full mx-4;
+    }
+    
+    .modal-mobile {
+        @apply fixed inset-x-0 bottom-0 z-50 pb-6 pt-4 px-4 bg-gray-50 rounded-t-xl shadow-xl transform transition-transform duration-300;
+    }
+    
+    /* Disable the scrollbar but allow scrolling in modals */
+    .modal-scroll {
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE and Edge */
+    }
+    
+    .modal-scroll::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+    }
+    
+    .sticky-header {
+        @apply sticky top-16 bg-background/95 backdrop-blur-sm z-10 border-b border-border py-3 mb-4 grid grid-cols-4 gap-4 w-full max-w-3xl mx-auto text-text-light font-medium;
+    }
+    
+    /* Responsive adjustments for mobile */
+    @media (max-width: 640px) {
+        .sticky-header {
+            @apply text-sm;
+        }
+        
+        .invoice-card {
+            @apply p-4;
+        }
+    }
+    
+    /* For screens >= 830px, align buttons to the right */
+    @media (min-width: 830px) {
+        .button-container {
+            @apply flex justify-end space-x-3;
+        }
+    }
+    
+    /* For screens < 830px, distribute buttons evenly */
+    @media (max-width: 829px) {
+        .button-container {
+            @apply flex justify-between;
+        }
+    }
+}

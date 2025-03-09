@@ -1,0 +1,61 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Base rule - authenticated users can read/write their own data
+    match /{document=**} {
+      allow read, write: if false; // Default deny
+    }
+    
+    // PengurusCollection rules
+    match /PengurusCollection/{userId} {
+      // Anyone can read PengurusCollection documents
+      allow read: if request.auth != null;
+      
+      // Only superAdmins can create new pengurus
+      allow create: if userIsSuperAdmin();
+      
+      // Users can update their own data, and superAdmins can update anyone's data
+      allow update: if request.auth.uid == userId || userIsSuperAdmin();
+      
+      // Only superAdmins can delete
+      allow delete: if userIsSuperAdmin();
+    }
+    
+    // SantriCollection rules
+    match /SantriCollection/{santriId} {
+      // Any authenticated user can read santri data
+      allow read: if request.auth != null;
+      
+      // Only pengurus, pengasuh, and superAdmins can create/update/delete santri data
+      allow create, update, delete: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
+    }
+    
+    // TagihanCollection rules
+    match /TagihanCollection/{tagihanId} {
+      // Pengurus, pengasuh, superAdmin can read all tagihan
+      // Wali santri can only read their own santri's tagihan
+      allow read: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin() ||
+                    (userHasRole("waliSantri") && resource.data.santriId == getSantriIdForWali());
+      
+      // Only pengurus, pengasuh, and superAdmins can create/update/delete tagihan
+      allow create, update, delete: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
+    }
+    
+    // Helper functions
+    function userIsSuperAdmin() {
+      let userDoc = get(/databases/$(database)/documents/PengurusCollection/$(request.auth.uid)).data;
+      return userDoc != null && userDoc.role == "superAdmin";
+    }
+    
+    function userHasRole(role) {
+      let userDoc = get(/databases/$(database)/documents/PengurusCollection/$(request.auth.uid)).data;
+      return userDoc != null && userDoc.role == role;
+    }
+    
+    function getSantriIdForWali() {
+      let userDoc = get(/databases/$(database)/documents/PengurusCollection/$(request.auth.uid)).data;
+      return userDoc != null ? userDoc.santriId : null;
+    }
+  }
+}
