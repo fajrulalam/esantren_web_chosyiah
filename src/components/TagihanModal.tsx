@@ -3,7 +3,7 @@
 import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { KODE_ASRAMA } from '@/constants';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 
 interface TagihanModalProps {
@@ -37,13 +37,22 @@ export default function TagihanModal({
     setIsSubmitting(true);
 
     try {
-      // Add document to PembayaranLogs collection
-      const logsCollectionRef = collection(db, `AktivitasCollection/${KODE_ASRAMA}/PembayaranLogs`);
+      // Format today's date for the invoice ID
+      const today = new Date();
+      const formattedDate = today.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+      const timestamp = Date.now(); // Current timestamp in milliseconds
       
-      await addDoc(logsCollectionRef, {
+      // Create a human-readable invoice ID
+      const invoiceId = `${formattedDate}_${formData.paymentName.replace(/\s+/g, '_')}_${timestamp}`;
+      
+      // Create the invoice with a custom ID
+      const invoiceDocRef = doc(db, 'Invoices', invoiceId);
+      
+      await setDoc(invoiceDocRef, {
         paymentName: formData.paymentName,
         nominal: parseFloat(formData.nominal),
         description: formData.description,
+        kodeAsrama: KODE_ASRAMA,
         timestamp: serverTimestamp(),
         numberOfPaid: 0,
         numberOfWaitingVerification: 0,

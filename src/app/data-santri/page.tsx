@@ -152,14 +152,18 @@ export default function DataSantriPage() {
         await updateDoc(doc(db, "SantriCollection", docId), {
           ...formData,
           kodeAsrama: KODE_ASRAMA,
-          statusTanggungan: "Belum Ada Tagihan"
+          statusTanggungan: "Belum Ada Tagihan",
+          createdAt: timestamp, // Add creation timestamp
+          jumlahTunggakan: 0, // Add default value for jumlahTunggakan
         }).catch(async () => {
           // If doc doesn't exist, set it instead
           const docRef = doc(db, "SantriCollection", docId);
           await setDoc(docRef, {
             ...formData,
             kodeAsrama: KODE_ASRAMA,
-            statusTanggungan: "Belum Ada Tagihan"
+            statusTanggungan: "Belum Ada Tagihan",
+            createdAt: timestamp, // Add creation timestamp
+            jumlahTunggakan: 0, // Add default value for jumlahTunggakan
           });
         });
         
@@ -368,6 +372,9 @@ export default function DataSantriPage() {
                   Status Tanggungan
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status Aktif
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Aksi
                 </th>
               </tr>
@@ -398,6 +405,16 @@ export default function DataSantriPage() {
                       santri.statusTanggungan === 'Menunggu Verifikasi' ? 'bg-yellow-100 text-yellow-800' :
                       'bg-gray-100 text-gray-800'}`}>
                       {santri.statusTanggungan}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      ${santri.statusAktif === 'Aktif' ? 'bg-green-100 text-green-800' : 
+                      santri.statusAktif === 'Boyong' ? 'bg-yellow-100 text-yellow-800' : 
+                      santri.statusAktif === 'Lulus' ? 'bg-blue-100 text-blue-800' :
+                      santri.statusAktif === 'Dikeluarkan' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'}`}>
+                      {santri.statusAktif}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

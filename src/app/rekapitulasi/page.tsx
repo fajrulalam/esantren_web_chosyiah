@@ -3,11 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
-import { collection, getDocs, orderBy, query, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { KODE_ASRAMA } from '@/constants';
 import TagihanModal from '@/components/TagihanModal';
-import SantriPaymentStatusModal from '@/components/SantriPaymentStatusModal';
 
 interface PaymentLog {
   id: string;
@@ -26,7 +25,6 @@ export default function RekapitulasiPage() {
   const [payments, setPayments] = useState<PaymentLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showTagihanModal, setShowTagihanModal] = useState(false);
-  const [showSantriStatusModal, setShowSantriStatusModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentLog | null>(null);
 
   useEffect(() => {
@@ -45,13 +43,51 @@ export default function RekapitulasiPage() {
   const fetchPayments = async () => {
     setIsLoading(true);
     try {
-      const paymentsCollectionRef = collection(db, `AktivitasCollection/${KODE_ASRAMA}/PembayaranLogs`);
-      const paymentsQuery = query(paymentsCollectionRef, orderBy('timestamp', 'desc'));
-      const querySnapshot = await getDocs(paymentsQuery);
+      // First, try to get invoices from the new Invoices collection
+      const invoicesCollectionRef = collection(db, 'Invoices');
+      const invoicesQuery = query(
+        invoicesCollectionRef, 
+        where('kodeAsrama', '==', KODE_ASRAMA),
+        orderBy('timestamp', 'desc')
+      );
+      const invoicesSnapshot = await getDocs(invoicesQuery);
+      
+      // Then, get the legacy payments from PembayaranLogs
+      const logsCollectionRef = collection(db, `AktivitasCollection/${KODE_ASRAMA}/PembayaranLogs`);
+      const logsQuery = query(logsCollectionRef, orderBy('timestamp', 'desc'));
+      const logsSnapshot = await getDocs(logsQuery);
       
       const paymentLogs: PaymentLog[] = [];
-      querySnapshot.forEach((doc) => {
+      
+      // Process invoices from the new collection
+      invoicesSnapshot.forEach((doc) => {
         const data = doc.data();
+        // Check if this invoice already exists in PembayaranLogs to avoid duplicates
+        const existingLogIndex = paymentLogs.findIndex(log => log.id === data.id);
+        
+        if (existingLogIndex === -1) {
+          paymentLogs.push({
+            id: doc.id,
+            paymentName: data.paymentName || 'Tanpa Nama',
+            nominal: data.nominal || 0,
+            numberOfPaid: data.numberOfPaid || 0,
+            numberOfWaitingVerification: data.numberOfWaitingVerification || 0,
+            numberOfSantriInvoiced: data.numberOfSantriInvoiced || 0,
+            timestamp: data.timestamp || Timestamp.now()
+          });
+        }
+      });
+      
+      // Process legacy payment logs
+      // Add only those not already added from Invoices collection (avoiding duplicates)
+      logsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        // Skip if this log has an invoiceId and we already added it from Invoices collection
+        if (data.invoiceId && paymentLogs.some(log => log.id === data.invoiceId)) {
+          return;
+        }
+        
         paymentLogs.push({
           id: doc.id,
           paymentName: data.paymentName || 'Tanpa Nama',
@@ -63,6 +99,9 @@ export default function RekapitulasiPage() {
         });
       });
       
+      // Sort by timestamp (newest first)
+      paymentLogs.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
+      
       setPayments(paymentLogs);
     } catch (error) {
       console.error("Error fetching payments:", error);
@@ -72,8 +111,8 @@ export default function RekapitulasiPage() {
   };
 
   const handleRowClick = (payment: PaymentLog) => {
-    setSelectedPayment(payment);
-    setShowSantriStatusModal(true);
+    // Instead of showing modal, navigate to detail page
+    router.push(`/rekapitulasi/detail/${payment.id}?name=${encodeURIComponent(payment.paymentName)}`);
   };
 
   const formatCurrency = (amount: number) => {
@@ -184,21 +223,12 @@ export default function RekapitulasiPage() {
         )}
       </div>
 
-      {/* Modals */}
+      {/* Modal for creating new payment */}
       <TagihanModal 
         isOpen={showTagihanModal} 
         onClose={() => setShowTagihanModal(false)}
         onSuccess={fetchPayments}
       />
-
-      {selectedPayment && (
-        <SantriPaymentStatusModal
-          isOpen={showSantriStatusModal}
-          onClose={() => setShowSantriStatusModal(false)}
-          paymentId={selectedPayment.id}
-          paymentName={selectedPayment.paymentName}
-        />
-      )}
     </div>
   );
 }

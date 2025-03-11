@@ -2,6 +2,8 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
+import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,6 +20,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
+export const functions = getFunctions(app, 'us-central1');
+
+// Temporarily disable functions emulator connection to use production functions
+// If we're in local development, connect to Functions emulator
+// if (process.env.NODE_ENV === 'development') {
+//   try {
+//     connectFunctionsEmulator(functions, 'localhost', 5001);
+//   } catch (e) {
+//     console.log('Could not connect to functions emulator, using production functions');
+//   }
+// }
+
 export const googleProvider = new GoogleAuthProvider();
 
 export default app;

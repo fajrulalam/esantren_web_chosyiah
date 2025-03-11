@@ -118,7 +118,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userData = await getUserRole(firebaseUser);
         setUser(userData);
       } else {
-        setUser(null);
+        // Check for wali santri data in localStorage
+        try {
+          const savedUser = localStorage.getItem('waliSantriUser');
+          const savedSantriName = localStorage.getItem('santriName');
+          
+          if (savedUser && savedSantriName) {
+            const userData = JSON.parse(savedUser) as UserData;
+            setUser(userData);
+            setSantriName(savedSantriName);
+          } else {
+            setUser(null);
+          }
+        } catch (error) {
+          console.error("Error retrieving saved session:", error);
+          setUser(null);
+        }
       }
       setLoading(false);
     });
@@ -162,10 +177,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Function to properly capitalize a name
+  const capitalizeName = (name: string): string => {
+    if (!name) return '';
+    
+    // First, ensure the first character is not a period
+    if (name.startsWith('.')) {
+      return name.substring(1);
+    }
+    
+    // Split by spaces to handle each word
+    return name.split(' ').map(word => {
+      // Skip empty words
+      if (!word) return '';
+      
+      // Handle prefixes like "M.", "H.", etc.
+      if (word.length === 2 && word.endsWith('.')) {
+        return word.charAt(0).toUpperCase() + '.';
+      }
+      
+      // For words with periods inside (like "M.Fajrul")
+      if (word.includes('.') && !word.endsWith('.')) {
+        return word.split('.').map(namePart => {
+          if (!namePart) return '.';
+          return namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
+        }).join('.');
+      }
+      
+      // Regular words: capitalize first letter, lowercase the rest
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    }).join(' ');
+  };
+
   // Sign in as wali santri (special case - no auth)
   const signInAsWaliSantri = async (namaSantri: string, tanggalLahir: string) => {
     try {
       setLoading(true);
+      
+      // Format the name to ensure proper capitalization
+      const formattedName = capitalizeName(namaSantri);
       
       // Import necessary Firestore functions
       const { collection, query, where, getDocs } = await import('firebase/firestore');
@@ -174,7 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const santriCollectionRef = collection(db, "SantriCollection");
       const santriQuery = query(
         santriCollectionRef,
-        where("nama", "==", namaSantri),
+        where("nama", "==", formattedName),
         where("tanggalLahir", "==", tanggalLahir)
       );
       
@@ -187,15 +237,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const santriData = santriDoc.data();
         const santriId = santriDoc.id;
         
-        // Set wali santri user without firebase auth
-        setUser({
+        // Create user data object
+        const userData = {
           uid: `wali_${santriId}`,
           email: null,
-          role: "waliSantri",
+          role: "waliSantri" as UserRole,
           santriId: santriId
-        });
+        };
         
-        setSantriName(namaSantri);
+        // Set wali santri user without firebase auth
+        setUser(userData);
+        setSantriName(formattedName);
+        
+        // Store in localStorage for persistence
+        localStorage.setItem('waliSantriUser', JSON.stringify(userData));
+        localStorage.setItem('santriName', formattedName);
+        
         return true;
       } else {
         console.log("Santri tidak ditemukan dengan nama dan tanggal lahir tersebut");
@@ -252,6 +309,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (auth.currentUser) {
         await signOut(auth);
       }
+      
+      // Clear localStorage for wali santri
+      localStorage.removeItem('waliSantriUser');
+      localStorage.removeItem('santriName');
+      
       // Clear user state regardless of auth type (handles waliSantri case)
       setUser(null);
       setSantriName(null);

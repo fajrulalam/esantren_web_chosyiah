@@ -174,6 +174,7 @@ export default function Login() {
                                     placeholder="Masukkan nama santri"
                                     disabled={isLoading}
                                 />
+                                <p className="mt-1 text-xs text-gray-500">Contoh: M. Fajrul Alam Ulin Nuha</p>
                             </div>
                             <div className="mb-6">
                                 <label className="block mb-2 text-sm font-medium">Tanggal Lahir</label>

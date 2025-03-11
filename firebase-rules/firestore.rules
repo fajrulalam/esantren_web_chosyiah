@@ -42,6 +42,44 @@ service cloud.firestore {
       allow create, update, delete: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
     }
     
+    // NEW: Invoices collection rules
+    match /Invoices/{invoiceId} {
+      // Any authenticated user can read invoice data
+      allow read: if request.auth != null;
+      
+      // Only pengurus, pengasuh, and superAdmins can create/update invoices
+      allow create, update: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
+      
+      // Only functions can delete invoices (clients use the deleteInvoice Cloud Function)
+      allow delete: if false;
+    }
+    
+    // NEW: PaymentStatuses collection rules
+    match /PaymentStatuses/{paymentStatusId} {
+      // Pengurus, pengasuh, superAdmin can read all payment statuses
+      // Wali santri can only read their own santri's payment statuses
+      allow read: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin() ||
+                   (userHasRole("waliSantri") && resource.data.santriId == getSantriIdForWali());
+      
+      // Only pengurus, pengasuh, and superAdmins can update payment statuses
+      allow update: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
+      
+      // No direct creation via client - this is handled by Cloud Functions
+      allow create: if false;
+      
+      // No one can delete payment statuses
+      allow delete: if false;
+    }
+    
+    // NEW: Counters collection rules
+    match /Counters/{counterId} {
+      // Only pengurus, pengasuh, and superAdmins can read counters
+      allow read: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
+      
+      // No direct writes to counters - this is managed by Cloud Functions
+      allow write: if false;
+    }
+    
     // Helper functions
     function userIsSuperAdmin() {
       let userDoc = get(/databases/$(database)/documents/PengurusCollection/$(request.auth.uid)).data;

@@ -2,21 +2,23 @@
 import PaymentModal from './PaymentModal';
 import PaymentStatusModal from './PaymentStatusModal';
 import { useState, useEffect } from 'react';
-import { db } from '../firebase/config';
-import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
+import { db, functions } from '../firebase/config';
+import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { useAuth } from '../firebase/auth';
+import { PaymentStatus } from '@/types/santri';
 
 export default function PaymentHistory() {
     const { user, santriName } = useAuth();
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
-    const [selectedPayment, setSelectedPayment] = useState<number | null>(null);
+    const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
     const [isMobile, setIsMobile] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [santriData, setSantriData] = useState<any>(null);
-    const [payments, setPayments] = useState<any[]>([]);
+    const [payments, setPayments] = useState<PaymentStatus[]>([]);
     const [error, setError] = useState<string | null>(null);
-
+    
     // Fetch santri data based on user information
     useEffect(() => {
         const fetchSantriData = async () => {
@@ -68,41 +70,42 @@ export default function PaymentHistory() {
         fetchSantriData();
     }, [user, santriName]);
     
-    // Fetch payment data for the santri
+    // Fetch payment data for the santri using Cloud Function
     const fetchPayments = async (santriId: string) => {
         try {
-            const paymentsRef = collection(db, "PembayaranCollection");
-            const q = query(paymentsRef, where("santriId", "==", santriId));
+            const getSantriPaymentHistory = httpsCallable(functions, 'getSantriPaymentHistory');
+            const result = await getSantriPaymentHistory({ santriId });
             
-            const querySnapshot = await getDocs(q);
+            const paymentList = result.data as PaymentStatus[];
             
-            const paymentList = querySnapshot.docs.map(doc => {
-                const data = doc.data();
-                return {
-                    id: doc.id,
-                    name: data.nama,
-                    paid: data.jumlahDibayar || 0,
-                    total: data.jumlahTotal,
-                    status: getPaymentStatus(data.jumlahDibayar, data.jumlahTotal, data.statusVerifikasi),
-                    history: data.historyPembayaran || []
-                };
-            });
-            
-            setPayments(paymentList.length > 0 ? paymentList : dummyPayments);
+            // Sort payments by timestamp (newest first)
+            setPayments(paymentList.sort((a, b) => b.timestamp - a.timestamp));
         } catch (err) {
             console.error("Error fetching payments:", err);
-            setPayments(dummyPayments); // Fallback to dummy data
+            setError("Gagal mengambil data pembayaran. Silakan coba lagi nanti.");
+            setPayments([]);
+        }
+    };
+    
+    // Refresh payments after a new payment is submitted
+    const handlePaymentComplete = () => {
+        if (user?.santriId) {
+            fetchPayments(user.santriId);
+        } else if (santriData?.id) {
+            fetchPayments(santriData.id);
         }
     };
     
     // Helper function to determine payment status
-    const getPaymentStatus = (paid: number, total: number, verificationStatus?: string) => {
-        if (paid === 0) return "Belum Lunas";
-        if (paid < total) {
-            if (verificationStatus === "pending") return "Menunggu Verifikasi";
-            return "Belum Lunas";
+    const getPaymentStatusClass = (status: string) => {
+        switch (status) {
+            case 'Lunas':
+                return 'bg-green-100 text-green-600';
+            case 'Menunggu Verifikasi':
+                return 'bg-orange-200 text-orange-700';
+            default:
+                return 'bg-red-100 text-red-600';
         }
-        return "Lunas";
     };
 
     useEffect(() => {
@@ -129,107 +132,12 @@ export default function PaymentHistory() {
         return () => window.removeEventListener('resize', checkScreenSize);
     }, []);
 
-    // Dummy payment data for fallback
-    const dummyPayments = [
-        { 
-            id: 1, 
-            name: 'Syariyah Januari', 
-            paid: 1000000, 
-            total: 1000000, 
-            status: 'Lunas',
-            history: [
-                { 
-                    id: 1, 
-                    date: '2023-01-15 14:30', 
-                    type: 'Bayar Lunas', 
-                    status: 'Terverifikasi',
-                    imageUrl: 'https://via.placeholder.com/300x400'
-                }
-            ]
-        },
-        { 
-            id: 2, 
-            name: 'Syariyah Februari', 
-            paid: 0, 
-            total: 1000000, 
-            status: 'Belum Lunas',
-            history: []
-        },
-        { 
-            id: 3, 
-            name: 'Syariyah Maret', 
-            paid: 500000, 
-            total: 1000000, 
-            status: 'Menunggu Verifikasi',
-            history: [
-                { 
-                    id: 1, 
-                    date: '2023-03-20 10:30', 
-                    type: 'Bayar Sebagian', 
-                    amount: 500000,
-                    status: 'Menunggu Verifikasi',
-                    imageUrl: 'https://via.placeholder.com/300x400' 
-                }
-            ]
-        },
-        { 
-            id: 4, 
-            name: 'Syariyah April', 
-            paid: 0, 
-            total: 800000, 
-            status: 'Belum Lunas',
-            history: []
-        },
-        { 
-            id: 5, 
-            name: 'Syariyah Mei', 
-            paid: 300000, 
-            total: 800000, 
-            status: 'Belum Lunas',
-            history: [
-                { 
-                    id: 1, 
-                    date: '2023-05-05 16:45', 
-                    type: 'Bayar Sebagian', 
-                    amount: 300000,
-                    status: 'Terverifikasi',
-                    imageUrl: 'https://via.placeholder.com/300x400' 
-                },
-                { 
-                    id: 2, 
-                    date: '2023-05-01 09:30', 
-                    type: 'Bayar Sebagian', 
-                    amount: 200000,
-                    status: 'Ditolak',
-                    imageUrl: 'https://via.placeholder.com/300x400',
-                    note: 'Bukti pembayaran tidak jelas. Mohon kirim ulang dengan resolusi yang lebih baik.'
-                }
-            ]
-        },
-        { 
-            id: 6, 
-            name: 'Dana Pengembangan', 
-            paid: 2000000, 
-            total: 2000000, 
-            status: 'Lunas',
-            history: [
-                { 
-                    id: 1, 
-                    date: '2023-02-10 11:15', 
-                    type: 'Bayar Lunas', 
-                    status: 'Terverifikasi',
-                    imageUrl: 'https://via.placeholder.com/300x400'
-                }
-            ]
-        },
-    ];
-
-    const handleOpenPaymentModal = (id: number) => {
+    const handleOpenPaymentModal = (id: string) => {
         setSelectedPayment(id);
         setShowPaymentModal(true);
     };
     
-    const handleOpenStatusModal = (id: number) => {
+    const handleOpenStatusModal = (id: string) => {
         setSelectedPayment(id);
         setShowStatusModal(true);
     };
@@ -246,7 +154,7 @@ export default function PaymentHistory() {
     return (
         <div className="container mx-auto py-6 px-4">
             <h1 className="text-2xl font-bold mb-6">
-                History Pembayaran {santriName || 'Santri'}
+                History Pembayaran {santriName || (santriData?.nama || 'Santri')}
             </h1>
             
             {isLoading ? (
@@ -257,40 +165,46 @@ export default function PaymentHistory() {
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
                     <span className="block sm:inline">{error}</span>
                 </div>
+            ) : payments.length === 0 ? (
+                <div className="bg-white shadow-lg rounded-lg p-6 text-center">
+                    <p className="text-gray-700 mb-4">Belum ada riwayat pembayaran</p>
+                </div>
             ) : (
                 <div className="space-y-4">
                     {payments.map((payment) => (
                         <div
                             key={payment.id}
-                            className="invoice-card max-w-full border border-gray-200 rounded-lg p-4 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.03] transform"
+                            className="invoice-card max-w-full border border-gray-200 rounded-lg p-4 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.01] transform"
                         >
                             {isSmallScreen ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                                     <div className="col-span-1 md:col-span-1 w-[75%]">
-                                        <div className="text-base font-medium truncate mb-2">{payment.name}</div>
+                                        <div className="text-base font-medium truncate mb-2">{payment.paymentName}</div>
                                         <div className="text-sm text-gray-600">
                                             {formatCurrency(payment.paid)} / {formatCurrency(payment.total)}
                                         </div>
                                     </div>
 
                                     <div className="flex flex-col justify-end items-end">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium mb-3 ${
-                                        payment.status === 'Lunas'
-                                            ? 'bg-green-100 text-green-600'
-                                            : payment.status === 'Menunggu Verifikasi'
-                                                ? 'bg-orange-200 text-orange-700'
-                                                : 'bg-red-100 text-red-600'
-                                    }`}>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium mb-3 ${getPaymentStatusClass(payment.status)}`}>
                                         {payment.status}
                                     </span>
 
                                         {payment.status === 'Belum Lunas' ? (
-                                            <button
-                                                className="border border-blue-600 bg-white text-blue-600 font-bold px-4 py-2 rounded hover:bg-blue-50 transition-all duration-300"
-                                                onClick={() => handleOpenPaymentModal(payment.id)}
-                                            >
-                                                Bayar
-                                            </button>
+                                            <div className="flex flex-col space-y-2">
+                                                <button
+                                                    className="border border-blue-600 bg-white text-blue-600 font-bold px-4 py-2 rounded hover:bg-blue-50 transition-all duration-300"
+                                                    onClick={() => handleOpenPaymentModal(payment.id)}
+                                                >
+                                                    Bayar
+                                                </button>
+                                                <button
+                                                    className="text-blue-600 text-sm hover:underline"
+                                                    onClick={() => handleOpenStatusModal(payment.id)}
+                                                >
+                                                    Lihat Riwayat
+                                                </button>
+                                            </div>
                                         ) : (
                                             <button
                                                 className="border border-blue-600 bg-white text-blue-600 font-bold px-4 py-2 rounded hover:bg-blue-50 transition-all duration-300"
@@ -303,16 +217,10 @@ export default function PaymentHistory() {
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-3 gap-4 items-center">
-                                    <div className="text-base font-medium truncate">{payment.name}</div>
+                                    <div className="text-base font-medium truncate">{payment.paymentName}</div>
 
                                     <div className="flex flex-col items-center justify-center">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium mb-1 ${
-                                        payment.status === 'Lunas'
-                                            ? 'bg-green-100 text-green-600'
-                                            : payment.status === 'Menunggu Verifikasi'
-                                                ? 'bg-orange-200 text-orange-700'
-                                                : 'bg-red-100 text-red-600'
-                                    }`}>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium mb-1 ${getPaymentStatusClass(payment.status)}`}>
                                         {payment.status}
                                     </span>
                                         <div className="text-sm text-gray-600 mt-1">
@@ -320,14 +228,22 @@ export default function PaymentHistory() {
                                         </div>
                                     </div>
 
-                                    <div className="button-container">
+                                    <div className="button-container flex justify-end">
                                         {payment.status === 'Belum Lunas' ? (
-                                            <button
-                                                className="border border-blue-600 bg-white text-blue-600 font-bold px-4 py-2 rounded hover:bg-blue-50 transition-all duration-300"
-                                                onClick={() => handleOpenPaymentModal(payment.id)}
-                                            >
-                                                Bayar
-                                            </button>
+                                            <div className="flex flex-col space-y-2">
+                                                <button
+                                                    className="border border-blue-600 bg-white text-blue-600 font-bold px-4 py-2 rounded hover:bg-blue-50 transition-all duration-300"
+                                                    onClick={() => handleOpenPaymentModal(payment.id)}
+                                                >
+                                                    Bayar
+                                                </button>
+                                                <button
+                                                    className="text-blue-600 text-sm hover:underline"
+                                                    onClick={() => handleOpenStatusModal(payment.id)}
+                                                >
+                                                    Lihat Riwayat
+                                                </button>
+                                            </div>
                                         ) : (
                                             <button
                                                 className="border border-blue-600 bg-white text-blue-600 font-bold px-4 py-2 rounded hover:bg-blue-50 transition-all duration-300"
@@ -349,6 +265,7 @@ export default function PaymentHistory() {
                     closeModal={() => setShowPaymentModal(false)}
                     paymentId={selectedPayment}
                     isMobile={isMobile}
+                    onPaymentComplete={handlePaymentComplete}
                 />
             }
 
