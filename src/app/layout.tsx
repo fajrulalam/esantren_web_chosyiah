@@ -18,15 +18,15 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="id" className={inter.variable}>
-      <body className="antialiased bg-gray-50">
+      <body className="antialiased bg-gray-50 dark:bg-gray-900 transition-colors">
         <AuthProvider>
           <div className="min-h-screen flex flex-col">
             <Navbar />
             <main className="flex-grow">
               {children}
             </main>
-            <footer className="py-6 border-t border-gray-200 bg-white">
-              <div className="container mx-auto px-4 text-center text-gray-600 text-sm">
+            <footer className="py-6 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 transition-colors">
+              <div className="container mx-auto px-4 text-center text-gray-600 dark:text-gray-300 text-sm">
                 © {new Date().getFullYear()} Sistem Pembayaran Asrama. Hak cipta dilindungi.
               </div>
             </footer>

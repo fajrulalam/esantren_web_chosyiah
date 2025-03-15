@@ -28,11 +28,11 @@ export default function Navbar() {
     };
 
     return (
-        <nav className="bg-white border-b border-gray-200 shadow-sm">
+        <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm transition-colors">
             <div className="container mx-auto px-4">
                 <div className="flex justify-between h-16 items-center">
                     <div className="flex-shrink-0">
-                        <Link href="/" className="text-xl font-bold text-blue-600">
+                        <Link href="/" className="text-xl font-bold text-blue-600 dark:text-blue-400">
                             Sistem Pembayaran Asrama
                         </Link>
                     </div>
@@ -48,8 +48,8 @@ export default function Navbar() {
                                                 href="/rekapitulasi"
                                                 className={`px-3 py-2 rounded-md text-sm font-medium ${
                                                     isActive('/rekapitulasi')
-                                                        ? 'bg-blue-50 text-blue-700'
-                                                        : 'text-gray-700 hover:bg-gray-100'
+                                                        ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                                 }`}
                                             >
                                                 Rekapitulasi
@@ -58,8 +58,8 @@ export default function Navbar() {
                                                 href="/data-santri"
                                                 className={`px-3 py-2 rounded-md text-sm font-medium ${
                                                     isActive('/data-santri')
-                                                        ? 'bg-blue-50 text-blue-700'
-                                                        : 'text-gray-700 hover:bg-gray-100'
+                                                        ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                                 }`}
                                             >
                                                 Data Santri
@@ -69,8 +69,8 @@ export default function Navbar() {
                                                     href="/user-management"
                                                     className={`px-3 py-2 rounded-md text-sm font-medium ${
                                                         isActive('/user-management')
-                                                            ? 'bg-blue-50 text-blue-700'
-                                                            : 'text-gray-700 hover:bg-gray-100'
+                                                            ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                                                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                                     }`}
                                                 >
                                                     User Management
@@ -82,8 +82,8 @@ export default function Navbar() {
                                             href="/payment-history"
                                             className={`px-3 py-2 rounded-md text-sm font-medium ${
                                                 isActive('/payment-history')
-                                                    ? 'bg-blue-50 text-blue-700'
-                                                    : 'text-gray-700 hover:bg-gray-100'
+                                                    ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                             }`}
                                         >
                                             History Pembayaran
@@ -91,7 +91,7 @@ export default function Navbar() {
                                     )}
                                     <button
                                         onClick={handleLogout}
-                                        className="ml-4 px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-red-50"
+                                        className="ml-4 px-3 py-2 rounded-md text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                                     >
                                         Logout
                                     </button>
@@ -102,7 +102,7 @@ export default function Navbar() {
                             <div className="md:hidden -mr-2 flex items-center">
                                 <button
                                     onClick={() => setIsMenuOpen(!isMenuOpen)}
-                                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none"
+                                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-300 hover:text-gray-500 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
                                 >
                                     <span className="sr-only">Open main menu</span>
                                     {!isMenuOpen ? (
@@ -155,8 +155,8 @@ export default function Navbar() {
                                     href="/rekapitulasi"
                                     className={`block px-3 py-2 rounded-md text-base font-medium ${
                                         isActive('/rekapitulasi')
-                                            ? 'bg-blue-50 text-blue-700'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                            ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                     }`}
                                     onClick={() => setIsMenuOpen(false)}
                                 >
@@ -166,8 +166,8 @@ export default function Navbar() {
                                     href="/data-santri"
                                     className={`block px-3 py-2 rounded-md text-base font-medium ${
                                         isActive('/data-santri')
-                                            ? 'bg-blue-50 text-blue-700'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                            ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                     }`}
                                     onClick={() => setIsMenuOpen(false)}
                                 >
@@ -178,8 +178,8 @@ export default function Navbar() {
                                         href="/user-management"
                                         className={`block px-3 py-2 rounded-md text-base font-medium ${
                                             isActive('/user-management')
-                                                ? 'bg-blue-50 text-blue-700'
-                                                : 'text-gray-700 hover:bg-gray-100'
+                                                ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                         }`}
                                         onClick={() => setIsMenuOpen(false)}
                                     >
@@ -192,8 +192,8 @@ export default function Navbar() {
                                 href="/payment-history"
                                 className={`block px-3 py-2 rounded-md text-base font-medium ${
                                     isActive('/payment-history')
-                                        ? 'bg-blue-50 text-blue-700'
-                                        : 'text-gray-700 hover:bg-gray-100'
+                                        ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                 }`}
                                 onClick={() => setIsMenuOpen(false)}
                             >
@@ -205,7 +205,7 @@ export default function Navbar() {
                                 setIsMenuOpen(false);
                                 await handleLogout();
                             }}
-                            className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50"
+                            className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                         >
                             Logout
                         </button>
