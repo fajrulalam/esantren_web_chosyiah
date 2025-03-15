@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
 import { collection, getDocs, orderBy, query, where, Timestamp, doc, getDoc, updateDoc, increment, serverTimestamp, arrayUnion } from 'firebase/firestore';
@@ -44,10 +44,26 @@ interface PaymentProof {
   inputtedBy: string;
 }
 
+// Create a client component that wraps the search params handling
+function SearchParamsHandler({
+  onParamsChange
+}: {
+  onParamsChange: (detail: string | null, name: string | null) => void
+}) {
+  const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    const detail = searchParams.get('detail');
+    const name = searchParams.get('name');
+    onParamsChange(detail, name);
+  }, [searchParams, onParamsChange]);
+  
+  return null;
+}
+
 export default function RekapitulasiPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [payments, setPayments] = useState<PaymentLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,6 +74,119 @@ export default function RekapitulasiPage() {
   const [showDetailView, setShowDetailView] = useState(false);
   const [detailPaymentId, setDetailPaymentId] = useState<string | null>(null);
   const [detailPaymentName, setDetailPaymentName] = useState<string | null>(null);
+  
+  // Function declaration first
+  const fetchSantriPaymentStatus = async (paymentId: string) => {
+    if (!paymentId) return;
+
+    setDetailLoading(true);
+    try {
+      console.log("Fetching payment status for ID:", paymentId);
+      
+      // First, try to get the invoiceId from PembayaranLogs for backward compatibility
+      const logDocRef = doc(db, `AktivitasCollection/${KODE_ASRAMA}/PembayaranLogs/${paymentId}`);
+      const logDoc = await getDoc(logDocRef);
+      
+      let invoiceId: string | null = null;
+      
+      if (logDoc.exists() && logDoc.data().invoiceId) {
+        // If the PembayaranLogs document has an invoiceId reference, use it
+        invoiceId = logDoc.data().invoiceId;
+        console.log("Using invoiceId from PembayaranLogs:", invoiceId);
+      } else {
+        // If not, assume paymentId itself might be the invoiceId
+        invoiceId = paymentId;
+        console.log("Using paymentId as invoiceId:", invoiceId);
+      }
+      
+      // Try direct Firestore document fetch first
+      const directInvoiceDoc = await getDoc(doc(db, 'Invoices', invoiceId));
+      if (directInvoiceDoc.exists()) {
+        console.log("Invoice document exists directly");
+      } else {
+        console.log("Invoice document doesn't exist directly, will try query");
+      }
+      
+      // Query the PaymentStatuses collection using the invoiceId
+      const paymentStatusesQuery = query(
+        collection(db, 'PaymentStatuses'),
+        where('invoiceId', '==', invoiceId)
+      );
+      
+      const querySnapshot = await getDocs(paymentStatusesQuery);
+      console.log("PaymentStatuses query results count:", querySnapshot.size);
+      
+      // If no results found in the new structure, fall back to the old structure
+      if (querySnapshot.empty) {
+        console.log("Falling back to old structure");
+        const oldStatusCollectionRef = collection(
+          db, 
+          `AktivitasCollection/${KODE_ASRAMA}/PembayaranLogs/${paymentId}/PaymentStatusEachSantri`
+        );
+        
+        const oldQuerySnapshot = await getDocs(oldStatusCollectionRef);
+        console.log("Old structure results count:", oldQuerySnapshot.size);
+        
+        const payments: SantriPaymentStatus[] = [];
+        oldQuerySnapshot.forEach((doc) => {
+          const data = doc.data();
+          payments.push({
+            id: doc.id,
+            nama: data.santriName || 'Tidak ada nama',
+            status: data.status || 'Belum Bayar',
+            paid: data.paid || 0,
+            educationLevel: data.educationLevel || 'Tidak ada data',
+            educationGrade: data.educationGrade || 'Tidak ada data',
+            kamar: data.kamar || 'Tidak ada data',
+            santriId: data.santriId || '',
+            nomorWaliSantri: data.nomorWaliSantri || '',
+            total: data.total || 0,
+            history: data.history || {}
+          });
+        });
+        
+        setSantriPayments(payments);
+        setFilteredPayments(payments);
+      } else {
+        // Process results from the new PaymentStatuses collection
+        console.log("Using new structure results");
+        const payments: SantriPaymentStatus[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          payments.push({
+            id: doc.id,
+            nama: data.nama || data.santriName || 'Tidak ada nama',
+            status: data.status || 'Belum Lunas',
+            paid: data.paid || 0,
+            educationLevel: data.educationLevel || 'Tidak ada data',
+            educationGrade: data.educationGrade || 'Tidak ada data',
+            kamar: data.kamar || 'Tidak ada data',
+            santriId: data.santriId || '',
+            nomorWaliSantri: data.nomorWaliSantri || '',
+            total: data.total || 0,
+            history: data.history || {}
+          });
+        });
+        
+        setSantriPayments(payments);
+        setFilteredPayments(payments);
+      }
+    } catch (error) {
+      console.error("Error fetching santri payment status:", error);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+  
+  // Then the callback that uses it
+  const handleParamsChange = React.useCallback((detail: string | null, name: string | null) => {
+    if (detail && name && !showDetailView) {
+      setDetailPaymentId(detail);
+      setDetailPaymentName(name);
+      setShowDetailView(true);
+      fetchSantriPaymentStatus(detail);
+    }
+  }, [showDetailView]);
   
   // Detail page states
   const [santriPayments, setSantriPayments] = useState<SantriPaymentStatus[]>([]);
@@ -171,11 +300,14 @@ export default function RekapitulasiPage() {
     setDetailPaymentName(payment.paymentName);
     setShowDetailView(true);
     
-    // Update the URL to make it look like a separate page (without actual navigation)
-    const url = new URL(window.location.href);
-    url.searchParams.set('detail', payment.id);
-    url.searchParams.set('name', payment.paymentName);
-    window.history.pushState({}, '', url.toString());
+    // Update the URL using Next.js router to make it look like a separate page
+    // Create a new URLSearchParams object
+    const params = new URLSearchParams();
+    params.set('detail', payment.id);
+    params.set('name', payment.paymentName);
+    
+    // Use router.push with the new query string
+    router.push(`/rekapitulasi?${params.toString()}`, { scroll: false });
     
     // Load the detail data
     fetchSantriPaymentStatus(payment.id);
@@ -187,11 +319,8 @@ export default function RekapitulasiPage() {
     setDetailPaymentId(null);
     setDetailPaymentName(null);
     
-    // Update URL to remove the detail parameters
-    const url = new URL(window.location.href);
-    url.searchParams.delete('detail');
-    url.searchParams.delete('name');
-    window.history.pushState({}, '', url.toString());
+    // Update URL using Next.js router to remove the detail parameters
+    router.push('/rekapitulasi', { scroll: false });
   };
 
   const formatCurrency = (amount: number) => {
@@ -228,109 +357,6 @@ export default function RekapitulasiPage() {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-  
-  // Function to fetch santri payment statuses
-  const fetchSantriPaymentStatus = async (paymentId: string) => {
-    if (!paymentId) return;
-
-    setDetailLoading(true);
-    try {
-      console.log("Fetching payment status for ID:", paymentId);
-      
-      // First, try to get the invoiceId from PembayaranLogs for backward compatibility
-      const logDocRef = doc(db, `AktivitasCollection/${KODE_ASRAMA}/PembayaranLogs/${paymentId}`);
-      const logDoc = await getDoc(logDocRef);
-      
-      let invoiceId: string | null = null;
-      
-      if (logDoc.exists() && logDoc.data().invoiceId) {
-        // If the PembayaranLogs document has an invoiceId reference, use it
-        invoiceId = logDoc.data().invoiceId;
-        console.log("Using invoiceId from PembayaranLogs:", invoiceId);
-      } else {
-        // If not, assume paymentId itself might be the invoiceId
-        invoiceId = paymentId;
-        console.log("Using paymentId as invoiceId:", invoiceId);
-      }
-      
-      // Try direct Firestore document fetch first
-      const directInvoiceDoc = await getDoc(doc(db, 'Invoices', invoiceId));
-      if (directInvoiceDoc.exists()) {
-        console.log("Invoice document exists directly");
-      } else {
-        console.log("Invoice document doesn't exist directly, will try query");
-      }
-      
-      // Query the PaymentStatuses collection using the invoiceId
-      const paymentStatusesQuery = query(
-        collection(db, 'PaymentStatuses'),
-        where('invoiceId', '==', invoiceId)
-      );
-      
-      const querySnapshot = await getDocs(paymentStatusesQuery);
-      console.log("PaymentStatuses query results count:", querySnapshot.size);
-      
-      // If no results found in the new structure, fall back to the old structure
-      if (querySnapshot.empty) {
-        console.log("Falling back to old structure");
-        const oldStatusCollectionRef = collection(
-          db, 
-          `AktivitasCollection/${KODE_ASRAMA}/PembayaranLogs/${paymentId}/PaymentStatusEachSantri`
-        );
-        
-        const oldQuerySnapshot = await getDocs(oldStatusCollectionRef);
-        console.log("Old structure results count:", oldQuerySnapshot.size);
-        
-        const payments: SantriPaymentStatus[] = [];
-        oldQuerySnapshot.forEach((doc) => {
-          const data = doc.data();
-          payments.push({
-            id: doc.id,
-            nama: data.santriName || 'Tidak ada nama',
-            status: data.status || 'Belum Bayar',
-            paid: data.paid || 0,
-            educationLevel: data.educationLevel || 'Tidak ada data',
-            educationGrade: data.educationGrade || 'Tidak ada data',
-            kamar: data.kamar || 'Tidak ada data',
-            santriId: data.santriId || '',
-            nomorWaliSantri: data.nomorWaliSantri || '',
-            total: data.total || 0,
-            history: data.history || {}
-          });
-        });
-        
-        setSantriPayments(payments);
-        setFilteredPayments(payments);
-      } else {
-        // Process results from the new PaymentStatuses collection
-        console.log("Using new structure results");
-        const payments: SantriPaymentStatus[] = [];
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          payments.push({
-            id: doc.id,
-            nama: data.nama || data.santriName || 'Tidak ada nama',
-            status: data.status || 'Belum Lunas',
-            paid: data.paid || 0,
-            educationLevel: data.educationLevel || 'Tidak ada data',
-            educationGrade: data.educationGrade || 'Tidak ada data',
-            kamar: data.kamar || 'Tidak ada data',
-            santriId: data.santriId || '',
-            nomorWaliSantri: data.nomorWaliSantri || '',
-            total: data.total || 0,
-            history: data.history || {}
-          });
-        });
-        
-        setSantriPayments(payments);
-        setFilteredPayments(payments);
-      }
-    } catch (error) {
-      console.error("Error fetching santri payment status:", error);
-    } finally {
-      setDetailLoading(false);
-    }
   };
   
   // Delete invoice function
@@ -740,18 +766,7 @@ export default function RekapitulasiPage() {
     window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  useEffect(() => {
-    // Check for URL params on initial load
-    const detail = searchParams.get('detail');
-    const name = searchParams.get('name');
-    
-    if (detail && name && !showDetailView) {
-      setDetailPaymentId(detail);
-      setDetailPaymentName(name);
-      setShowDetailView(true);
-      fetchSantriPaymentStatus(detail);
-    }
-  }, [searchParams, showDetailView]);
+  // URL parameter handling is now done via the SearchParamsHandler component
 
   if (loading || !isAuthorized) {
     return (
@@ -1039,6 +1054,11 @@ export default function RekapitulasiPage() {
 
   return (
     <>
+      {/* Handle URL parameters with proper suspense boundary */}
+      <Suspense fallback={null}>
+        <SearchParamsHandler onParamsChange={handleParamsChange} />
+      </Suspense>
+      
       {/* Render either the detail view or the main view */}
       {showDetailView ? renderDetailView() : renderMainView()}
       
