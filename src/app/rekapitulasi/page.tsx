@@ -113,7 +113,9 @@ export default function RekapitulasiPage() {
 
   const handleRowClick = (payment: PaymentLog) => {
     // Instead of showing modal, navigate to detail page
-    router.push(`/rekapitulasi/detail/${payment.id}?name=${encodeURIComponent(payment.paymentName)}`);
+    // Make sure there are no slashes or problematic characters in the ID
+    const safeId = payment.id.replace(/\//g, '_');
+    router.push(`/rekapitulasi/detail/${safeId}?name=${encodeURIComponent(payment.paymentName)}`);
   };
 
   const formatCurrency = (amount: number) => {
