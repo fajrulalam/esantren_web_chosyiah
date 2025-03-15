@@ -307,7 +307,8 @@ export default function RekapitulasiPage() {
     params.set('name', payment.paymentName);
     
     // Use router.push with the new query string
-    router.push(`/rekapitulasi?${params.toString()}`, { scroll: false });
+    // Account for trailing slash in next.config.ts
+    router.push(`/rekapitulasi/?${params.toString()}`, { scroll: false });
     
     // Load the detail data
     fetchSantriPaymentStatus(payment.id);
@@ -320,7 +321,8 @@ export default function RekapitulasiPage() {
     setDetailPaymentName(null);
     
     // Update URL using Next.js router to remove the detail parameters
-    router.push('/rekapitulasi', { scroll: false });
+    // Using trailingSlash in next.config.ts means URLs should end with a slash
+    router.push('/rekapitulasi/', { scroll: false });
   };
 
   const formatCurrency = (amount: number) => {
