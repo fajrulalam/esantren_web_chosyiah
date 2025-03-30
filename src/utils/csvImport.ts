@@ -12,6 +12,7 @@ const validators = {
   kodeAsrama: (value: string) => typeof value === 'string' && value.trim() !== '',
   nama: (value: string) => typeof value === 'string' && value.trim() !== '',
   nomorWalisantri: () => true, // Accept any value for phone number, including empty
+  nomorTelpon: () => true, // Accept any value for phone number, including empty
   statusAktif: (value: string) => typeof value === 'string' && ['Aktif', 'Boyong', 'Lulus', 'Dikeluarkan', 'Alumni'].includes(value),
   tanggalLahir: () => true, // Accept any value for tanggalLahir, including empty
 };
@@ -122,6 +123,11 @@ export const processCSVFile = async (file: File): Promise<CSVValidationResult> =
             }
           });
           
+          // Check if nomorTelpon field exists
+          if (!row.nomorTelpon) {
+            rowErrors.push(`Baris ${index + 1}: Field nomorTelpon wajib diisi`);
+          }
+          
           if (rowErrors.length > 0) {
             errors.push(...rowErrors);
             return;
@@ -134,6 +140,7 @@ export const processCSVFile = async (file: File): Promise<CSVValidationResult> =
             kelas: row.kelas?.toString().trim() || '',
             tahunMasuk: row.tahunMasuk?.toString().trim() || new Date().getFullYear().toString(),
             nomorWalisantri: row.nomorWalisantri ? formatPhoneNumber(row.nomorWalisantri) : '',
+            nomorTelpon: row.nomorTelpon ? formatPhoneNumber(row.nomorTelpon) : '',
             jenjangPendidikan: 
               ['SD', 'SLTP', 'SLTA','Perguruan Tinggi'].includes(row.jenjangPendidikan)
                 ? row.jenjangPendidikan
@@ -149,7 +156,7 @@ export const processCSVFile = async (file: File): Promise<CSVValidationResult> =
           Object.keys(row).forEach(key => {
             // If the key is not already in the santriData and is not part of the base form fields
             if (!santriData.hasOwnProperty(key) && 
-                !['nama', 'kamar', 'kelas', 'tahunMasuk', 'nomorWalisantri', 
+                !['nama', 'kamar', 'kelas', 'tahunMasuk', 'nomorWalisantri', 'nomorTelpon',
                   'jenjangPendidikan', 'statusAktif', 'tanggalLahir', 'kodeAsrama'].includes(key)) {
               // Add the additional field as a string
               santriData[key] = row[key]?.toString() || '';

@@ -258,7 +258,7 @@ export default function CSVImportModal({
                     </h4>
                     <ul className="text-xs text-blue-700 dark:text-blue-400 list-disc pl-5 space-y-1 transition-colors">
                       <li>File harus dalam format CSV atau Excel (.csv, .xlsx, .xls)</li>
-                      <li>Data wajib memiliki kolom: <strong>kodeAsrama, nama, statusAktif</strong></li>
+                      <li>Data wajib memiliki kolom: <strong>kodeAsrama, nama, statusAktif, nomorTelpon</strong></li>
                       <li>Kolom opsional: <strong>nomorWalisantri, tanggalLahir, kamar, kelas, tahunMasuk, jenjangPendidikan</strong></li>
                       <li>Kolom tambahan lainnya akan diimpor secara otomatis</li>
                       <li>

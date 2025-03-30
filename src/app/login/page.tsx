@@ -8,9 +8,7 @@ import { useAuth } from '@/firebase/auth';
 export default function Login() {
     const [userType, setUserType] = useState<'waliSantri' | 'staff'>('waliSantri');
     const [namaSantri, setNamaSantri] = useState('');
-    const [tanggalLahirDay, setTanggalLahirDay] = useState('');
-    const [tanggalLahirMonth, setTanggalLahirMonth] = useState('');
-    const [tanggalLahirYear, setTanggalLahirYear] = useState('');
+    const [phoneNumber, setPhoneNumber] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -30,40 +28,14 @@ export default function Login() {
         }
     }, [user, loading, router]);
 
-    const formatDate = (): string => {
-        const day = tanggalLahirDay.padStart(2, '0');
-        const month = tanggalLahirMonth.padStart(2, '0');
-        const year = tanggalLahirYear;
-        return `${day}/${month}/${year}`;
-    };
-
     const handleWaliSantriLogin = async () => {
-        if (!namaSantri || !tanggalLahirDay || !tanggalLahirMonth || !tanggalLahirYear) {
+        if (!namaSantri || !phoneNumber) {
             setError('Mohon isi semua kolom');
             return;
         }
 
-        if (!/^\d+$/.test(tanggalLahirDay) || !/^\d+$/.test(tanggalLahirMonth) || !/^\d+$/.test(tanggalLahirYear)) {
-            setError('Format tanggal harus berupa angka');
-            return;
-        }
-
-        const day = parseInt(tanggalLahirDay);
-        const month = parseInt(tanggalLahirMonth);
-        const year = parseInt(tanggalLahirYear);
-
-        if (day < 1 || day > 31) {
-            setError('Tanggal harus antara 1-31');
-            return;
-        }
-
-        if (month < 1 || month > 12) {
-            setError('Bulan harus antara 1-12');
-            return;
-        }
-
-        if (year < 1900 || year > new Date().getFullYear()) {
-            setError('Tahun tidak valid');
+        if (!/^\d+$/.test(phoneNumber)) {
+            setError('Nomor telepon hanya boleh berisi angka');
             return;
         }
         
@@ -71,13 +43,13 @@ export default function Login() {
         setIsLoading(true);
         
         try {
-            const formattedDate = formatDate();
-            const success = await signInAsWaliSantri(namaSantri, formattedDate);
+            const formattedPhone = "+62" + phoneNumber;
+            const success = await signInAsWaliSantri(namaSantri, formattedPhone);
             
             if (success) {
                 router.push('/payment-history');
             } else {
-                setError('Data tidak ditemukan. Mohon periksa kembali nama santri dan tanggal lahir yang dimasukkan.');
+                setError('Data tidak ditemukan. Mohon periksa kembali nama santri dan nomor telepon yang dimasukkan.');
             }
         } catch (err) {
             setError('Terjadi kesalahan. Silakan coba lagi.');
@@ -143,7 +115,7 @@ export default function Login() {
         <div className="flex justify-center items-center min-h-[calc(100vh-10rem)] dark:bg-gray-900 transition-colors">
             <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-md transition-colors">
                 <h2 className="text-2xl font-bold text-center mb-6 dark:text-white transition-colors">
-                    Login {userType === 'waliSantri' ? 'Wali Santri' : 'Staff'}
+                    Login {userType === 'waliSantri' ? 'Santri' : 'Staff'}
                 </h2>
                 
                 <div className="text-center mb-6">
@@ -151,7 +123,7 @@ export default function Login() {
                         className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                         onClick={() => setUserType(userType === 'waliSantri' ? 'staff' : 'waliSantri')}
                     >
-                        {userType === 'waliSantri' ? '[ Login sebagai staff ]' : '[ Login sebagai wali santri ]'}
+                        {userType === 'waliSantri' ? '[ Login sebagai staff ]' : '[ Login sebagai santri ]'}
                     </button>
                 </div>
                 
@@ -177,56 +149,30 @@ export default function Login() {
                                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 transition-colors">Contoh: M. Fajrul Alam Ulin Nuha</p>
                             </div>
                             <div className="mb-6">
-                                <label className="block mb-2 text-sm font-medium dark:text-gray-300 transition-colors">Tanggal Lahir</label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div>
+                                <label className="block mb-2 text-sm font-medium dark:text-gray-300 transition-colors">Nomor WA</label>
+                                <div className="flex">
+                                    <div className="flex-shrink-0">
                                         <input
                                             type="text"
-                                            className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                                            value={tanggalLahirDay}
-                                            onChange={(e) => setTanggalLahirDay(e.target.value)}
-                                            placeholder="cth: 09"
-                                            maxLength={2}
-                                            disabled={isLoading}
+                                            className="w-16 p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-l-md focus:outline-none transition-colors bg-gray-100 dark:bg-gray-600"
+                                            value="+62"
+                                            disabled={true}
                                         />
-                                        <label className="text-xs text-gray-500 dark:text-gray-400 mt-1 transition-colors">Tanggal</label>
                                     </div>
-                                    <div>
-                                        <select
-                                            className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                                            value={tanggalLahirMonth}
-                                            onChange={(e) => setTanggalLahirMonth(e.target.value)}
-                                            disabled={isLoading}
-                                        >
-                                            <option value="">Bulan</option>
-                                            <option value="01">Januari</option>
-                                            <option value="02">Februari</option>
-                                            <option value="03">Maret</option>
-                                            <option value="04">April</option>
-                                            <option value="05">Mei</option>
-                                            <option value="06">Juni</option>
-                                            <option value="07">Juli</option>
-                                            <option value="08">Agustus</option>
-                                            <option value="09">September</option>
-                                            <option value="10">Oktober</option>
-                                            <option value="11">November</option>
-                                            <option value="12">Desember</option>
-                                        </select>
-                                        <label className="text-xs text-gray-500 dark:text-gray-400 mt-1 transition-colors">Bulan</label>
-                                    </div>
-                                    <div>
-                                        <input
-                                            type="text"
-                                            className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                                            value={tanggalLahirYear}
-                                            onChange={(e) => setTanggalLahirYear(e.target.value)}
-                                            placeholder="cth: 2001"
-                                            maxLength={4}
-                                            disabled={isLoading}
-                                        />
-                                        <label className="text-xs text-gray-500 dark:text-gray-400 mt-1 transition-colors">Tahun</label>
-                                    </div>
+                                    <input
+                                        type="text"
+                                        className="flex-grow p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                                        value={phoneNumber}
+                                        onChange={(e) => {
+                                            // Only allow digits
+                                            const value = e.target.value.replace(/\D/g, '');
+                                            setPhoneNumber(value);
+                                        }}
+                                        placeholder="Nomor telepon tanpa awalan 0"
+                                        disabled={isLoading}
+                                    />
                                 </div>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 transition-colors">Contoh: 8123456789 (tanpa awalan 0)</p>
                             </div>
                         </>
                     ) : (

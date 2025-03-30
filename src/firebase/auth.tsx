@@ -29,7 +29,7 @@ interface AuthContextProps {
   santriName: string | null;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
-  signInAsWaliSantri: (namaSantri: string, tanggalLahir: string) => Promise<boolean>;
+  signInAsWaliSantri: (namaSantri: string, nomorTelpon: string) => Promise<boolean>;
   createNewUser: (userData: {
     email: string;
     name: string;
@@ -210,7 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Sign in as wali santri (special case - no auth)
-  const signInAsWaliSantri = async (namaSantri: string, tanggalLahir: string) => {
+  const signInAsWaliSantri = async (namaSantri: string, nomorTelpon: string) => {
     try {
       setLoading(true);
       
@@ -220,12 +220,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Import necessary Firestore functions
       const { collection, query, where, getDocs } = await import('firebase/firestore');
       
-      // Query Firestore for santri documents that match both nama and tanggalLahir
+      // Query Firestore for santri documents that match both nama and nomorTelpon
       const santriCollectionRef = collection(db, "SantriCollection");
       const santriQuery = query(
         santriCollectionRef,
         where("nama", "==", formattedName),
-        where("tanggalLahir", "==", tanggalLahir)
+        where("nomorTelpon", "==", nomorTelpon)
       );
       
       const querySnapshot = await getDocs(santriQuery);
@@ -255,7 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         return true;
       } else {
-        console.log("Santri tidak ditemukan dengan nama dan tanggal lahir tersebut");
+        console.log("Santri tidak ditemukan dengan nama dan nomor telepon tersebut");
         return false;
       }
     } catch (error) {

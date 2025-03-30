@@ -45,6 +45,7 @@ export default function SantriForm({
     programStudi: '',
     statusAktif: 'Aktif',
     tanggalLahir: '',
+    nomorTelpon: '',
   });
   
   const [phoneCountryCode, setPhoneCountryCode] = useState('+62');
@@ -52,12 +53,22 @@ export default function SantriForm({
   const [dateInputValue, setDateInputValue] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const [telponCountryCode, setTelponCountryCode] = useState('+62');
+  const [telponNumber, setTelponNumber] = useState('');
+
   useEffect(() => {
     if (santri) {
       // When editing, parse the existing phone number
       const { countryCode, number } = splitPhoneNumber(santri.nomorWalisantri);
       setPhoneCountryCode(countryCode);
       setPhoneNumber(number);
+      
+      // Parse santri telpon number if it exists
+      if (santri.nomorTelpon) {
+        const { countryCode: telponCC, number: telponNum } = splitPhoneNumber(santri.nomorTelpon);
+        setTelponCountryCode(telponCC);
+        setTelponNumber(telponNum);
+      }
       
       // Convert date format yyyy-mm-dd for the input
       let formattedDate = santri.tanggalLahir;
@@ -76,6 +87,7 @@ export default function SantriForm({
         jenjangPendidikan: santri.jenjangPendidikan,
         statusAktif: santri.statusAktif,
         tanggalLahir: santri.tanggalLahir,
+        nomorTelpon: santri.nomorTelpon || '',
       });
     }
   }, [santri]);
@@ -109,6 +121,19 @@ export default function SantriForm({
     
     setErrors(prev => ({ ...prev, phone: '' }));
     setPhoneNumber(value);
+  };
+  
+  const handleTelponChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Only allow numbers for phone
+    if (!/^\d*$/.test(value)) {
+      setErrors(prev => ({ ...prev, telpon: 'Nomor telepon hanya boleh berisi angka' }));
+      return;
+    }
+    
+    setErrors(prev => ({ ...prev, telpon: '' }));
+    setTelponNumber(value);
   };
   
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,6 +196,10 @@ export default function SantriForm({
       newErrors.phone = 'Nomor telepon wajib diisi';
     }
     
+    if (!telponNumber) {
+      newErrors.telpon = 'Nomor telepon santri wajib diisi';
+    }
+    
     // Validate name format
     if (!validateName(formData.nama)) {
       newErrors.nama = 'Nama harus dimulai dengan huruf, dan hanya boleh mengandung huruf, spasi, dan titik';
@@ -181,12 +210,15 @@ export default function SantriForm({
       return;
     }
     
-    // Format phone number and update formData
+    // Format phone numbers and update formData
     const formattedPhoneNumber = formatPhoneNumber(phoneCountryCode, phoneNumber);
+    const formattedTelponNumber = formatPhoneNumber(telponCountryCode, telponNumber);
+    
     const formDataToSubmit = {
       ...formData,
       nama: formatName(formData.nama), // Use centralized formatName utility
       nomorWalisantri: formattedPhoneNumber,
+      nomorTelpon: formattedTelponNumber,
       kelas: formData.kelas ? String(parseInt(formData.kelas, 10)) : '', // Save as integer string
       kodeAsrama: KODE_ASRAMA, // Ensure kodeAsrama is included
     };
@@ -332,32 +364,61 @@ export default function SantriForm({
         </div>
       </div>
 
-      <div>
-        <label htmlFor="nomorWalisantri" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-          Nomor Wali Santri
-        </label>
-        <div className="mt-1 flex">
-          <select
-            value={phoneCountryCode}
-            onChange={(e) => setPhoneCountryCode(e.target.value)}
-            className="block rounded-l-md border-r-0 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
-          >
-            <option value="+62">+62</option>
-            <option value="+60">+60</option>
-            <option value="+65">+65</option>
-          </select>
-          <input
-            type="text"
-            id="nomorWalisantri"
-            value={phoneNumber}
-            onChange={handlePhoneChange}
-            required
-            placeholder="81234567890"
-            className={`block w-full rounded-r-md ${errors.phone ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400`}
-          />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="nomorWalisantri" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+            Nomor Wali Santri
+          </label>
+          <div className="mt-1 flex">
+            <select
+              value={phoneCountryCode}
+              onChange={(e) => setPhoneCountryCode(e.target.value)}
+              className="block rounded-l-md border-r-0 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+            >
+              <option value="+62">+62</option>
+              <option value="+60">+60</option>
+              <option value="+65">+65</option>
+            </select>
+            <input
+              type="text"
+              id="nomorWalisantri"
+              value={phoneNumber}
+              onChange={handlePhoneChange}
+              required
+              placeholder="81234567890"
+              className={`block w-full rounded-r-md ${errors.phone ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400`}
+            />
+          </div>
+          {errors.phone && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.phone}</p>}
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Contoh: 81234567890</p>
         </div>
-        {errors.phone && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.phone}</p>}
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400"></p>
+        
+        <div>
+          <label htmlFor="nomorTelpon" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+            Nomor Telpon Santri
+          </label>
+          <div className="mt-1 flex">
+            <select
+              value={telponCountryCode}
+              onChange={(e) => setTelponCountryCode(e.target.value)}
+              className="block rounded-l-md border-r-0 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+              disabled
+            >
+              <option value="+62">+62</option>
+            </select>
+            <input
+              type="text"
+              id="nomorTelpon"
+              value={telponNumber}
+              onChange={handleTelponChange}
+              required
+              placeholder="81234567890"
+              className={`block w-full rounded-r-md ${errors.telpon ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400`}
+            />
+          </div>
+          {errors.telpon && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.telpon}</p>}
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Contoh: 81234567890</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -374,7 +435,6 @@ export default function SantriForm({
             required
             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400"></p>
         </div>
 
         <div>

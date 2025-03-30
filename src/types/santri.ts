@@ -13,6 +13,7 @@ export interface Santri {
   tanggalLahir: string;
   kodeAsrama: string;
   jumlahTunggakan: number;
+  nomorTelpon?: string;
 }
 
 export interface SantriFormData {
@@ -26,6 +27,7 @@ export interface SantriFormData {
   programStudi?: string;
   statusAktif: 'Aktif' | 'Boyong' | 'Lulus' | 'Dikeluarkan';
   tanggalLahir: string;
+  nomorTelpon?: string;
 }
 
 export interface PaymentHistoryItem {
