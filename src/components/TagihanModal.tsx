@@ -114,7 +114,7 @@ export default function TagihanModal({
     }
     
     if (currentFilters.semester) {
-      filtered = filtered.filter(santri => santri.jenjangPendidikan === currentFilters.semester);
+      filtered = filtered.filter(santri => santri.semester === currentFilters.semester);
     }
     
     if (currentFilters.tahunMasuk) {
@@ -226,7 +226,11 @@ export default function TagihanModal({
   const uniqueTahunMasuk = [...new Set(santris.map(santri => santri.tahunMasuk))].sort((a, b) => parseInt(b) - parseInt(a));
   const uniqueKamar = [...new Set(santris.map(santri => santri.kamar))].sort();
   const uniqueJenjang = [...new Set(santris.map(santri => santri.jenjangPendidikan))].sort();
-  const uniqueSemester = ["Semester 1", "Semester 2", "Semester 3", "Semester 4", "Semester 5", "Semester 6", "Semester 7", "Semester 8"];
+  const uniqueSemester = santris
+    .map(santri => santri.semester)
+    .filter(Boolean)
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .sort((a, b) => parseInt(a) - parseInt(b));
   const uniqueProgramStudi = [...new Set(santris.map(santri => santri.programStudi).filter(Boolean))].sort();
   
   return (
@@ -510,7 +514,7 @@ export default function TagihanModal({
                                     {santri.jenjangPendidikan || "-"}
                                   </td>
                                   <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                    {santri.jenjangPendidikan || "-"}
+                                    {santri.semester || "-"}
                                   </td>
                                   <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                                     {santri.programStudi || "-"}

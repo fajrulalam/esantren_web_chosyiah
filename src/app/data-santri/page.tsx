@@ -59,6 +59,7 @@ export default function DataSantriPage() {
   const uniqueTahunMasuk = [...new Set(santris.map(santri => santri.tahunMasuk))].sort((a, b) => parseInt(b) - parseInt(a));
   const uniqueKamar = [...new Set(santris.map(santri => santri.kamar))].sort();
   const uniqueJenjang = [...new Set(santris.map(santri => santri.jenjangPendidikan))].sort();
+  const uniqueSemester = [...new Set(santris.map(santri => santri.semester).filter(Boolean))].sort((a, b) => parseInt(a) - parseInt(b));
   const uniqueProgramStudi = [...new Set(santris.map(santri => santri.programStudi).filter(Boolean))].sort();
   
   // Auth check
@@ -115,7 +116,7 @@ export default function DataSantriPage() {
     }
     
     if (semesterFilter !== 'all') {
-      filtered = filtered.filter(santri => santri.jenjangPendidikan === semesterFilter);
+      filtered = filtered.filter(santri => santri.semester === semesterFilter);
     }
     
     if (tahunMasukFilter !== 'all') {
@@ -583,14 +584,9 @@ export default function DataSantriPage() {
               className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
             >
               <option value="all">Semua Semester</option>
-              <option value="Semester 1">Semester 1</option>
-              <option value="Semester 2">Semester 2</option>
-              <option value="Semester 3">Semester 3</option>
-              <option value="Semester 4">Semester 4</option>
-              <option value="Semester 5">Semester 5</option>
-              <option value="Semester 6">Semester 6</option>
-              <option value="Semester 7">Semester 7</option>
-              <option value="Semester 8">Semester 8</option>
+              {uniqueSemester.map((semester) => (
+                <option key={semester} value={semester}>{semester}</option>
+              ))}
             </select>
           </div>
           
@@ -733,7 +729,7 @@ export default function DataSantriPage() {
                     {santri.jenjangPendidikan || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
-                    {santri.jenjangPendidikan || "-"}
+                    {santri.semester || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                     {santri.programStudi || "-"}

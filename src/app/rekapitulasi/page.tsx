@@ -451,7 +451,7 @@ export default function RekapitulasiPage() {
     }
     
     if (filters.semester) {
-      result = result.filter(payment => payment.educationLevel === filters.semester);
+      result = result.filter(payment => payment.semester === filters.semester);
     }
 
     if (filters.status) {
@@ -791,7 +791,11 @@ export default function RekapitulasiPage() {
   const uniqueKamar = [...new Set(santriPayments.map(payment => payment.kamar))];
   const uniqueEducationLevels = [...new Set(santriPayments.map(payment => payment.educationLevel))];
   const uniqueProgramStudi = [...new Set(santriPayments.map(payment => payment.programStudi).filter(Boolean))];
-  const uniqueSemester = ["Semester 1", "Semester 2", "Semester 3", "Semester 4", "Semester 5", "Semester 6", "Semester 7", "Semester 8"];
+  const uniqueSemester = santriPayments
+    .map(payment => payment.semester)
+    .filter(Boolean)
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .sort((a, b) => parseInt(a) - parseInt(b));
   const uniqueStatuses = [...new Set(santriPayments.map(payment => payment.status))];
 
   // Detail view component
@@ -977,7 +981,7 @@ export default function RekapitulasiPage() {
                         {payment.educationLevel || "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {payment.educationLevel || "-"}
+                        {payment.semester || "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                         {payment.programStudi || "-"}
