@@ -3,15 +3,17 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
-import Link from 'next/link';
 import { 
-  collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, setDoc
+  collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc, setDoc, writeBatch
 } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { Santri, SantriFormData } from '@/types/santri';
 import { KODE_ASRAMA } from '@/constants';
 import SantriModal from '@/components/SantriModal';
+import CSVImportModal from '@/components/CSVImportModal';
+import ImportProgressPanel from '@/components/ImportProgressPanel';
 import { exportToExcel } from '@/utils/excelExport';
+import { formatName, formatNameForId } from '@/utils/nameFormatter';
 
 export default function DataSantriPage() {
   const { user, loading } = useAuth();
@@ -32,8 +34,24 @@ export default function DataSantriPage() {
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedSantri, setSelectedSantri] = useState<Santri | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Bulk actions state
+  const [selectedSantriIds, setSelectedSantriIds] = useState<Set<string>>(new Set());
+  const [isSelectAll, setIsSelectAll] = useState(false);
+  
+  // Import progress state
+  const [importProgress, setImportProgress] = useState({
+    isActive: false,
+    totalItems: 0,
+    currentItemIndex: 0,
+    currentItemName: '',
+    successCount: 0,
+    errorCount: 0,
+    operation: 'import' as 'import' | 'delete'
+  });
   
   // Get unique values for filter dropdowns
   const uniqueTahunMasuk = [...new Set(santris.map(santri => santri.tahunMasuk))].sort((a, b) => parseInt(b) - parseInt(a));
@@ -101,6 +119,10 @@ export default function DataSantriPage() {
     }
     
     setFilteredSantris(filtered);
+    
+    // Reset selection when filters change
+    setSelectedSantriIds(new Set());
+    setIsSelectAll(false);
   }, [santris, statusAktifFilter, jenjangFilter, tahunMasukFilter, statusTanggunganFilter, kamarFilter]);
   
   // Reset filters
@@ -130,41 +152,47 @@ export default function DataSantriPage() {
       setIsSubmitting(true);
       
       if (selectedSantri) {
-        // Update existing santri
+        // Format the name properly
+        const formattedName = formatName(formData.nama);
+        
+        // Update existing santri with formatted name
         const santriRef = doc(db, "SantriCollection", selectedSantri.id);
         await updateDoc(santriRef, {
           ...formData,
+          nama: formattedName, // Use properly formatted name
           kodeAsrama: KODE_ASRAMA,
         });
         
         // Update local state
         setSantris(prev => 
           prev.map(s => s.id === selectedSantri.id ? 
-            { ...s, ...formData, kodeAsrama: KODE_ASRAMA } : s
+            { ...s, ...formData, nama: formattedName, kodeAsrama: KODE_ASRAMA } : s
           )
         );
       } else {
+        // Format the name properly
+        const formattedName = formatName(formData.nama);
+        
         // Add new santri with formatted ID
         const timestamp = Date.now();
-        const docId = `${formData.nama.replace(/\s+/g, '_')}_${timestamp}`;
+        const formattedNameForId = formatNameForId(formattedName);
+        const docId = `${formattedNameForId}_${timestamp}`;
         
-        // Create new document with custom ID
-        await updateDoc(doc(db, "SantriCollection", docId), {
+        // Create santri data with properly formatted name
+        const santriData = {
           ...formData,
+          nama: formattedName, // Use the properly formatted name
           kodeAsrama: KODE_ASRAMA,
           statusTanggungan: "Belum Ada Tagihan",
-          createdAt: timestamp, // Add creation timestamp
-          jumlahTunggakan: 0, // Add default value for jumlahTunggakan
-        }).catch(async () => {
+          createdAt: timestamp,
+          jumlahTunggakan: 0
+        };
+        
+        // Create new document with custom ID
+        await updateDoc(doc(db, "SantriCollection", docId), santriData).catch(async () => {
           // If doc doesn't exist, set it instead
           const docRef = doc(db, "SantriCollection", docId);
-          await setDoc(docRef, {
-            ...formData,
-            kodeAsrama: KODE_ASRAMA,
-            statusTanggungan: "Belum Ada Tagihan",
-            createdAt: timestamp, // Add creation timestamp
-            jumlahTunggakan: 0, // Add default value for jumlahTunggakan
-          });
+          await setDoc(docRef, santriData);
         });
         
         // Get the new document
@@ -214,6 +242,229 @@ export default function DataSantriPage() {
     exportToExcel(filteredSantris, `Data-Santri-${new Date().toISOString().split('T')[0]}`);
   };
   
+  // Handle CSV import modal
+  const handleOpenImportModal = () => {
+    setIsImportModalOpen(true);
+  };
+  
+  // Process CSV import
+  const handleBulkImport = async (santriDataList: SantriFormData[]) => {
+    try {
+      setIsImportModalOpen(false);
+      
+      // Setup progress tracking
+      setImportProgress({
+        isActive: true,
+        totalItems: santriDataList.length,
+        currentItemIndex: 0,
+        currentItemName: '',
+        successCount: 0,
+        errorCount: 0,
+        operation: 'import'
+      });
+      
+      // Process each santri data asynchronously
+      for (let i = 0; i < santriDataList.length; i++) {
+        const santriData = santriDataList[i];
+        
+        // Update progress
+        setImportProgress(prev => ({
+          ...prev,
+          currentItemIndex: i,
+          currentItemName: santriData.nama
+        }));
+        
+        try {
+          // Format the name properly
+          const formattedName = formatName(santriData.nama);
+          
+          // Create a new document ID
+          const timestamp = Date.now() + i; // Add index to ensure unique timestamps
+          const formattedNameForId = formatNameForId(formattedName);
+          const docId = `${formattedNameForId}_${timestamp}`;
+          
+          // Create document with formatted name
+          await setDoc(doc(db, "SantriCollection", docId), {
+            ...santriData,
+            nama: formattedName, // Use the properly formatted name
+            kodeAsrama: KODE_ASRAMA,
+            statusTanggungan: "Belum Ada Tagihan",
+            createdAt: timestamp,
+            jumlahTunggakan: 0
+          });
+          
+          // Update success count
+          setImportProgress(prev => ({
+            ...prev,
+            successCount: prev.successCount + 1
+          }));
+          
+          // Small delay to avoid overwhelming Firestore
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (error) {
+          console.error(`Error importing santri ${santriData.nama}:`, error);
+          
+          // Update error count
+          setImportProgress(prev => ({
+            ...prev,
+            errorCount: prev.errorCount + 1
+          }));
+        }
+      }
+      
+      // Complete the progress
+      setImportProgress(prev => ({
+        ...prev,
+        currentItemIndex: santriDataList.length,
+        currentItemName: 'Completed'
+      }));
+      
+      // Refresh santri data after import
+      fetchSantris();
+      
+    } catch (error) {
+      console.error("Error during bulk import:", error);
+      alert("Terjadi kesalahan saat mengimpor data santri");
+    }
+  };
+  
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedSantriIds.size === 0) return;
+    
+    const confirmDelete = window.confirm(`Yakin akan menghapus ${selectedSantriIds.size} santri terpilih?`);
+    if (!confirmDelete) return;
+    
+    try {
+      // Setup progress tracking
+      setImportProgress({
+        isActive: true,
+        totalItems: selectedSantriIds.size,
+        currentItemIndex: 0,
+        currentItemName: '',
+        successCount: 0,
+        errorCount: 0,
+        operation: 'delete'
+      });
+      
+      // Get selected santris
+      const selectedSantriList = santris.filter(s => selectedSantriIds.has(s.id));
+      
+      // Use batched writes for better performance, but process in smaller batches
+      const BATCH_SIZE = 20;
+      for (let i = 0; i < selectedSantriList.length; i += BATCH_SIZE) {
+        const batch = writeBatch(db);
+        const currentBatch = selectedSantriList.slice(i, i + BATCH_SIZE);
+        
+        for (let j = 0; j < currentBatch.length; j++) {
+          const santri = currentBatch[j];
+          const currentIndex = i + j;
+          
+          // Update progress
+          setImportProgress(prev => ({
+            ...prev,
+            currentItemIndex: currentIndex,
+            currentItemName: santri.nama
+          }));
+          
+          try {
+            // Add delete operation to batch
+            const santriRef = doc(db, "SantriCollection", santri.id);
+            batch.delete(santriRef);
+            
+            // Update success count (anticipating success)
+            setImportProgress(prev => ({
+              ...prev,
+              successCount: prev.successCount + 1
+            }));
+          } catch (error) {
+            console.error(`Error preparing deletion for ${santri.nama}:`, error);
+            
+            // Update error count
+            setImportProgress(prev => ({
+              ...prev,
+              errorCount: prev.errorCount + 1
+            }));
+          }
+        }
+        
+        // Commit the batch
+        try {
+          await batch.commit();
+        } catch (error) {
+          console.error(`Error committing batch:`, error);
+          
+          // Update error count for the batch - this is a simplified approach
+          setImportProgress(prev => ({
+            ...prev,
+            successCount: Math.max(0, prev.successCount - currentBatch.length),
+            errorCount: prev.errorCount + currentBatch.length
+          }));
+        }
+        
+        // Small delay between batches
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Complete the progress
+      setImportProgress(prev => ({
+        ...prev,
+        currentItemIndex: selectedSantriIds.size,
+        currentItemName: 'Completed'
+      }));
+      
+      // Update local state
+      setSantris(prev => prev.filter(s => !selectedSantriIds.has(s.id)));
+      setSelectedSantriIds(new Set());
+      setIsSelectAll(false);
+      
+    } catch (error) {
+      console.error("Error during bulk delete:", error);
+      alert("Terjadi kesalahan saat menghapus data santri");
+    }
+  };
+  
+  // Handle select all checkboxes
+  const handleSelectAll = () => {
+    if (isSelectAll) {
+      // Deselect all
+      setSelectedSantriIds(new Set());
+    } else {
+      // Select all filtered santris
+      const newSelectedIds = new Set<string>();
+      filteredSantris.forEach(santri => newSelectedIds.add(santri.id));
+      setSelectedSantriIds(newSelectedIds);
+    }
+    setIsSelectAll(!isSelectAll);
+  };
+  
+  // Handle individual checkbox selection
+  const handleSelectSantri = (santriId: string) => {
+    const newSelectedIds = new Set(selectedSantriIds);
+    if (newSelectedIds.has(santriId)) {
+      newSelectedIds.delete(santriId);
+    } else {
+      newSelectedIds.add(santriId);
+    }
+    setSelectedSantriIds(newSelectedIds);
+    
+    // Update isSelectAll state
+    setIsSelectAll(newSelectedIds.size === filteredSantris.length);
+  };
+  
+  // Reset progress panel
+  const handleResetProgress = () => {
+    setImportProgress({
+      isActive: false,
+      totalItems: 0,
+      currentItemIndex: 0,
+      currentItemName: '',
+      successCount: 0,
+      errorCount: 0,
+      operation: 'import'
+    });
+  };
+  
   if (loading || !isAuthorized) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -226,12 +477,26 @@ export default function DataSantriPage() {
     <div className="container mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold">Data Santri</h1>
-        <div className="flex space-x-4">
+        <div className="flex flex-wrap gap-2">
+          {selectedSantriIds.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+            >
+              Hapus ({selectedSantriIds.size}) Terpilih
+            </button>
+          )}
           <button
             onClick={handleExportToExcel}
             className="bg-white text-green-600 border border-green-600 px-4 py-2 rounded-md hover:bg-green-50 transition-colors"
           >
             Export Excel
+          </button>
+          <button
+            onClick={handleOpenImportModal}
+            className="bg-white text-orange-600 border border-orange-600 px-4 py-2 rounded-md hover:bg-orange-50 transition-colors"
+          >
+            Import CSV
           </button>
           <button
             onClick={handleAddSantri}
@@ -353,6 +618,16 @@ export default function DataSantriPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={isSelectAll}
+                      onChange={handleSelectAll}
+                    />
+                  </div>
+                </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Nama Santri
                 </th>
@@ -381,7 +656,17 @@ export default function DataSantriPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredSantris.map((santri) => (
-                <tr key={santri.id}>
+                <tr key={santri.id} className={selectedSantriIds.has(santri.id) ? "bg-blue-50" : ""}>
+                  <td className="px-3 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={selectedSantriIds.has(santri.id)}
+                        onChange={() => handleSelectSantri(santri.id)}
+                      />
+                    </div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {santri.nama}
                   </td>
@@ -441,6 +726,26 @@ export default function DataSantriPage() {
         onDelete={handleDeleteSantri}
         isSubmitting={isSubmitting}
         title={selectedSantri ? 'Edit Data Santri' : 'Tambah Santri Baru'}
+      />
+      
+      {/* CSV Import Modal */}
+      <CSVImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleBulkImport}
+        isImporting={importProgress.isActive}
+      />
+      
+      {/* Import Progress Panel */}
+      <ImportProgressPanel
+        isActive={importProgress.isActive}
+        totalItems={importProgress.totalItems}
+        currentItemIndex={importProgress.currentItemIndex}
+        currentItemName={importProgress.currentItemName}
+        successCount={importProgress.successCount}
+        errorCount={importProgress.errorCount}
+        operation={importProgress.operation}
+        onClose={handleResetProgress}
       />
     </div>
   );

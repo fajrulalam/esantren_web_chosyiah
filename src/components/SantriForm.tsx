@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Santri, SantriFormData } from '@/types/santri';
 import { KODE_ASRAMA } from '@/constants';
+import { formatName } from '@/utils/nameFormatter';
 
 interface SantriFormProps {
   santri?: Santri;
@@ -138,37 +139,7 @@ export default function SantriForm({
     return `${countryCode}${cleanNumber}`;
   };
 
-  // Function to properly capitalize a name
-  const capitalizeName = (name: string): string => {
-    if (!name) return '';
-    
-    // First, ensure the first character is not a period
-    if (name.startsWith('.')) {
-      return '';
-    }
-    
-    // Split by spaces to handle each word
-    return name.split(' ').map(word => {
-      // Skip empty words
-      if (!word) return '';
-      
-      // Handle prefixes like "M.", "H.", etc.
-      if (word.length === 2 && word.endsWith('.')) {
-        return word.charAt(0).toUpperCase() + '.';
-      }
-      
-      // For words with periods inside (like "M.Fajrul")
-      if (word.includes('.') && !word.endsWith('.')) {
-        return word.split('.').map(namePart => {
-          if (!namePart) return '.';
-          return namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
-        }).join('.');
-      }
-      
-      // Regular words: capitalize first letter, lowercase the rest
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    }).join(' ');
-  };
+  // Using the central formatName utility function instead of a local implementation
 
   // Validate if name format is correct
   const validateName = (name: string): boolean => {
@@ -213,7 +184,7 @@ export default function SantriForm({
     const formattedPhoneNumber = formatPhoneNumber(phoneCountryCode, phoneNumber);
     const formDataToSubmit = {
       ...formData,
-      nama: capitalizeName(formData.nama),
+      nama: formatName(formData.nama), // Use centralized formatName utility
       nomorWalisantri: formattedPhoneNumber,
       kelas: formData.kelas ? String(parseInt(formData.kelas, 10)) : '', // Save as integer string
       kodeAsrama: KODE_ASRAMA, // Ensure kodeAsrama is included
