@@ -41,7 +41,8 @@ export default function SantriForm({
     kelas: '',
     tahunMasuk: new Date().getFullYear().toString(),
     nomorWalisantri: '',
-    jenjangPendidikan: 'SLTP',
+    jenjangPendidikan: 'Semester 1',
+    programStudi: '',
     statusAktif: 'Aktif',
     tanggalLahir: '',
   });
@@ -259,7 +260,7 @@ export default function SantriForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="jenjangPendidikan" className="block text-sm font-medium text-gray-700">
-            Jenjang Pendidikan
+            Semester
           </label>
           <select
             id="jenjangPendidikan"
@@ -269,16 +270,37 @@ export default function SantriForm({
             required
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
-            <option value="SD">SD</option>
-            <option value="SLTP">SLTP</option>
-            <option value="SLTA">SLTA</option>
-            <option value="Perguruan Tinggi">Perguruan Tinggi</option>
+            <option value="Semester 1">Semester 1</option>
+            <option value="Semester 2">Semester 2</option>
+            <option value="Semester 3">Semester 3</option>
+            <option value="Semester 4">Semester 4</option>
+            <option value="Semester 5">Semester 5</option>
+            <option value="Semester 6">Semester 6</option>
+            <option value="Semester 7">Semester 7</option>
+            <option value="Semester 8">Semester 8</option>
           </select>
         </div>
 
         <div>
+          <label htmlFor="programStudi" className="block text-sm font-medium text-gray-700">
+            Program Studi
+          </label>
+          <input
+            type="text"
+            id="programStudi"
+            name="programStudi"
+            value={formData.programStudi}
+            onChange={handleChange}
+            placeholder="Contoh: Teknik Informatika"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
           <label htmlFor="kelas" className="block text-sm font-medium text-gray-700">
-            Kelas/Semester
+            Kelas
           </label>
           <select
               id="kelas"
@@ -295,7 +317,19 @@ export default function SantriForm({
           </select>
         </div>
 
-
+        <div>
+          <label htmlFor="tanggalLahir" className="block text-sm font-medium text-gray-700">
+            Tanggal Lahir
+          </label>
+          <input
+            type="date"
+            id="tanggalLahir"
+            name="tanggalLahir"
+            value={dateInputValue}
+            onChange={handleDateChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
       <div>

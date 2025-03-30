@@ -22,6 +22,10 @@ module.exports = {
       boxShadow: {
         'card': '0 2px 4px rgba(0, 0, 0, 0.05)',
         'card-hover': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+        'neumorphic': '5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff',
+        'neumorphic-inset': 'inset 3px 3px 6px #d1d9e6, inset -3px -3px 6px #ffffff',
+        'neumorphic-dark': '5px 5px 10px #151922, -5px -5px 10px #414a5e',
+        'neumorphic-inset-dark': 'inset 3px 3px 6px #151922, inset -3px -3px 6px #414a5e',
       }
     },
   },

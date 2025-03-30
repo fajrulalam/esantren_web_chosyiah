@@ -26,6 +26,9 @@ export default function Navbar() {
     const isActive = (path: string) => {
         return pathname === path;
     };
+    
+    const activeClass = "bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 shadow-neumorphic-inset dark:shadow-neumorphic-inset-dark";
+    const inactiveClass = "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shadow-none";
 
     return (
         <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm transition-colors">
@@ -46,20 +49,16 @@ export default function Navbar() {
                                         <>
                                             <Link
                                                 href="/rekapitulasi"
-                                                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                                                    isActive('/rekapitulasi')
-                                                        ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                                className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                                                    isActive('/rekapitulasi') ? activeClass : inactiveClass
                                                 }`}
                                             >
-                                                Rekapitulasi
+                                                Rekap Pembayaran
                                             </Link>
                                             <Link
                                                 href="/data-santri"
-                                                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                                                    isActive('/data-santri')
-                                                        ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                                className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                                                    isActive('/data-santri') ? activeClass : inactiveClass
                                                 }`}
                                             >
                                                 Data Santri
@@ -67,10 +66,8 @@ export default function Navbar() {
                                             {user.role === 'superAdmin' && (
                                                 <Link
                                                     href="/user-management"
-                                                    className={`px-3 py-2 rounded-md text-sm font-medium ${
-                                                        isActive('/user-management')
-                                                            ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                                                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                                                        isActive('/user-management') ? activeClass : inactiveClass
                                                     }`}
                                                 >
                                                     User Management
@@ -80,10 +77,8 @@ export default function Navbar() {
                                     ) : (
                                         <Link
                                             href="/payment-history"
-                                            className={`px-3 py-2 rounded-md text-sm font-medium ${
-                                                isActive('/payment-history')
-                                                    ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                            className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                                                isActive('/payment-history') ? activeClass : inactiveClass
                                             }`}
                                         >
                                             History Pembayaran
@@ -153,10 +148,8 @@ export default function Navbar() {
                             <>
                                 <Link
                                     href="/rekapitulasi"
-                                    className={`block px-3 py-2 rounded-md text-base font-medium ${
-                                        isActive('/rekapitulasi')
-                                            ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                    className={`block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 ${
+                                        isActive('/rekapitulasi') ? activeClass : inactiveClass
                                     }`}
                                     onClick={() => setIsMenuOpen(false)}
                                 >
@@ -164,10 +157,8 @@ export default function Navbar() {
                                 </Link>
                                 <Link
                                     href="/data-santri"
-                                    className={`block px-3 py-2 rounded-md text-base font-medium ${
-                                        isActive('/data-santri')
-                                            ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                    className={`block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 ${
+                                        isActive('/data-santri') ? activeClass : inactiveClass
                                     }`}
                                     onClick={() => setIsMenuOpen(false)}
                                 >
@@ -176,10 +167,8 @@ export default function Navbar() {
                                 {user.role === 'superAdmin' && (
                                     <Link
                                         href="/user-management"
-                                        className={`block px-3 py-2 rounded-md text-base font-medium ${
-                                            isActive('/user-management')
-                                                ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                        className={`block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 ${
+                                            isActive('/user-management') ? activeClass : inactiveClass
                                         }`}
                                         onClick={() => setIsMenuOpen(false)}
                                     >
@@ -190,10 +179,8 @@ export default function Navbar() {
                         ) : (
                             <Link
                                 href="/payment-history"
-                                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                                    isActive('/payment-history')
-                                        ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                className={`block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 ${
+                                    isActive('/payment-history') ? activeClass : inactiveClass
                                 }`}
                                 onClick={() => setIsMenuOpen(false)}
                             >

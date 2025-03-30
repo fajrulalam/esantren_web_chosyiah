@@ -20,6 +20,7 @@ interface SantriData {
   kamar: string;
   kelas: string;
   jenjangPendidikan: string;
+  programStudi?: string;
   nomorWalisantri: string;
   kodeAsrama: string;
   jumlahTunggakan?: number;
@@ -128,6 +129,7 @@ export const createPaymentStatusesOnInvoiceCreation = async (
               kamar: data.kamar || '',
               kelas: data.kelas || '',
               jenjangPendidikan: data.jenjangPendidikan || '',
+              programStudi: data.programStudi || '',
               nomorWalisantri: data.nomorWalisantri || '',
               kodeAsrama: data.kodeAsrama,
               jumlahTunggakan: data.jumlahTunggakan || 0
@@ -154,15 +156,17 @@ export const createPaymentStatusesOnInvoiceCreation = async (
     } else {
       // Process all active santri from the query
       santriQuery!.forEach((doc) => {
+        const data = doc.data();
         santriList.push({
           id: doc.id,
-          nama: doc.data().nama || 'Unknown',
-          kamar: doc.data().kamar || '',
-          kelas: doc.data().kelas || '',
-          jenjangPendidikan: doc.data().jenjangPendidikan || '',
-          nomorWalisantri: doc.data().nomorWalisantri || '',
-          kodeAsrama: doc.data().kodeAsrama || kodeAsrama,
-          jumlahTunggakan: doc.data().jumlahTunggakan || 0
+          nama: data.nama || 'Unknown',
+          kamar: data.kamar || '',
+          kelas: data.kelas || '',
+          jenjangPendidikan: data.jenjangPendidikan || '',
+          programStudi: data.programStudi || '',
+          nomorWalisantri: data.nomorWalisantri || '',
+          kodeAsrama: data.kodeAsrama || kodeAsrama,
+          jumlahTunggakan: data.jumlahTunggakan || 0
         });
       });
     }
@@ -225,6 +229,7 @@ export const createPaymentStatusesOnInvoiceCreation = async (
           santriName: santri.nama,
           educationGrade: santri.kelas,
           educationLevel: santri.jenjangPendidikan,
+          programStudi: santri.programStudi || '',
           kamar: santri.kamar,
           nomorWaliSantri: santri.nomorWalisantri,
           status: "Belum Lunas",
