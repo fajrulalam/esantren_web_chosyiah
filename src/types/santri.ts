@@ -7,6 +7,7 @@ export interface Santri {
   nomorWalisantri: string;
   statusTanggungan: 'Lunas' | 'Ada Tunggakan' | 'Belum Ada Tagihan' | 'Menunggu Verifikasi';
   jenjangPendidikan: string;
+  semester?: string;
   programStudi?: string;
   statusAktif: 'Aktif' | 'Boyong' | 'Lulus' | 'Dikeluarkan';
   tanggalLahir: string;
@@ -21,6 +22,7 @@ export interface SantriFormData {
   tahunMasuk: string;
   nomorWalisantri: string;
   jenjangPendidikan: string;
+  semester?: string;
   programStudi?: string;
   statusAktif: 'Aktif' | 'Boyong' | 'Lulus' | 'Dikeluarkan';
   tanggalLahir: string;
@@ -53,6 +55,7 @@ export interface PaymentStatus {
   total: number;
   educationLevel: string;
   educationGrade: string;
+  semester?: string;
   programStudi?: string;
   kamar: string;
   nomorWaliSantri: string;

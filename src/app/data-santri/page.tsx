@@ -744,7 +744,7 @@ export default function DataSantriPage() {
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full transition-colors 
                       ${santri.statusTanggungan === 'Lunas' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' : 
                       santri.statusTanggungan === 'Ada Tunggakan' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400' : 
-                      santri.statusTanggungan === 'Belum Ada Tagihan' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' :
+                      santri.statusTanggungan === 'Belum Ada Tagihan' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' :
                       santri.statusTanggungan === 'Menunggu Verifikasi' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400' :
                       'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                       {santri.statusTanggungan}
