@@ -1,0 +1,51 @@
+
+In /Users/fajmac/WebstormProjects/sistem_pembayaran_asrama/src/app/data-santri/page.tsx,
+I want to add a feature where user can bulk insert new Santri data using csv.
+Instead of adding Santri one-by-one.
+Add validation that these fields must exists in the column header (the header is row 1).
+kodeAsrama (string), nama (string), nomorWalisantri (string), statusAktif (string), tanggalLahir (String). For other extra or
+additional fields, just add them without validation and the default should be string.
+
+There are additional fields that are added by default when adding a new santri such as jumlahTunggakan and statusTanggungan.
+Please take a look at the logic here /Users/fajmac/WebstormProjects/sistem_pembayaran_asrama/src/app/data-santri/page.tsx
+to ensure consistent logic.
+
+Also add bulk delete by using checkboxes in the table.
+
+It will take a long time for the process to happen in the background. So please make the process visible to the user. Like,
+currently which row and what name is being processed. There should be a floating panel in the bottom right to showcase this.
+
+Any bulk operation should be done asynchronously, meaning the user can lose internet connection, close the tab, shut down computer,
+whatever... it the process will still continue in the background.
+
+Make the UI user-friendly for uploading the csv. User can drag and drop the csv file. Make the error message user friendly as well.
+
+
+--------------
+
+Minor improvement:
+ - The floating import progress should only be displayed when a bulk insert/update is happening. Automatically hide it
+   when the progress is done
+ - Format the names so that they follow the conventional capitalization for names. For example "FAJRUL ALAM ULIN" should be
+   converted to "Fajrul Alam Ulin". This matter a lot for the document id as well.
+ - There appears to be error. When inserting a new document the incrementSantriCounter should be triggered. But based on the logs
+   we got this
+   Beginning execution of "us-central1-incrementSantriCounter"
+   19:01:55
+   I
+   function[us-central1-incrementSantriCounter]
+   {
+     "severity": "ERROR",
+     "message": "Error updating active student counter: TypeError: Cannot read properties of undefined (reading 'serverTimestamp')\n    at /Users/fajmac/WebstormProjects/sistem_pembayaran_asrama/functions/lib/counterUtils.js:26:61"
+   }
+
+
+
+-----
+- The bulk insert feature, the user can add additional columns. For these additional columns,
+  the system should read ALL all of it and without filter or validation and insert the value as string.
+
+- When creating Tagihan (invoice), I want the ability to make it only for selected students. For example, I want to set it for new
+joiners this year. So what I would naturally do is: filter by tahun masuk or filter by semester. And then I would click a checkbox
+to select all. Obviously I can opt to select/deselect them one by one. The invoice will be applied only to selected students. This
+feature may require the firebase functions to be updated as well.
