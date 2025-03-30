@@ -319,19 +319,19 @@ export default function PaymentModal({ closeModal, paymentId, isMobile, onPaymen
                             >
                                 Bayar Lunas
                             </button>
-                            <button
-                                className={`w-full py-2 px-4 rounded-md transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 text-sm ${
-                                    isPartial ? 'bg-gray-200 text-gray-800 border border-gray-300 focus:ring-gray-400' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 focus:ring-gray-300'
-                                }`}
-                                onClick={(e) => {
-                                    e.preventDefault(); 
-                                    e.stopPropagation();
-                                    setIsPartial(true);
-                                }}
-                                type="button"
-                            >
-                                Bayar Sebagian
-                            </button>
+                            {/*<button*/}
+                            {/*    className={`w-full py-2 px-4 rounded-md transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 text-sm ${*/}
+                            {/*        isPartial ? 'bg-gray-200 text-gray-800 border border-gray-300 focus:ring-gray-400' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 focus:ring-gray-300'*/}
+                            {/*    }`}*/}
+                            {/*    onClick={(e) => {*/}
+                            {/*        e.preventDefault(); */}
+                            {/*        e.stopPropagation();*/}
+                            {/*        setIsPartial(true);*/}
+                            {/*    }}*/}
+                            {/*    type="button"*/}
+                            {/*>*/}
+                            {/*    Bayar Sebagian*/}
+                            {/*</button>*/}
                         </div>
                     </div>
                 ) : (

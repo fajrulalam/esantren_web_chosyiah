@@ -73,6 +73,7 @@ export default function PaymentHistory() {
     // Fetch payment data for the santri using Cloud Function
     const fetchPayments = async (santriId: string) => {
         try {
+            setIsLoading(true);
             const getSantriPaymentHistory = httpsCallable(functions, 'getSantriPaymentHistory');
             const result = await getSantriPaymentHistory({ santriId });
             
@@ -84,11 +85,14 @@ export default function PaymentHistory() {
             console.error("Error fetching payments:", err);
             setError("Gagal mengambil data pembayaran. Silakan coba lagi nanti.");
             setPayments([]);
+        } finally {
+            setIsLoading(false);
         }
     };
     
     // Refresh payments after a new payment is submitted
     const handlePaymentComplete = () => {
+        setIsLoading(true); // Show loading state immediately
         if (user?.santriId) {
             fetchPayments(user.santriId);
         } else if (santriData?.id) {
@@ -158,8 +162,35 @@ export default function PaymentHistory() {
             </h1>
             
             {isLoading ? (
-                <div className="flex justify-center items-center py-20">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                <div className="space-y-4">
+                    {/* Shimmer loading animation for payment cards */}
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="invoice-card max-w-full border border-gray-200 rounded-lg p-4 bg-white shadow-lg">
+                            {isSmallScreen ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                                    <div className="col-span-1 md:col-span-1 w-[75%]">
+                                        <div className="h-6 w-3/4 bg-gray-200 rounded animate-pulse mb-2"></div>
+                                        <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse"></div>
+                                    </div>
+                                    <div className="flex flex-col justify-end items-end">
+                                        <div className="h-5 w-28 bg-gray-200 rounded-full animate-pulse mb-3"></div>
+                                        <div className="h-10 w-20 bg-gray-200 rounded animate-pulse"></div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-3 gap-4 items-center">
+                                    <div className="h-6 w-3/4 bg-gray-200 rounded animate-pulse"></div>
+                                    <div className="flex flex-col items-center justify-center">
+                                        <div className="h-5 w-28 bg-gray-200 rounded-full animate-pulse mb-1"></div>
+                                        <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mt-1"></div>
+                                    </div>
+                                    <div className="flex justify-end">
+                                        <div className="h-10 w-24 bg-gray-200 rounded animate-pulse"></div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </div>
             ) : error ? (
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
@@ -249,7 +280,7 @@ export default function PaymentHistory() {
                                                 className="border border-blue-600 bg-white text-blue-600 font-bold px-4 py-2 rounded hover:bg-blue-50 transition-all duration-300"
                                                 onClick={() => handleOpenStatusModal(payment.id)}
                                             >
-                                                Lihat Status
+                                                Lihat Detail
                                             </button>
                                         )}
                                     </div>
