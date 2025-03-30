@@ -194,6 +194,8 @@ export default function RekapitulasiPage() {
   const [filters, setFilters] = useState({
     kamar: '',
     educationLevel: '',
+    programStudi: '',
+    semester: '',
     status: ''
   });
   
@@ -442,6 +444,14 @@ export default function RekapitulasiPage() {
 
     if (filters.educationLevel) {
       result = result.filter(payment => payment.educationLevel === filters.educationLevel);
+    }
+    
+    if (filters.programStudi) {
+      result = result.filter(payment => payment.programStudi === filters.programStudi);
+    }
+    
+    if (filters.semester) {
+      result = result.filter(payment => payment.educationLevel === filters.semester);
     }
 
     if (filters.status) {
@@ -780,6 +790,8 @@ export default function RekapitulasiPage() {
   // Get unique values for filters in detail view
   const uniqueKamar = [...new Set(santriPayments.map(payment => payment.kamar))];
   const uniqueEducationLevels = [...new Set(santriPayments.map(payment => payment.educationLevel))];
+  const uniqueProgramStudi = [...new Set(santriPayments.map(payment => payment.programStudi).filter(Boolean))];
+  const uniqueSemester = ["Semester 1", "Semester 2", "Semester 3", "Semester 4", "Semester 5", "Semester 6", "Semester 7", "Semester 8"];
   const uniqueStatuses = [...new Set(santriPayments.map(payment => payment.status))];
 
   // Detail view component
@@ -812,7 +824,7 @@ export default function RekapitulasiPage() {
 
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-colors">
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
             <div>
               <label htmlFor="kamar" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Filter Kamar
@@ -844,6 +856,40 @@ export default function RekapitulasiPage() {
                 <option value="">Semua Jenjang</option>
                 {uniqueEducationLevels.map((level) => (
                   <option key={level} value={level}>{level}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="semester" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Filter Semester
+              </label>
+              <select
+                id="semester"
+                name="semester"
+                value={filters.semester}
+                onChange={handleFilterChange}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                <option value="">Semua Semester</option>
+                {uniqueSemester.map((semester) => (
+                  <option key={semester} value={semester}>{semester}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="programStudi" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Filter Program Studi
+              </label>
+              <select
+                id="programStudi"
+                name="programStudi"
+                value={filters.programStudi}
+                onChange={handleFilterChange}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                <option value="">Semua Program Studi</option>
+                {uniqueProgramStudi.map((prodi) => (
+                  <option key={prodi} value={prodi}>{prodi}</option>
                 ))}
               </select>
             </div>
@@ -891,6 +937,12 @@ export default function RekapitulasiPage() {
                       Jenjang Pendidikan
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Semester
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Program Studi
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Kelas
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -922,13 +974,19 @@ export default function RekapitulasiPage() {
                         {formatCurrency(payment.paid)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {payment.educationLevel}
+                        {payment.educationLevel || "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {payment.educationGrade}
+                        {payment.educationLevel || "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {payment.kamar}
+                        {payment.programStudi || "-"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                        {payment.educationGrade || "-"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                        {payment.kamar || "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                         <button 

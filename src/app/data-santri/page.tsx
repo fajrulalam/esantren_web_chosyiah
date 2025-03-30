@@ -28,6 +28,8 @@ export default function DataSantriPage() {
   // Filters state
   const [statusAktifFilter, setStatusAktifFilter] = useState<string>('all');
   const [jenjangFilter, setJenjangFilter] = useState<string>('all');
+  const [programStudiFilter, setProgramStudiFilter] = useState<string>('all');
+  const [semesterFilter, setSemesterFilter] = useState<string>('all'); 
   const [tahunMasukFilter, setTahunMasukFilter] = useState<string>('all');
   const [statusTanggunganFilter, setStatusTanggunganFilter] = useState<string>('all');
   const [kamarFilter, setKamarFilter] = useState<string>('all');
@@ -56,6 +58,8 @@ export default function DataSantriPage() {
   // Get unique values for filter dropdowns
   const uniqueTahunMasuk = [...new Set(santris.map(santri => santri.tahunMasuk))].sort((a, b) => parseInt(b) - parseInt(a));
   const uniqueKamar = [...new Set(santris.map(santri => santri.kamar))].sort();
+  const uniqueJenjang = [...new Set(santris.map(santri => santri.jenjangPendidikan))].sort();
+  const uniqueProgramStudi = [...new Set(santris.map(santri => santri.programStudi).filter(Boolean))].sort();
   
   // Auth check
   useEffect(() => {
@@ -106,6 +110,14 @@ export default function DataSantriPage() {
       filtered = filtered.filter(santri => santri.jenjangPendidikan === jenjangFilter);
     }
     
+    if (programStudiFilter !== 'all') {
+      filtered = filtered.filter(santri => santri.programStudi === programStudiFilter);
+    }
+    
+    if (semesterFilter !== 'all') {
+      filtered = filtered.filter(santri => santri.jenjangPendidikan === semesterFilter);
+    }
+    
     if (tahunMasukFilter !== 'all') {
       filtered = filtered.filter(santri => santri.tahunMasuk === tahunMasukFilter);
     }
@@ -123,12 +135,14 @@ export default function DataSantriPage() {
     // Reset selection when filters change
     setSelectedSantriIds(new Set());
     setIsSelectAll(false);
-  }, [santris, statusAktifFilter, jenjangFilter, tahunMasukFilter, statusTanggunganFilter, kamarFilter]);
+  }, [santris, statusAktifFilter, jenjangFilter, programStudiFilter, semesterFilter, tahunMasukFilter, statusTanggunganFilter, kamarFilter]);
   
   // Reset filters
   const resetFilters = () => {
     setStatusAktifFilter('all');
     setJenjangFilter('all');
+    setProgramStudiFilter('all');
+    setSemesterFilter('all');
     setTahunMasukFilter('all');
     setStatusTanggunganFilter('all');
     setKamarFilter('all');
@@ -509,7 +523,7 @@ export default function DataSantriPage() {
       
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 transition-colors">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
               Status Aktif
@@ -529,7 +543,7 @@ export default function DataSantriPage() {
           
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
-              Semester
+              Jenjang Pendidikan
             </label>
             <select
               value={jenjangFilter}
@@ -537,10 +551,46 @@ export default function DataSantriPage() {
               className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
             >
               <option value="all">Semua Jenjang</option>
-              <option value="SD">SD</option>
-              <option value="SLTP">SLTP</option>
-              <option value="SLTA">SLTA</option>
-              <option value="Perguruan Tinggi">Perguruan Tinggi</option>
+              {uniqueJenjang.map((jenjang) => (
+                <option key={jenjang} value={jenjang}>{jenjang}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
+              Program Studi
+            </label>
+            <select
+              value={programStudiFilter}
+              onChange={(e) => setProgramStudiFilter(e.target.value)}
+              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
+            >
+              <option value="all">Semua Program Studi</option>
+              {uniqueProgramStudi.map((prodi) => (
+                <option key={prodi} value={prodi}>{prodi}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
+              Semester
+            </label>
+            <select
+              value={semesterFilter}
+              onChange={(e) => setSemesterFilter(e.target.value)}
+              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
+            >
+              <option value="all">Semua Semester</option>
+              <option value="Semester 1">Semester 1</option>
+              <option value="Semester 2">Semester 2</option>
+              <option value="Semester 3">Semester 3</option>
+              <option value="Semester 4">Semester 4</option>
+              <option value="Semester 5">Semester 5</option>
+              <option value="Semester 6">Semester 6</option>
+              <option value="Semester 7">Semester 7</option>
+              <option value="Semester 8">Semester 8</option>
             </select>
           </div>
           
@@ -593,7 +643,7 @@ export default function DataSantriPage() {
             </select>
           </div>
           
-          <div className="flex items-end col-span-1 md:col-span-3 lg:col-span-5">
+          <div className="flex items-end col-span-1 md:col-span-3 lg:col-span-8">
             <button
               onClick={resetFilters}
               className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -635,7 +685,13 @@ export default function DataSantriPage() {
                   Kamar
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
+                  Jenjang Pendidikan
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                   Semester
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
+                  Program Studi
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                   Tahun Masuk
@@ -674,8 +730,13 @@ export default function DataSantriPage() {
                     {santri.kamar}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
-                    {santri.jenjangPendidikan} 
-                    {santri.programStudi && <span className="ml-1">({santri.programStudi})</span>}
+                    {santri.jenjangPendidikan || "-"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                    {santri.jenjangPendidikan || "-"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                    {santri.programStudi || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                     {santri.tahunMasuk}

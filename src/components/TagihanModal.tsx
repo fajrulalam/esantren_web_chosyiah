@@ -46,6 +46,8 @@ export default function TagihanModal({
   const [filters, setFilters] = useState({
     statusAktif: 'Aktif',
     jenjangPendidikan: '',
+    programStudi: '',
+    semester: '',
     tahunMasuk: '',
     kamar: ''
   });
@@ -105,6 +107,14 @@ export default function TagihanModal({
     
     if (currentFilters.jenjangPendidikan) {
       filtered = filtered.filter(santri => santri.jenjangPendidikan === currentFilters.jenjangPendidikan);
+    }
+    
+    if (currentFilters.programStudi) {
+      filtered = filtered.filter(santri => santri.programStudi === currentFilters.programStudi);
+    }
+    
+    if (currentFilters.semester) {
+      filtered = filtered.filter(santri => santri.jenjangPendidikan === currentFilters.semester);
     }
     
     if (currentFilters.tahunMasuk) {
@@ -215,7 +225,9 @@ export default function TagihanModal({
   // Get unique filter values
   const uniqueTahunMasuk = [...new Set(santris.map(santri => santri.tahunMasuk))].sort((a, b) => parseInt(b) - parseInt(a));
   const uniqueKamar = [...new Set(santris.map(santri => santri.kamar))].sort();
-  const uniqueJenjang = [...new Set(santris.map(santri => santri.jenjangPendidikan))];
+  const uniqueJenjang = [...new Set(santris.map(santri => santri.jenjangPendidikan))].sort();
+  const uniqueSemester = ["Semester 1", "Semester 2", "Semester 3", "Semester 4", "Semester 5", "Semester 6", "Semester 7", "Semester 8"];
+  const uniqueProgramStudi = [...new Set(santris.map(santri => santri.programStudi).filter(Boolean))].sort();
   
   return (
     <Transition show={isOpen} as={Fragment}>
@@ -308,7 +320,7 @@ export default function TagihanModal({
                     <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-3">Pilih Santri untuk Ditagih</h4>
                     
                     {/* Filters */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
                       <div>
                         <label htmlFor="statusAktif" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                           Status Aktif
@@ -330,7 +342,7 @@ export default function TagihanModal({
                       
                       <div>
                         <label htmlFor="jenjangPendidikan" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-                          Jenjang
+                          Jenjang Pendidikan
                         </label>
                         <select
                           id="jenjangPendidikan"
@@ -342,6 +354,42 @@ export default function TagihanModal({
                           <option value="">Semua Jenjang</option>
                           {uniqueJenjang.map(jenjang => (
                             <option key={jenjang} value={jenjang}>{jenjang}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="semester" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                          Semester
+                        </label>
+                        <select
+                          id="semester"
+                          name="semester"
+                          value={filters.semester}
+                          onChange={handleFilterChange}
+                          className="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+                        >
+                          <option value="">Semua Semester</option>
+                          {uniqueSemester.map(semester => (
+                            <option key={semester} value={semester}>{semester}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label htmlFor="programStudi" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                          Program Studi
+                        </label>
+                        <select
+                          id="programStudi"
+                          name="programStudi"
+                          value={filters.programStudi}
+                          onChange={handleFilterChange}
+                          className="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+                        >
+                          <option value="">Semua Program Studi</option>
+                          {uniqueProgramStudi.map(prodi => (
+                            <option key={prodi} value={prodi}>{prodi}</option>
                           ))}
                         </select>
                       </div>
@@ -423,7 +471,13 @@ export default function TagihanModal({
                                   Kamar
                                 </th>
                                 <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                  Jenjang
+                                  Jenjang Pendidikan
+                                </th>
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                  Semester
+                                </th>
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                  Program Studi
                                 </th>
                                 <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                   Tahun Masuk
@@ -453,7 +507,13 @@ export default function TagihanModal({
                                     {santri.kamar}
                                   </td>
                                   <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                    {santri.jenjangPendidikan}
+                                    {santri.jenjangPendidikan || "-"}
+                                  </td>
+                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                    {santri.jenjangPendidikan || "-"}
+                                  </td>
+                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                    {santri.programStudi || "-"}
                                   </td>
                                   <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                                     {santri.tahunMasuk}
