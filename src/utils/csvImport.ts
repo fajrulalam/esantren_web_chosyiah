@@ -135,7 +135,7 @@ export const processCSVFile = async (file: File): Promise<CSVValidationResult> =
             tahunMasuk: row.tahunMasuk?.toString().trim() || new Date().getFullYear().toString(),
             nomorWalisantri: row.nomorWalisantri ? formatPhoneNumber(row.nomorWalisantri) : '',
             jenjangPendidikan: 
-              ['SD', 'SLTP', 'SLTA', 'Mahasiswa'].includes(row.jenjangPendidikan)
+              ['SD', 'SLTP', 'SLTA','Perguruan Tinggi'].includes(row.jenjangPendidikan)
                 ? row.jenjangPendidikan
                 : 'SLTP',
             statusAktif: 

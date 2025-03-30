@@ -272,7 +272,7 @@ export default function SantriForm({
             <option value="SD">SD</option>
             <option value="SLTP">SLTP</option>
             <option value="SLTA">SLTA</option>
-            <option value="Mahasiswa">Mahasiswa</option>
+            <option value="Perguruan Tinggi">Perguruan Tinggi</option>
           </select>
         </div>
 

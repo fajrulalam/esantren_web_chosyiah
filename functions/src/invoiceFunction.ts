@@ -53,13 +53,15 @@ export const createPaymentStatusesOnInvoiceCreation = async (
     const isSelective = selectedSantriIds.length > 0;
 
     functions.logger.info(
-      `Processing invoice creation: ${invoiceId} for asrama: ${kodeAsrama} ${isSelective ? '(selective)' : '(all active santri)'}`,
+      `Processing invoice creation: ${invoiceId} for asrama: ${kodeAsrama} ${isSelective ? `(selective: ${selectedSantriIds.length} santris)` : '(all active santri)'}`,
       { structuredData: true }
     );
 
     // 1. For non-selective invoices, get and set the expected count from the counter
+    // For selective invoicing, the numberOfSantriInvoiced should only count selected santris
     if (!isSelective) {
       const expectedStudentCount = await getActiveStudentCount(kodeAsrama);
+      functions.logger.info(`Expected student count from counter: ${expectedStudentCount}`, { structuredData: true });
       
       // Update the invoice with the expected number from the counter
       if (expectedStudentCount > 0) {
@@ -67,6 +69,10 @@ export const createPaymentStatusesOnInvoiceCreation = async (
           numberOfSantriInvoiced: expectedStudentCount,
         });
       }
+    } else {
+      // For selective invoicing, ensure numberOfSantriInvoiced is set to the number of selected santris
+      // This ensures the invoice correctly reflects only the selected students
+      functions.logger.info(`Selective invoice with ${selectedSantriIds.length} santris selected`, { structuredData: true });
     }
 
     // 2. Query santri based on whether this is selective or for all active students
@@ -102,28 +108,49 @@ export const createPaymentStatusesOnInvoiceCreation = async (
     
     if (isSelective) {
       // Fetch each selected santri individually
+      functions.logger.info(`Fetching ${selectedSantriIds.length} selected santri documents`, { structuredData: true });
+      
       const promises = selectedSantriIds.map(santriId => 
         db.collection("SantriCollection").doc(santriId).get()
       );
       
       const santriDocs = await Promise.all(promises);
+      let missingCount = 0;
       
       santriDocs.forEach(doc => {
         if (doc.exists) {
-          santriList.push({
-            id: doc.id,
-            nama: doc.data()?.nama || 'Unknown',
-            kamar: doc.data()?.kamar || '',
-            kelas: doc.data()?.kelas || '',
-            jenjangPendidikan: doc.data()?.jenjangPendidikan || '',
-            nomorWalisantri: doc.data()?.nomorWalisantri || '',
-            kodeAsrama: doc.data()?.kodeAsrama || kodeAsrama,
-            jumlahTunggakan: doc.data()?.jumlahTunggakan || 0
-          });
+          const data = doc.data();
+          // Verify the santri is from the same asrama (additional safety check)
+          if (data?.kodeAsrama === kodeAsrama) {
+            santriList.push({
+              id: doc.id,
+              nama: data.nama || 'Unknown',
+              kamar: data.kamar || '',
+              kelas: data.kelas || '',
+              jenjangPendidikan: data.jenjangPendidikan || '',
+              nomorWalisantri: data.nomorWalisantri || '',
+              kodeAsrama: data.kodeAsrama,
+              jumlahTunggakan: data.jumlahTunggakan || 0
+            });
+          } else {
+            functions.logger.warn(
+              `Selected santri ${doc.id} has different kodeAsrama: ${data?.kodeAsrama} than invoice: ${kodeAsrama}. Skipping.`,
+              { structuredData: true }
+            );
+            missingCount++;
+          }
         } else {
-          functions.logger.warn(`Selected santri ${doc.id} not found. Skipping.`);
+          functions.logger.warn(`Selected santri ${doc.id} not found. Skipping.`, { structuredData: true });
+          missingCount++;
         }
       });
+      
+      if (missingCount > 0) {
+        functions.logger.warn(
+          `${missingCount} out of ${selectedSantriIds.length} selected santris were skipped (not found or wrong asrama)`,
+          { structuredData: true }
+        );
+      }
     } else {
       // Process all active santri from the query
       santriQuery!.forEach((doc) => {
@@ -150,18 +177,26 @@ export const createPaymentStatusesOnInvoiceCreation = async (
     }
 
     // 4. Update the invoice with the actual number of santri
-    if (!isSelective || santriList.length !== selectedSantriIds.length) {
-      functions.logger.info(
-        `Updating invoice with actual santri count: ${santriList.length}`,
-        { structuredData: true }
-      );
-      
-      await snapshot.ref.update({
-        numberOfSantriInvoiced: santriList.length,
-      });
-    }
+    // For selective invoicing, we always want to use santriList.length as that's the number of valid selected santris
+    // For non-selective, we want to update if the actual count differs from what's already set
+    functions.logger.info(
+      `Updating invoice with actual santri count: ${santriList.length}`,
+      { structuredData: true }
+    );
+    
+    await snapshot.ref.update({
+      numberOfSantriInvoiced: santriList.length,
+    });
 
     // 5. Update all selected students' statusTanggungan and increment jumlahTunggakan
+    // We only process the santris in the santriList - which is either:
+    // - All active santris (for non-selective)
+    // - Only the selected santris (for selective)
+    functions.logger.info(
+      `Updating statusTanggungan for ${santriList.length} santris`,
+      { structuredData: true }
+    );
+    
     const updateStatusPromises = santriList.map((santri) => {
       return db.collection("SantriCollection").doc(santri.id).update({
         statusTanggungan: "Belum Lunas",
