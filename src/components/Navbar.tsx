@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
 import { useState } from 'react';
+import DarkModeToggle from '@/components/DarkModeToggle';
 
 export default function Navbar() {
     const { user, logOut } = useAuth();
@@ -14,7 +15,7 @@ export default function Navbar() {
     const handleLogout = async () => {
         try {
             await logOut();
-            // Force navigation to home page and refresh
+            // Force navigation to home page and refresh - consider if this full refresh is always needed
             window.location.href = '/';
         } catch (error) {
             console.error('Error logging out:', error);
@@ -24,9 +25,17 @@ export default function Navbar() {
     };
 
     const isActive = (path: string) => {
-        return pathname === path;
+        // Make both paths consistent by removing trailing slashes for comparison
+        const currentPath = pathname?.replace(/\/$/, '');
+        const targetPath = path.replace(/\/$/, '');
+        
+        // For main navigation items, we want to match the base path
+        // This handles both exact matches and nested routes
+        return currentPath === targetPath || 
+               (targetPath !== '/' && currentPath?.startsWith(targetPath));
     };
-    
+
+    // These classes create the neumorphic "pushed down" effect for active items
     const activeClass = "bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 shadow-neumorphic-inset dark:shadow-neumorphic-inset-dark";
     const inactiveClass = "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shadow-none";
 
@@ -45,6 +54,7 @@ export default function Navbar() {
                             {/* Desktop navigation */}
                             <div className="hidden md:block">
                                 <div className="flex items-center space-x-4">
+                                    {/* Use conditional rendering based on user role */}
                                     {user.role !== 'waliSantri' ? (
                                         <>
                                             <Link
@@ -53,7 +63,7 @@ export default function Navbar() {
                                                     isActive('/rekapitulasi') ? activeClass : inactiveClass
                                                 }`}
                                             >
-                                                Rekap Pembayaran
+                                                Rekapitulasi
                                             </Link>
                                             <Link
                                                 href="/data-santri"
@@ -84,9 +94,10 @@ export default function Navbar() {
                                             History Pembayaran
                                         </Link>
                                     )}
+                                    <DarkModeToggle />
                                     <button
                                         onClick={handleLogout}
-                                        className="ml-4 px-3 py-2 rounded-md text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                                        className="ml-4 px-3 py-2 rounded-md text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors duration-200"
                                     >
                                         Logout
                                     </button>
@@ -97,40 +108,18 @@ export default function Navbar() {
                             <div className="md:hidden -mr-2 flex items-center">
                                 <button
                                     onClick={() => setIsMenuOpen(!isMenuOpen)}
-                                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-300 hover:text-gray-500 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
+                                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-300 hover:text-gray-500 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors duration-200" // Added transition
+                                    aria-controls="mobile-menu" // Added aria-controls
+                                    aria-expanded={isMenuOpen} // Added aria-expanded
                                 >
                                     <span className="sr-only">Open main menu</span>
                                     {!isMenuOpen ? (
-                                        <svg
-                                            className="block h-6 w-6"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                            aria-hidden="true"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth="2"
-                                                d="M4 6h16M4 12h16M4 18h16"
-                                            />
+                                        <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
                                         </svg>
                                     ) : (
-                                        <svg
-                                            className="block h-6 w-6"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                            aria-hidden="true"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth="2"
-                                                d="M6 18L18 6M6 6l12 12"
-                                            />
+                                        <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                                         </svg>
                                     )}
                                 </button>
@@ -142,7 +131,7 @@ export default function Navbar() {
 
             {/* Mobile menu, show/hide based on menu state. */}
             {isMenuOpen && user && (
-                <div className="md:hidden">
+                <div className="md:hidden" id="mobile-menu"> {/* Added id matching aria-controls */}
                     <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
                         {user.role !== 'waliSantri' ? (
                             <>
@@ -187,15 +176,18 @@ export default function Navbar() {
                                 History Pembayaran
                             </Link>
                         )}
-                        <button
-                            onClick={async () => {
-                                setIsMenuOpen(false);
-                                await handleLogout();
-                            }}
-                            className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
-                        >
-                            Logout
-                        </button>
+                        <div className="flex items-center justify-between px-3 py-2">
+                            <DarkModeToggle />
+                            <button
+                                onClick={async () => {
+                                    setIsMenuOpen(false);
+                                    await handleLogout();
+                                }}
+                                className="text-red-600 dark:text-red-400 px-3 py-2 rounded-md text-base font-medium hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors duration-200"
+                            >
+                                Logout
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

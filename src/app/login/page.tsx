@@ -140,15 +140,15 @@ export default function Login() {
     };
 
     return (
-        <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
-            <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-                <h2 className="text-2xl font-bold text-center mb-6">
+        <div className="flex justify-center items-center min-h-[calc(100vh-10rem)] dark:bg-gray-900 transition-colors">
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-md transition-colors">
+                <h2 className="text-2xl font-bold text-center mb-6 dark:text-white transition-colors">
                     Login {userType === 'waliSantri' ? 'Wali Santri' : 'Staff'}
                 </h2>
                 
                 <div className="text-center mb-6">
                     <button
-                        className="text-xs text-gray-400 hover:text-gray-600"
+                        className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                         onClick={() => setUserType(userType === 'waliSantri' ? 'staff' : 'waliSantri')}
                     >
                         {userType === 'waliSantri' ? '[ Login sebagai staff ]' : '[ Login sebagai wali santri ]'}
@@ -156,7 +156,7 @@ export default function Login() {
                 </div>
                 
                 {error && (
-                    <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+                    <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-200 rounded-md transition-colors">
                         {error}
                     </div>
                 )}
@@ -165,35 +165,35 @@ export default function Login() {
                     {userType === 'waliSantri' ? (
                         <>
                             <div className="mb-4">
-                                <label className="block mb-2 text-sm font-medium">Nama Santri</label>
+                                <label className="block mb-2 text-sm font-medium dark:text-gray-300 transition-colors">Nama Santri</label>
                                 <input
                                     type="text"
-                                    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                                     value={namaSantri}
                                     onChange={(e) => setNamaSantri(e.target.value)}
                                     placeholder="Masukkan nama santri"
                                     disabled={isLoading}
                                 />
-                                <p className="mt-1 text-xs text-gray-500">Contoh: M. Fajrul Alam Ulin Nuha</p>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 transition-colors">Contoh: M. Fajrul Alam Ulin Nuha</p>
                             </div>
                             <div className="mb-6">
-                                <label className="block mb-2 text-sm font-medium">Tanggal Lahir</label>
+                                <label className="block mb-2 text-sm font-medium dark:text-gray-300 transition-colors">Tanggal Lahir</label>
                                 <div className="grid grid-cols-3 gap-2">
                                     <div>
                                         <input
                                             type="text"
-                                            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                                             value={tanggalLahirDay}
                                             onChange={(e) => setTanggalLahirDay(e.target.value)}
                                             placeholder="cth: 09"
                                             maxLength={2}
                                             disabled={isLoading}
                                         />
-                                        <label className="text-xs text-gray-500 mt-1">Tanggal</label>
+                                        <label className="text-xs text-gray-500 dark:text-gray-400 mt-1 transition-colors">Tanggal</label>
                                     </div>
                                     <div>
                                         <select
-                                            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                                             value={tanggalLahirMonth}
                                             onChange={(e) => setTanggalLahirMonth(e.target.value)}
                                             disabled={isLoading}
@@ -212,19 +212,19 @@ export default function Login() {
                                             <option value="11">November</option>
                                             <option value="12">Desember</option>
                                         </select>
-                                        <label className="text-xs text-gray-500 mt-1">Bulan</label>
+                                        <label className="text-xs text-gray-500 dark:text-gray-400 mt-1 transition-colors">Bulan</label>
                                     </div>
                                     <div>
                                         <input
                                             type="text"
-                                            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                                             value={tanggalLahirYear}
                                             onChange={(e) => setTanggalLahirYear(e.target.value)}
                                             placeholder="cth: 2001"
                                             maxLength={4}
                                             disabled={isLoading}
                                         />
-                                        <label className="text-xs text-gray-500 mt-1">Tahun</label>
+                                        <label className="text-xs text-gray-500 dark:text-gray-400 mt-1 transition-colors">Tahun</label>
                                     </div>
                                 </div>
                             </div>
@@ -232,10 +232,10 @@ export default function Login() {
                     ) : (
                         <>
                             <div className="mb-4">
-                                <label className="block mb-2 text-sm font-medium">Email</label>
+                                <label className="block mb-2 text-sm font-medium dark:text-gray-300 transition-colors">Email</label>
                                 <input
                                     type="email"
-                                    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="Masukkan email"
@@ -243,10 +243,10 @@ export default function Login() {
                                 />
                             </div>
                             <div className="mb-6">
-                                <label className="block mb-2 text-sm font-medium">Password</label>
+                                <label className="block mb-2 text-sm font-medium dark:text-gray-300 transition-colors">Password</label>
                                 <input
                                     type="password"
-                                    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Masukkan password"
@@ -267,14 +267,14 @@ export default function Login() {
                     {userType === 'staff' && (
                         <div className="mt-4">
                             <div className="relative flex items-center justify-center mt-4 mb-4">
-                                <div className="border-t border-gray-300 flex-grow mr-3"></div>
-                                <span className="text-gray-500 text-sm">Atau</span>
-                                <div className="border-t border-gray-300 flex-grow ml-3"></div>
+                                <div className="border-t border-gray-300 dark:border-gray-600 flex-grow mr-3 transition-colors"></div>
+                                <span className="text-gray-500 dark:text-gray-400 text-sm transition-colors">Atau</span>
+                                <div className="border-t border-gray-300 dark:border-gray-600 flex-grow ml-3 transition-colors"></div>
                             </div>
                             
                             <button
                                 type="button"
-                                className="w-full flex items-center justify-center bg-white text-gray-700 border border-gray-300 py-3 rounded-md font-medium hover:bg-gray-50 transition duration-300"
+                                className="w-full flex items-center justify-center bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 py-3 rounded-md font-medium hover:bg-gray-50 dark:hover:bg-gray-600 transition-all duration-300"
                                 onClick={handleGoogleLogin}
                                 disabled={isLoading}
                             >

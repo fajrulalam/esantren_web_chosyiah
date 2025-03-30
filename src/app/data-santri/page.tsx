@@ -474,9 +474,9 @@ export default function DataSantriPage() {
   }
   
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4 dark:bg-gray-900 transition-colors">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Data Santri</h1>
+        <h1 className="text-2xl font-bold dark:text-white transition-colors">Data Santri</h1>
         <div className="flex flex-wrap gap-2">
           {selectedSantriIds.size > 0 && (
             <button
@@ -488,13 +488,13 @@ export default function DataSantriPage() {
           )}
           <button
             onClick={handleExportToExcel}
-            className="bg-white text-green-600 border border-green-600 px-4 py-2 rounded-md hover:bg-green-50 transition-colors"
+            className="bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 border border-green-600 dark:border-green-500 px-4 py-2 rounded-md hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"
           >
             Export Excel
           </button>
           <button
             onClick={handleOpenImportModal}
-            className="bg-white text-orange-600 border border-orange-600 px-4 py-2 rounded-md hover:bg-orange-50 transition-colors"
+            className="bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 border border-orange-600 dark:border-orange-500 px-4 py-2 rounded-md hover:bg-orange-50 dark:hover:bg-orange-900/30 transition-colors"
           >
             Import CSV
           </button>
@@ -508,16 +508,16 @@ export default function DataSantriPage() {
       </div>
       
       {/* Filters */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 transition-colors">
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
               Status Aktif
             </label>
             <select
               value={statusAktifFilter}
               onChange={(e) => setStatusAktifFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
             >
               <option value="all">Semua Status</option>
               <option value="Aktif">Aktif</option>
@@ -528,13 +528,13 @@ export default function DataSantriPage() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Jenjang Pendidikan
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
+              Semester
             </label>
             <select
               value={jenjangFilter}
               onChange={(e) => setJenjangFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
             >
               <option value="all">Semua Jenjang</option>
               <option value="SD">SD</option>
@@ -545,13 +545,13 @@ export default function DataSantriPage() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
               Tahun Masuk
             </label>
             <select
               value={tahunMasukFilter}
               onChange={(e) => setTahunMasukFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
             >
               <option value="all">Semua Tahun</option>
               {uniqueTahunMasuk.map((tahun) => (
@@ -561,13 +561,13 @@ export default function DataSantriPage() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
               Status Tanggungan
             </label>
             <select
               value={statusTanggunganFilter}
               onChange={(e) => setStatusTanggunganFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
             >
               <option value="all">Semua Status</option>
               <option value="Lunas">Lunas</option>
@@ -578,13 +578,13 @@ export default function DataSantriPage() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
               Kamar
             </label>
             <select
               value={kamarFilter}
               onChange={(e) => setKamarFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
             >
               <option value="all">Semua Kamar</option>
               {uniqueKamar.map((kamar) => (
@@ -596,7 +596,7 @@ export default function DataSantriPage() {
           <div className="flex items-end col-span-1 md:col-span-3 lg:col-span-5">
             <button
               onClick={resetFilters}
-              className="bg-gray-100 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors"
+              className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
               Reset Filter
             </button>
@@ -605,107 +605,108 @@ export default function DataSantriPage() {
       </div>
       
       {/* Table */}
-      <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md overflow-x-auto transition-colors">
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
         ) : filteredSantris.length === 0 ? (
-          <p className="text-xl text-center text-gray-500 py-12">
+          <p className="text-xl text-center text-gray-500 dark:text-gray-400 py-12 transition-colors">
             Tidak ada data santri yang ditemukan
           </p>
         ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
+            <thead className="bg-gray-50 dark:bg-gray-900 transition-colors">
               <tr>
-                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500">
+                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 transition-colors">
                   <div className="flex items-center">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-500 focus:ring-blue-500 dark:bg-gray-700 transition-colors"
                       checked={isSelectAll}
                       onChange={handleSelectAll}
                     />
                   </div>
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                   Nama Santri
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                   Kamar
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Kelas
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
+                  Semester
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                   Tahun Masuk
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                   Nomor Wali Santri
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                   Status Tanggungan
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                   Status Aktif
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                   Aksi
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
               {filteredSantris.map((santri) => (
-                <tr key={santri.id} className={selectedSantriIds.has(santri.id) ? "bg-blue-50" : ""}>
+                <tr key={santri.id} className={selectedSantriIds.has(santri.id) ? "bg-blue-50 dark:bg-blue-900/30" : ""}>
                   <td className="px-3 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-500 focus:ring-blue-500 dark:bg-gray-700 transition-colors"
                         checked={selectedSantriIds.has(santri.id)}
                         onChange={() => handleSelectSantri(santri.id)}
                       />
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white transition-colors">
                     {santri.nama}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                     {santri.kamar}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {santri.jenjangPendidikan} {santri.kelas}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                    {santri.jenjangPendidikan} 
+                    {santri.programStudi && <span className="ml-1">({santri.programStudi})</span>}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                     {santri.tahunMasuk}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                     {santri.nomorWalisantri}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${santri.statusTanggungan === 'Lunas' ? 'bg-green-100 text-green-800' : 
-                      santri.statusTanggungan === 'Ada Tunggakan' ? 'bg-red-100 text-red-800' : 
-                      santri.statusTanggungan === 'Belum Ada Tagihan' ? 'bg-gray-100 text-gray-800' :
-                      santri.statusTanggungan === 'Menunggu Verifikasi' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'}`}>
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full transition-colors 
+                      ${santri.statusTanggungan === 'Lunas' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' : 
+                      santri.statusTanggungan === 'Ada Tunggakan' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400' : 
+                      santri.statusTanggungan === 'Belum Ada Tagihan' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' :
+                      santri.statusTanggungan === 'Menunggu Verifikasi' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400' :
+                      'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                       {santri.statusTanggungan}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${santri.statusAktif === 'Aktif' ? 'bg-green-100 text-green-800' : 
-                      santri.statusAktif === 'Boyong' ? 'bg-yellow-100 text-yellow-800' : 
-                      santri.statusAktif === 'Lulus' ? 'bg-blue-100 text-blue-800' :
-                      santri.statusAktif === 'Dikeluarkan' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'}`}>
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full transition-colors 
+                      ${santri.statusAktif === 'Aktif' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' : 
+                      santri.statusAktif === 'Boyong' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400' : 
+                      santri.statusAktif === 'Lulus' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400' :
+                      santri.statusAktif === 'Dikeluarkan' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400' :
+                      'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                       {santri.statusAktif}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                     <button
                       onClick={() => handleEditSantri(santri)}
-                      className="text-blue-600 hover:text-blue-900"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 transition-colors"
                     >
                       Edit
                     </button>

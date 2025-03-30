@@ -243,10 +243,10 @@ export default function TagihanModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all">
                 <Dialog.Title
                   as="h3"
-                  className="text-lg font-medium leading-6 text-gray-900 mb-4"
+                  className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4"
                 >
                   Buat Tagihan Baru
                 </Dialog.Title>
@@ -255,7 +255,7 @@ export default function TagihanModal({
                   {/* Payment form fields */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="paymentName" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="paymentName" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                         Nama Pembayaran
                       </label>
                       <input
@@ -265,13 +265,13 @@ export default function TagihanModal({
                         value={formData.paymentName}
                         onChange={handleChange}
                         required
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
                         placeholder="SPP Bulan Januari 2023"
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="nominal" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="nominal" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                         Nominal (Rp)
                       </label>
                       <input
@@ -282,14 +282,14 @@ export default function TagihanModal({
                         onChange={handleChange}
                         required
                         min="0"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
                         placeholder="450000"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                       Deskripsi (opsional)
                     </label>
                     <textarea
@@ -298,19 +298,19 @@ export default function TagihanModal({
                       value={formData.description}
                       onChange={handleChange}
                       rows={2}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
                       placeholder="Deskripsi tambahan tentang tagihan ini"
                     />
                   </div>
                   
                   {/* Santri selection section */}
-                  <div className="border-t border-gray-200 pt-4">
-                    <h4 className="text-sm font-medium text-gray-800 mb-3">Pilih Santri untuk Ditagih</h4>
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-3">Pilih Santri untuk Ditagih</h4>
                     
                     {/* Filters */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                       <div>
-                        <label htmlFor="statusAktif" className="block text-xs font-medium text-gray-700">
+                        <label htmlFor="statusAktif" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                           Status Aktif
                         </label>
                         <select
@@ -318,7 +318,7 @@ export default function TagihanModal({
                           name="statusAktif"
                           value={filters.statusAktif}
                           onChange={handleFilterChange}
-                          className="mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          className="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
                         >
                           <option value="">Semua Status</option>
                           <option value="Aktif">Aktif</option>
@@ -329,7 +329,7 @@ export default function TagihanModal({
                       </div>
                       
                       <div>
-                        <label htmlFor="jenjangPendidikan" className="block text-xs font-medium text-gray-700">
+                        <label htmlFor="jenjangPendidikan" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                           Jenjang
                         </label>
                         <select
@@ -337,7 +337,7 @@ export default function TagihanModal({
                           name="jenjangPendidikan"
                           value={filters.jenjangPendidikan}
                           onChange={handleFilterChange}
-                          className="mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          className="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
                         >
                           <option value="">Semua Jenjang</option>
                           {uniqueJenjang.map(jenjang => (
@@ -347,7 +347,7 @@ export default function TagihanModal({
                       </div>
                       
                       <div>
-                        <label htmlFor="tahunMasuk" className="block text-xs font-medium text-gray-700">
+                        <label htmlFor="tahunMasuk" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                           Tahun Masuk
                         </label>
                         <select
@@ -355,7 +355,7 @@ export default function TagihanModal({
                           name="tahunMasuk"
                           value={filters.tahunMasuk}
                           onChange={handleFilterChange}
-                          className="mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          className="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
                         >
                           <option value="">Semua Tahun</option>
                           {uniqueTahunMasuk.map(tahun => (
@@ -365,7 +365,7 @@ export default function TagihanModal({
                       </div>
                       
                       <div>
-                        <label htmlFor="kamar" className="block text-xs font-medium text-gray-700">
+                        <label htmlFor="kamar" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                           Kamar
                         </label>
                         <select
@@ -373,7 +373,7 @@ export default function TagihanModal({
                           name="kamar"
                           value={filters.kamar}
                           onChange={handleFilterChange}
-                          className="mt-1 block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          className="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
                         >
                           <option value="">Semua Kamar</option>
                           {uniqueKamar.map(kamar => (
@@ -384,15 +384,15 @@ export default function TagihanModal({
                     </div>
                     
                     {/* Santri list */}
-                    <div className="border border-gray-200 rounded-md overflow-hidden">
-                      <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center">
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+                      <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          className="h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
                           checked={isSelectAll}
                           onChange={handleSelectAll}
                         />
-                        <span className="ml-2 text-xs font-medium text-gray-700">
+                        <span className="ml-2 text-xs font-medium text-gray-700 dark:text-gray-300">
                           {isSelectAll 
                             ? `Semua Terpilih (${filteredSantris.length})`
                             : selectedSantriIds.size > 0
@@ -408,52 +408,54 @@ export default function TagihanModal({
                             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
                           </div>
                         ) : filteredSantris.length === 0 ? (
-                          <div className="py-4 px-4 text-center text-sm text-gray-500">
+                          <div className="py-4 px-4 text-center text-sm text-gray-500 dark:text-gray-400">
                             Tidak ada santri yang sesuai dengan filter
                           </div>
                         ) : (
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
+                          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-800">
                               <tr>
                                 <th scope="col" className="px-2 py-2"></th>
-                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                   Nama
                                 </th>
-                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                   Kamar
                                 </th>
-                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                   Jenjang
                                 </th>
-                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                   Tahun Masuk
                                 </th>
                               </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                               {filteredSantris.map((santri) => (
                                 <tr 
                                   key={santri.id}
-                                  className={selectedSantriIds.has(santri.id) ? "bg-blue-50" : ""}
+                                  className={selectedSantriIds.has(santri.id) 
+                                    ? "bg-blue-50 dark:bg-blue-900/30" 
+                                    : "hover:bg-gray-50 dark:hover:bg-gray-800"}
                                 >
                                   <td className="px-2 py-2 whitespace-nowrap">
                                     <input
                                       type="checkbox"
-                                      className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                      className="h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
                                       checked={selectedSantriIds.has(santri.id)}
                                       onChange={() => handleSelectSantri(santri.id)}
                                     />
                                   </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
+                                  <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">
                                     {santri.nama}
                                   </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                                     {santri.kamar}
                                   </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                                     {santri.jenjangPendidikan}
                                   </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                                     {santri.tahunMasuk}
                                   </td>
                                 </tr>
@@ -464,7 +466,7 @@ export default function TagihanModal({
                       </div>
                     </div>
                     
-                    <div className="mt-2 text-xs text-gray-500">
+                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                       {selectedSantriIds.size > 0 
                         ? `${selectedSantriIds.size} santri akan ditagih ${formData.nominal ? `Rp ${parseInt(formData.nominal).toLocaleString('id-ID')}` : ''}`
                         : 'Pilih minimal satu santri untuk ditagih'
@@ -472,18 +474,18 @@ export default function TagihanModal({
                     </div>
                   </div>
 
-                  <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                  <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button
                       type="button"
                       onClick={onClose}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                      className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
                       disabled={isSubmitting || selectedSantriIds.size === 0}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300 dark:disabled:bg-blue-800/50"
                     >
                       {isSubmitting ? 'Menyimpan...' : 'Buat Tagihan'}
                     </button>

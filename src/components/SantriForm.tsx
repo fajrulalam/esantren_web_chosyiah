@@ -201,7 +201,7 @@ export default function SantriForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="nama" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="nama" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
           Nama Santri
         </label>
         <input
@@ -212,16 +212,16 @@ export default function SantriForm({
           onChange={handleChange}
           required
           placeholder=""
-          className={`mt-1 block w-full rounded-md ${errors.nama ? 'border-red-300' : 'border-gray-300'} shadow-sm focus:border-blue-500 focus:ring-blue-500`}
+          className={`mt-1 block w-full rounded-md ${errors.nama ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white`}
         />
-        {errors.nama && <p className="mt-1 text-sm text-red-600">{errors.nama}</p>}
-        <p className="mt-1 text-xs text-gray-500">Contoh: M. Fajrul Alam Ulin Nuha</p>
+        {errors.nama && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.nama}</p>}
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Contoh: M. Fajrul Alam Ulin Nuha</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         <div>
-          <label htmlFor="tahunMasuk" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="tahunMasuk" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
             Tahun Masuk
           </label>
           <select
@@ -230,7 +230,7 @@ export default function SantriForm({
               value={formData.tahunMasuk}
               onChange={handleChange}
               required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           >
             {years.map(year => (
                 <option key={year} value={year}>{year}</option>
@@ -239,7 +239,7 @@ export default function SantriForm({
         </div>
 
         <div>
-          <label htmlFor="kamar" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="kamar" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
             Kamar
           </label>
           <input
@@ -250,7 +250,7 @@ export default function SantriForm({
             onChange={handleChange}
             required
             placeholder=""
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           />
         </div>
 
@@ -259,7 +259,7 @@ export default function SantriForm({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="jenjangPendidikan" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="jenjangPendidikan" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
             Semester
           </label>
           <select
@@ -268,7 +268,7 @@ export default function SantriForm({
             value={formData.jenjangPendidikan}
             onChange={handleChange}
             required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           >
             <option value="Semester 1">Semester 1</option>
             <option value="Semester 2">Semester 2</option>
@@ -282,7 +282,7 @@ export default function SantriForm({
         </div>
 
         <div>
-          <label htmlFor="programStudi" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="programStudi" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
             Program Studi
           </label>
           <input
@@ -292,14 +292,14 @@ export default function SantriForm({
             value={formData.programStudi}
             onChange={handleChange}
             placeholder="Contoh: Teknik Informatika"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="kelas" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="kelas" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
             Kelas
           </label>
           <select
@@ -308,7 +308,7 @@ export default function SantriForm({
               value={formData.kelas}
               onChange={handleChange}
               required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           >
             <option value="">Pilih Kelas</option>
             {[1, 2, 3, 4, 5, 6, 7, 8].map(kelas => (
@@ -318,7 +318,7 @@ export default function SantriForm({
         </div>
 
         <div>
-          <label htmlFor="tanggalLahir" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="tanggalLahir" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
             Tanggal Lahir
           </label>
           <input
@@ -327,20 +327,20 @@ export default function SantriForm({
             name="tanggalLahir"
             value={dateInputValue}
             onChange={handleDateChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           />
         </div>
       </div>
 
       <div>
-        <label htmlFor="nomorWalisantri" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="nomorWalisantri" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
           Nomor Wali Santri
         </label>
         <div className="mt-1 flex">
           <select
             value={phoneCountryCode}
             onChange={(e) => setPhoneCountryCode(e.target.value)}
-            className="block rounded-l-md border-r-0 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="block rounded-l-md border-r-0 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           >
             <option value="+62">+62</option>
             <option value="+60">+60</option>
@@ -353,16 +353,16 @@ export default function SantriForm({
             onChange={handlePhoneChange}
             required
             placeholder="81234567890"
-            className={`block w-full rounded-r-md ${errors.phone ? 'border-red-300' : 'border-gray-300'} shadow-sm focus:border-blue-500 focus:ring-blue-500`}
+            className={`block w-full rounded-r-md ${errors.phone ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400`}
           />
         </div>
-        {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
-        <p className="mt-1 text-xs text-gray-500"></p>
+        {errors.phone && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.phone}</p>}
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400"></p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="tanggalLahir" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="tanggalLahir" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
             Tanggal Lahir
           </label>
           <input
@@ -372,13 +372,13 @@ export default function SantriForm({
             value={dateInputValue}
             onChange={handleDateChange}
             required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           />
-          <p className="mt-1 text-xs text-gray-500"></p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400"></p>
         </div>
 
         <div>
-          <label htmlFor="statusAktif" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="statusAktif" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
             Status Aktif
           </label>
           <select
@@ -387,7 +387,7 @@ export default function SantriForm({
             value={formData.statusAktif}
             onChange={handleChange}
             required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           >
             <option value="Aktif">Aktif</option>
             <option value="Boyong">Boyong</option>
@@ -406,7 +406,7 @@ export default function SantriForm({
                 onDelete(santri);
               }
             }}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+            className="px-4 py-2 bg-red-600 dark:bg-red-700 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-800 transition-colors"
           >
             Hapus
           </button>
@@ -416,14 +416,14 @@ export default function SantriForm({
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={isSubmitting || Object.values(errors).some(error => error)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300 dark:disabled:bg-blue-800/50"
           >
             {isSubmitting ? 'Menyimpan...' : santri ? 'Update Santri' : 'Tambah Santri'}
           </button>

@@ -7,7 +7,6 @@ import { collection, getDocs, orderBy, query, where, Timestamp, doc, getDoc, upd
 import { db, functions } from '@/firebase/config';
 import { KODE_ASRAMA } from '@/constants';
 import TagihanModal from '@/components/TagihanModal';
-import DarkModeToggle from '@/components/DarkModeToggle';
 import { httpsCallable } from 'firebase/functions';
 
 interface PaymentLog {
@@ -966,8 +965,7 @@ export default function RekapitulasiPage() {
       <div className="container mx-auto py-8 px-4 transition-colors dark:bg-gray-900">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-2xl font-bold dark:text-white">Rekapitulasi Pembayaran</h1>
-          <div className="flex items-center space-x-4">
-            <DarkModeToggle />
+          <div>
             <button 
               onClick={() => setShowTagihanModal(true)} 
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"

@@ -58,8 +58,8 @@ export default function ImportProgressPanel({
     : `${operationText} data... (${currentItemIndex}/${totalItems})`;
   
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-sm w-full bg-white rounded-lg shadow-lg overflow-hidden">
-      <div className="bg-blue-600 text-white px-4 py-2 flex justify-between items-center">
+    <div className="fixed bottom-4 right-4 z-50 max-w-sm w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-colors">
+      <div className="bg-blue-600 dark:bg-blue-800 text-white px-4 py-2 flex justify-between items-center transition-colors">
         <h3 className="text-sm font-medium truncate">
           {operationText} Data {operation === 'import' ? 'Santri' : 'Terpilih'}
         </h3>
@@ -95,35 +95,35 @@ export default function ImportProgressPanel({
       </div>
       
       {!isMinimized && (
-        <div className="p-4">
+        <div className="p-4 dark:bg-gray-800 transition-colors">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-gray-700">{statusText}</span>
-            <span className="text-sm text-gray-500">{progressPercentage}%</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors">{statusText}</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors">{progressPercentage}%</span>
           </div>
           
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 transition-colors">
             <div 
-              className={`h-2 rounded-full ${isComplete ? 'bg-green-500' : 'bg-blue-500'}`}
+              className={`h-2 rounded-full ${isComplete ? 'bg-green-500 dark:bg-green-600' : 'bg-blue-500 dark:bg-blue-600'} transition-colors`}
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
           
           {!isComplete && (
             <div className="mt-3">
-              <p className="text-xs text-gray-500 truncate">
-                Memproses: <span className="font-medium text-gray-700">{currentItemName}</span>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate transition-colors">
+                Memproses: <span className="font-medium text-gray-700 dark:text-gray-300 transition-colors">{currentItemName}</span>
               </p>
             </div>
           )}
           
           {isComplete && (
             <div className="mt-3 flex justify-between">
-              <div className="text-xs text-gray-500">
-                <span className="font-medium text-green-600">{successCount}</span> sukses
+              <div className="text-xs text-gray-500 dark:text-gray-400 transition-colors">
+                <span className="font-medium text-green-600 dark:text-green-400 transition-colors">{successCount}</span> sukses
               </div>
               {errorCount > 0 && (
-                <div className="text-xs text-gray-500">
-                  <span className="font-medium text-red-600">{errorCount}</span> gagal
+                <div className="text-xs text-gray-500 dark:text-gray-400 transition-colors">
+                  <span className="font-medium text-red-600 dark:text-red-400 transition-colors">{errorCount}</span> gagal
                 </div>
               )}
             </div>
