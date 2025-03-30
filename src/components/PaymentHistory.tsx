@@ -1,7 +1,7 @@
 "use client";
 import PaymentModal from './PaymentModal';
 import PaymentStatusModal from './PaymentStatusModal';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { db, functions } from '../firebase/config';
 import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -15,9 +15,15 @@ export default function PaymentHistory() {
     const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
     const [isMobile, setIsMobile] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [showEmptyState, setShowEmptyState] = useState(false);
     const [santriData, setSantriData] = useState<any>(null);
     const [payments, setPayments] = useState<PaymentStatus[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const loadTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const initialWaitTime = 30000; // 30 seconds
+    const subsequentWaitTime = 60000; // 60 seconds
+    const [currentWaitTime, setCurrentWaitTime] = useState(initialWaitTime);
+    const [fetchAttempts, setFetchAttempts] = useState(0);
     
     // Fetch santri data based on user information
     useEffect(() => {
@@ -70,10 +76,27 @@ export default function PaymentHistory() {
         fetchSantriData();
     }, [user, santriName]);
     
+    // Clear timer when component unmounts
+    useEffect(() => {
+        return () => {
+            if (loadTimerRef.current) {
+                clearTimeout(loadTimerRef.current);
+            }
+        };
+    }, []);
+
     // Fetch payment data for the santri using Cloud Function
     const fetchPayments = async (santriId: string) => {
         try {
             setIsLoading(true);
+            setShowEmptyState(false);
+            setFetchAttempts(prev => prev + 1);
+            
+            // Clear any existing timer
+            if (loadTimerRef.current) {
+                clearTimeout(loadTimerRef.current);
+            }
+            
             const getSantriPaymentHistory = httpsCallable(functions, 'getSantriPaymentHistory');
             const result = await getSantriPaymentHistory({ santriId });
             
@@ -81,10 +104,31 @@ export default function PaymentHistory() {
             
             // Sort payments by timestamp (newest first)
             setPayments(paymentList.sort((a, b) => b.timestamp - a.timestamp));
+            
+            // If no payments found, start a timer to show empty state
+            if (paymentList.length === 0) {
+                loadTimerRef.current = setTimeout(() => {
+                    if (payments.length === 0) {
+                        setShowEmptyState(true);
+                    }
+                }, currentWaitTime);
+                
+                // Set the wait time for the next attempt
+                setCurrentWaitTime(subsequentWaitTime);
+            } else {
+                // Reset timer if we found data
+                setShowEmptyState(true); // Immediately show content if we have data
+                setCurrentWaitTime(initialWaitTime);
+            }
         } catch (err) {
             console.error("Error fetching payments:", err);
             setError("Gagal mengambil data pembayaran. Silakan coba lagi nanti.");
             setPayments([]);
+            
+            // Start a timer to show empty state on error
+            loadTimerRef.current = setTimeout(() => {
+                setShowEmptyState(true);
+            }, currentWaitTime);
         } finally {
             setIsLoading(false);
         }
@@ -161,7 +205,7 @@ export default function PaymentHistory() {
                 History Pembayaran {santriName || (santriData?.nama || 'Santri')}
             </h1>
             
-            {isLoading ? (
+            {isLoading || (!showEmptyState && payments.length === 0) ? (
                 <div className="space-y-4">
                     {/* Shimmer loading animation for payment cards */}
                     {[1, 2, 3].map((i) => (
@@ -196,9 +240,21 @@ export default function PaymentHistory() {
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
                     <span className="block sm:inline">{error}</span>
                 </div>
-            ) : payments.length === 0 ? (
+            ) : payments.length === 0 && showEmptyState ? (
                 <div className="bg-white shadow-lg rounded-lg p-6 text-center">
                     <p className="text-gray-700 mb-4">Belum ada riwayat pembayaran</p>
+                    <button 
+                        onClick={() => {
+                            if (user?.santriId) {
+                                fetchPayments(user.santriId);
+                            } else if (santriData?.id) {
+                                fetchPayments(santriData.id);
+                            }
+                        }}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                        Muat Ulang Data
+                    </button>
                 </div>
             ) : (
                 <div className="space-y-4">
