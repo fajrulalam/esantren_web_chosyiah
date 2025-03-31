@@ -355,6 +355,255 @@ export const deleteInvoice = functions.region(region).https.onCall(async (data, 
 });
 
 /**
+ * Adds new santris to an existing invoice
+ */
+export const addSantrisToInvoice = functions.region(region).https.onCall(async (data, context) => {
+  const { invoiceId, santriIds } = data;
+  
+  if (!invoiceId || !santriIds || !Array.isArray(santriIds) || santriIds.length === 0) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'The function must be called with invoiceId and a non-empty santriIds array.'
+    );
+  }
+
+  try {
+    // 1. Get the invoice details
+    const invoiceDoc = await db.collection('Invoices').doc(invoiceId).get();
+    
+    if (!invoiceDoc.exists) {
+      throw new functions.https.HttpsError(
+        'not-found',
+        'The specified invoice was not found.'
+      );
+    }
+
+    const invoiceData = invoiceDoc.data() as InvoiceData;
+    const kodeAsrama = invoiceData.kodeAsrama;
+    const nominal = invoiceData.nominal;
+    
+    // 2. Fetch the santri data for all santris to be added
+    functions.logger.info(`Fetching ${santriIds.length} santri documents to add to invoice ${invoiceId}`, 
+      { structuredData: true });
+    
+    const santriPromises = santriIds.map(santriId => 
+      db.collection("SantriCollection").doc(santriId).get()
+    );
+    
+    const santriDocs = await Promise.all(santriPromises);
+    const santriList: SantriData[] = [];
+    let missingCount = 0;
+    
+    santriDocs.forEach(doc => {
+      if (doc.exists) {
+        const data = doc.data();
+        
+        // Verify the santri is from the same asrama as the invoice
+        if (data?.kodeAsrama === kodeAsrama) {
+          santriList.push({
+            id: doc.id,
+            nama: data.nama || 'Unknown',
+            kamar: data.kamar || '',
+            kelas: data.kelas || '',
+            jenjangPendidikan: data.jenjangPendidikan || '',
+            programStudi: data.programStudi || '',
+            nomorWalisantri: data.nomorWalisantri || '',
+            kodeAsrama: data.kodeAsrama,
+            jumlahTunggakan: data.jumlahTunggakan || 0
+          });
+        } else {
+          functions.logger.warn(
+            `Santri ${doc.id} has different kodeAsrama: ${data?.kodeAsrama} than invoice: ${kodeAsrama}. Skipping.`,
+            { structuredData: true }
+          );
+          missingCount++;
+        }
+      } else {
+        functions.logger.warn(`Santri ${doc.id} not found. Skipping.`, { structuredData: true });
+        missingCount++;
+      }
+    });
+    
+    if (missingCount > 0) {
+      functions.logger.warn(
+        `${missingCount} out of ${santriIds.length} santris were skipped (not found or wrong asrama)`,
+        { structuredData: true }
+      );
+    }
+    
+    // If we didn't find any valid santri to process, return early
+    if (santriList.length === 0) {
+      return { 
+        success: false, 
+        message: 'No valid santri records found to add to the invoice.' 
+      };
+    }
+
+    // 3. Update all selected students' statusTanggungan and increment jumlahTunggakan
+    functions.logger.info(
+      `Updating statusTanggungan for ${santriList.length} santris`,
+      { structuredData: true }
+    );
+    
+    const updateStatusPromises = santriList.map((santri) => {
+      return db.collection("SantriCollection").doc(santri.id).update({
+        statusTanggungan: "Belum Lunas",
+        jumlahTunggakan: admin.firestore.FieldValue.increment(1)
+      });
+    });
+
+    // Execute all status updates in parallel
+    await Promise.all(updateStatusPromises);
+    
+    // 4. Create payment status documents for each new santri
+    const batch = db.batch();
+    
+    for (const santri of santriList) {
+      const paymentStatusId = `${invoiceId}_${santri.id}`;
+      const paymentStatusRef = db
+        .collection("PaymentStatuses")
+        .doc(paymentStatusId);
+
+      batch.set(paymentStatusRef, {
+        invoiceId: invoiceId,
+        santriId: santri.id,
+        santriName: santri.nama,
+        nama: santri.nama,
+        educationGrade: santri.kelas,
+        educationLevel: santri.jenjangPendidikan,
+        programStudi: santri.programStudi || '',
+        kamar: santri.kamar,
+        nomorWaliSantri: santri.nomorWalisantri,
+        status: "Belum Lunas",
+        paid: 0,
+        total: nominal,
+        history: {},
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Commit all the new payment statuses
+    await batch.commit();
+    
+    // 5. Update the invoice with new santri count
+    await db.collection('Invoices').doc(invoiceId).update({
+      numberOfSantriInvoiced: admin.firestore.FieldValue.increment(santriList.length),
+      selectedSantriIds: admin.firestore.FieldValue.arrayUnion(...santriList.map(s => s.id))
+    });
+
+    return { 
+      success: true, 
+      message: `Successfully added ${santriList.length} santris to invoice`,
+      addedCount: santriList.length
+    };
+  } catch (error) {
+    functions.logger.error("Error adding santris to invoice:", error);
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to add santris to invoice: ${error}`
+    );
+  }
+});
+
+/**
+ * Removes santris from an existing invoice
+ */
+export const removeSantrisFromInvoice = functions.region(region).https.onCall(async (data, context) => {
+  const { invoiceId, santriIds } = data;
+  
+  if (!invoiceId || !santriIds || !Array.isArray(santriIds) || santriIds.length === 0) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'The function must be called with invoiceId and a non-empty santriIds array.'
+    );
+  }
+
+  try {
+    // 1. Get the invoice details
+    const invoiceDoc = await db.collection('Invoices').doc(invoiceId).get();
+    
+    if (!invoiceDoc.exists) {
+      throw new functions.https.HttpsError(
+        'not-found',
+        'The specified invoice was not found.'
+      );
+    }
+    
+    // 2. Delete the payment status documents for each santri
+    const batch = db.batch();
+    let deletedCount = 0;
+    
+    for (const santriId of santriIds) {
+      const paymentStatusId = `${invoiceId}_${santriId}`;
+      const paymentStatusRef = db.collection("PaymentStatuses").doc(paymentStatusId);
+      
+      // Check if the payment status exists
+      const paymentStatus = await paymentStatusRef.get();
+      
+      if (paymentStatus.exists) {
+        // Only allow deletion if status is not "Lunas" or "Menunggu Verifikasi"
+        // This prevents deleting records that have already been paid
+        const status = paymentStatus.data()?.status;
+        
+        if (status !== "Lunas" && status !== "Menunggu Verifikasi") {
+          batch.delete(paymentStatusRef);
+          deletedCount++;
+          
+          // Update the santri's jumlahTunggakan and statusTanggungan
+          const santriRef = db.collection("SantriCollection").doc(santriId);
+          const santriDoc = await santriRef.get();
+          
+          if (santriDoc.exists) {
+            const santriData = santriDoc.data();
+            const currentTunggakan = santriData?.jumlahTunggakan || 0;
+            
+            // Decrement jumlahTunggakan
+            const newTunggakan = Math.max(0, currentTunggakan - 1);
+            
+            // Update santri document
+            await santriRef.update({
+              jumlahTunggakan: newTunggakan,
+              // If no more outstanding payments, set status to Lunas
+              statusTanggungan: newTunggakan === 0 ? "Lunas" : "Belum Lunas"
+            });
+          }
+        } else {
+          functions.logger.warn(
+            `Cannot remove santri ${santriId} from invoice ${invoiceId} because payment status is ${status}`,
+            { structuredData: true }
+          );
+        }
+      }
+    }
+    
+    // Commit the batch deletion of payment statuses
+    if (deletedCount > 0) {
+      await batch.commit();
+    }
+    
+    // 3. Update the invoice with new santri count and remove santri IDs from the list
+    await db.collection('Invoices').doc(invoiceId).update({
+      numberOfSantriInvoiced: admin.firestore.FieldValue.increment(-deletedCount),
+      selectedSantriIds: invoiceDoc.data()?.selectedSantriIds.filter(
+        (id: string) => !santriIds.includes(id)
+      ) || []
+    });
+
+    return { 
+      success: true, 
+      message: `Successfully removed ${deletedCount} santris from invoice`,
+      removedCount: deletedCount
+    };
+  } catch (error) {
+    functions.logger.error("Error removing santris from invoice:", error);
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to remove santris from invoice: ${error}`
+    );
+  }
+});
+
+/**
  * Returns all payment statuses for a specific santri
  */
 export const getSantriPaymentHistory = functions.region(region).https

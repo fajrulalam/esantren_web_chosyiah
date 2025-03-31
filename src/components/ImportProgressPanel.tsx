@@ -26,9 +26,13 @@ export default function ImportProgressPanel({
   const [isMinimized, setIsMinimized] = useState(false);
   const [showProgress, setShowProgress] = useState(true);
   
+  // When active status changes, update our internal showProgress state
   useEffect(() => {
     if (isActive) {
       setShowProgress(true);
+    } else {
+      // When no longer active, hide the panel
+      setShowProgress(false);
     }
   }, [isActive]);
   
@@ -36,7 +40,7 @@ export default function ImportProgressPanel({
   useEffect(() => {
     const isComplete = currentItemIndex >= totalItems && totalItems > 0;
     
-    if (isComplete) {
+    if (isComplete && isActive) {
       // Hide the panel after 5 seconds of completion
       const timer = setTimeout(() => {
         setShowProgress(false);
@@ -45,8 +49,9 @@ export default function ImportProgressPanel({
       
       return () => clearTimeout(timer);
     }
-  }, [currentItemIndex, totalItems, onClose]);
+  }, [currentItemIndex, totalItems, onClose, isActive]);
   
+  // Don't render anything if we're not active and not showing progress
   if (!isActive && !showProgress) return null;
   
   const progressPercentage = Math.round(((currentItemIndex) / totalItems) * 100);

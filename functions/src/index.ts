@@ -3,6 +3,8 @@ import * as admin from "firebase-admin";
 import { 
   createPaymentStatusesOnInvoiceCreation, 
   deleteInvoice,
+  addSantrisToInvoice,
+  removeSantrisFromInvoice,
   getSantriPaymentHistory as getSantriPaymentHistoryFunc,
   getInvoicePaymentStatuses as getInvoicePaymentStatusesFunc
 } from "./invoiceFunction";
@@ -42,6 +44,10 @@ export const getInvoicePaymentStatuses = getInvoicePaymentStatusesFunc;
 
 // Export HTTP callable function for deleting invoices
 export const deleteInvoiceFunction = deleteInvoice;
+
+// Export HTTP callable functions for modifying invoices
+export const addSantrisToInvoiceFunction = addSantrisToInvoice;
+export const removeSantrisFromInvoiceFunction = removeSantrisFromInvoice;
 
 // Test CORS endpoint
 export const testCors = functions.https.onRequest((request, response) => {

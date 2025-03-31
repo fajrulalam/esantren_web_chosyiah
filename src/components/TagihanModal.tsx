@@ -3,9 +3,10 @@
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { KODE_ASRAMA } from '@/constants';
-import { collection, query, where, getDocs, serverTimestamp, doc, setDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { collection, query, where, getDocs, serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { db, functions } from '@/firebase/config';
 import { formatName } from '@/utils/nameFormatter';
+import { httpsCallable } from 'firebase/functions';
 
 interface Santri {
   id: string;
@@ -15,18 +16,31 @@ interface Santri {
   jenjangPendidikan: string;
   statusAktif: string;
   tahunMasuk: string;
+  programStudi?: string;
+  semester?: string;
+  statusTanggungan?: string;
 }
 
 interface TagihanModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  existingInvoiceId?: string;
+  paymentName?: string;
+  nominalTagihan?: number;
+  existingSantriIds?: string[];
+  editMode?: boolean;
 }
 
 export default function TagihanModal({
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  existingInvoiceId,
+  paymentName,
+  nominalTagihan,
+  existingSantriIds = [],
+  editMode = false
 }: TagihanModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -52,21 +66,38 @@ export default function TagihanModal({
     kamar: ''
   });
   
-  // Clear states when modal closes
+  // Initialize the form with existing invoice data if in edit mode
   useEffect(() => {
-    if (!isOpen) {
-      setFormData({
-        paymentName: '',
-        nominal: '',
-        description: ''
-      });
-      setSelectedSantriIds(new Set());
-      setIsSelectAll(false);
-    } else {
+    if (isOpen) {
+      if (editMode && paymentName && nominalTagihan !== undefined) {
+        setFormData({
+          paymentName: paymentName,
+          nominal: nominalTagihan.toString(),
+          description: ''
+        });
+      } else {
+        setFormData({
+          paymentName: '',
+          nominal: '',
+          description: ''
+        });
+      }
+      
       // Fetch santri when modal opens
       fetchSantris();
+    } else {
+      // Reset if closed
+      if (!editMode) {
+        setFormData({
+          paymentName: '',
+          nominal: '',
+          description: ''
+        });
+      }
+      setSelectedSantriIds(new Set());
+      setIsSelectAll(false);
     }
-  }, [isOpen]);
+  }, [isOpen, editMode, paymentName, nominalTagihan]);
   
   // Fetch all active santris
   const fetchSantris = async () => {
@@ -84,6 +115,9 @@ export default function TagihanModal({
         jenjangPendidikan: doc.data().jenjangPendidikan || '',
         statusAktif: doc.data().statusAktif || '',
         tahunMasuk: doc.data().tahunMasuk || '',
+        programStudi: doc.data().programStudi || '',
+        semester: doc.data().semester || '',
+        statusTanggungan: doc.data().statusTanggungan || 'Lunas',
       }));
       
       setSantris(santriData);
@@ -97,6 +131,25 @@ export default function TagihanModal({
     }
   };
   
+  // Mark existing santris as already selected after fetching
+  useEffect(() => {
+    if (editMode && existingSantriIds && existingSantriIds.length > 0 && santris.length > 0) {
+      // Create a new Set with the existing santris
+      const initialSelectedIds = new Set<string>();
+      
+      // Map only the santris that are in the current santri list
+      santris.forEach(santri => {
+        if (existingSantriIds.includes(santri.id)) {
+          initialSelectedIds.add(santri.id);
+        }
+      });
+      
+      setSelectedSantriIds(initialSelectedIds);
+      // Update select all checkbox if all filtered santris are selected
+      setIsSelectAll(initialSelectedIds.size === filteredSantris.length && filteredSantris.length > 0);
+    }
+  }, [editMode, existingSantriIds, santris, filteredSantris]);
+
   // Apply filters
   const applyFilters = (data: Santri[], currentFilters: typeof filters) => {
     let filtered = [...data];
@@ -125,11 +178,29 @@ export default function TagihanModal({
       filtered = filtered.filter(santri => santri.kamar === currentFilters.kamar);
     }
     
+    // In edit mode, we need to filter out santris that are already in the invoice
+    // UNLESS they're also in our existingSantriIds (that means they're part of the invoice we're editing)
+    if (editMode && existingSantriIds) {
+      // We want to show selected santris for this invoice but hide santris from other invoices
+      filtered = filtered.filter(santri => {
+        // If it's in existingSantriIds, we keep it (it's already part of this invoice)
+        if (existingSantriIds.includes(santri.id)) {
+          return true;
+        }
+        
+        // Otherwise, we keep it only if statusTanggungan is not already 'Belum Lunas' or 'Menunggu Verifikasi'
+        // (which would mean it's part of another invoice)
+        return !['Belum Lunas', 'Menunggu Verifikasi'].includes(santri.statusTanggungan);
+      });
+    }
+    
     setFilteredSantris(filtered);
     
-    // Reset selection when filters change
-    setSelectedSantriIds(new Set());
-    setIsSelectAll(false);
+    if (!editMode) {
+      // Only reset selection when filters change in create mode, not edit mode
+      setSelectedSantriIds(new Set());
+      setIsSelectAll(false);
+    }
   };
   
   // Handle filter changes
@@ -187,36 +258,108 @@ export default function TagihanModal({
       // Get selected santri data
       const selectedSantris = santris.filter(santri => selectedSantriIds.has(santri.id));
       
-      // Format today's date for the invoice ID
-      const today = new Date();
-      const formattedDate = today.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-      const timestamp = Date.now(); // Current timestamp in milliseconds
-      
-      // Create a human-readable invoice ID
-      const invoiceId = `${formattedDate}_${formData.paymentName.replace(/\s+/g, '_')}_${timestamp}`;
-      
-      // Create the invoice with selected santri IDs
-      const invoiceDocRef = doc(db, 'Invoices', invoiceId);
-      
-      await setDoc(invoiceDocRef, {
-        paymentName: formData.paymentName,
-        nominal: parseFloat(formData.nominal),
-        description: formData.description,
-        kodeAsrama: KODE_ASRAMA,
-        timestamp: serverTimestamp(),
-        numberOfPaid: 0,
-        numberOfWaitingVerification: 0,
-        numberOfSantriInvoiced: selectedSantriIds.size,
-        createdAt: serverTimestamp(),
-        // Include the array of selected santri IDs
-        selectedSantriIds: Array.from(selectedSantriIds)
-      });
+      if (editMode && existingInvoiceId) {
+        // In edit mode, we're updating an existing invoice
+        
+        // Get existing santri IDs from the invoice
+        const existingIds = new Set(existingSantriIds);
+        const currentIds = new Set(selectedSantriIds);
+        
+        // Calculate the santri IDs to add (in current but not in existing)
+        const santriIdsToAdd = Array.from(currentIds).filter(id => !existingIds.has(id));
+        
+        // Calculate the santri IDs to remove (in existing but not in current)
+        const santriIdsToRemove = Array.from(existingIds).filter(id => !currentIds.has(id));
+        
+        console.log("Santri to add:", santriIdsToAdd.length);
+        console.log("Santri to remove:", santriIdsToRemove.length);
+        
+        // Get a reference to the invoice
+        const invoiceDocRef = doc(db, 'Invoices', existingInvoiceId);
+        
+        // 1. Add santris to the invoice through Firebase Function
+        if (santriIdsToAdd.length > 0) {
+          try {
+            // Call the function to add santris to the invoice
+            const addSantrisToInvoice = httpsCallable(functions, 'addSantrisToInvoice');
+            await addSantrisToInvoice({
+              invoiceId: existingInvoiceId,
+              santriIds: santriIdsToAdd
+            });
+          } catch (error) {
+            console.error("Error adding santris to invoice:", error);
+            alert("Gagal menambahkan santri ke tagihan.");
+            setIsSubmitting(false);
+            return;
+          }
+        }
+        
+        // 2. Remove santris from the invoice through Firebase Function
+        if (santriIdsToRemove.length > 0) {
+          try {
+            // Call the function to remove santris from the invoice
+            const removeSantrisFromInvoice = httpsCallable(functions, 'removeSantrisFromInvoice');
+            await removeSantrisFromInvoice({
+              invoiceId: existingInvoiceId,
+              santriIds: santriIdsToRemove
+            });
+          } catch (error) {
+            console.error("Error removing santris from invoice:", error);
+            alert("Gagal menghapus santri dari tagihan.");
+            setIsSubmitting(false);
+            return;
+          }
+        }
+        
+        // 3. Update the invoice with the new selected santri IDs
+        try {
+          await updateDoc(invoiceDocRef, {
+            selectedSantriIds: Array.from(selectedSantriIds),
+            numberOfSantriInvoiced: selectedSantriIds.size
+          });
+        } catch (error) {
+          console.error("Error updating invoice:", error);
+          alert("Gagal memperbarui data tagihan.");
+          setIsSubmitting(false);
+          return;
+        }
+        
+        onSuccess();
+        onClose();
+      } else {
+        // In create mode, we're creating a new invoice
+        
+        // Format today's date for the invoice ID
+        const today = new Date();
+        const formattedDate = today.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+        const timestamp = Date.now(); // Current timestamp in milliseconds
+        
+        // Create a human-readable invoice ID
+        const invoiceId = `${formattedDate}_${formData.paymentName.replace(/\s+/g, '_')}_${timestamp}`;
+        
+        // Create the invoice with selected santri IDs
+        const invoiceDocRef = doc(db, 'Invoices', invoiceId);
+        
+        await setDoc(invoiceDocRef, {
+          paymentName: formData.paymentName,
+          nominal: parseFloat(formData.nominal),
+          description: formData.description,
+          kodeAsrama: KODE_ASRAMA,
+          timestamp: serverTimestamp(),
+          numberOfPaid: 0,
+          numberOfWaitingVerification: 0,
+          numberOfSantriInvoiced: selectedSantriIds.size,
+          createdAt: serverTimestamp(),
+          // Include the array of selected santri IDs
+          selectedSantriIds: Array.from(selectedSantriIds)
+        });
 
-      onSuccess();
-      onClose();
+        onSuccess();
+        onClose();
+      }
     } catch (error) {
-      console.error("Error creating tagihan:", error);
-      alert("Gagal membuat tagihan. Silakan coba lagi.");
+      console.error("Error creating/updating tagihan:", error);
+      alert("Gagal membuat/memperbarui tagihan. Silakan coba lagi.");
     } finally {
       setIsSubmitting(false);
     }
@@ -264,60 +407,77 @@ export default function TagihanModal({
                   as="h3"
                   className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4"
                 >
-                  Buat Tagihan Baru
+                  {editMode ? 'Edit Santri Tagihan' : 'Buat Tagihan Baru'}
                 </Dialog.Title>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Payment form fields */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="paymentName" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                        Nama Pembayaran
-                      </label>
-                      <input
-                        type="text"
-                        id="paymentName"
-                        name="paymentName"
-                        value={formData.paymentName}
-                        onChange={handleChange}
-                        required
-                        className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
-                        placeholder="SPP Bulan Januari 2023"
-                      />
-                    </div>
+                  {/* Payment form fields - only shown in create mode */}
+                  {!editMode && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label htmlFor="paymentName" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                            Nama Pembayaran
+                          </label>
+                          <input
+                            type="text"
+                            id="paymentName"
+                            name="paymentName"
+                            value={formData.paymentName}
+                            onChange={handleChange}
+                            required
+                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
+                            placeholder="SPP Bulan Januari 2023"
+                          />
+                        </div>
 
-                    <div>
-                      <label htmlFor="nominal" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                        Nominal (Rp)
-                      </label>
-                      <input
-                        type="number"
-                        id="nominal"
-                        name="nominal"
-                        value={formData.nominal}
-                        onChange={handleChange}
-                        required
-                        min="0"
-                        className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
-                        placeholder="450000"
-                      />
-                    </div>
-                  </div>
+                        <div>
+                          <label htmlFor="nominal" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                            Nominal (Rp)
+                          </label>
+                          <input
+                            type="number"
+                            id="nominal"
+                            name="nominal"
+                            value={formData.nominal}
+                            onChange={handleChange}
+                            required
+                            min="0"
+                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
+                            placeholder="450000"
+                          />
+                        </div>
+                      </div>
 
-                  <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                      Deskripsi (opsional)
-                    </label>
-                    <textarea
-                      id="description"
-                      name="description"
-                      value={formData.description}
-                      onChange={handleChange}
-                      rows={2}
-                      className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
-                      placeholder="Deskripsi tambahan tentang tagihan ini"
-                    />
-                  </div>
+                      <div>
+                        <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                          Deskripsi (opsional)
+                        </label>
+                        <textarea
+                          id="description"
+                          name="description"
+                          value={formData.description}
+                          onChange={handleChange}
+                          rows={2}
+                          className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
+                          placeholder="Deskripsi tambahan tentang tagihan ini"
+                        />
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* Display invoice info in edit mode */}
+                  {editMode && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                      <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">{paymentName}</h4>
+                      <p className="text-blue-600 dark:text-blue-400">
+                        Nominal: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(nominalTagihan || 0)}
+                      </p>
+                      <p className="text-xs text-blue-500 dark:text-blue-400 mt-2">
+                        {existingSantriIds?.length || 0} santri saat ini tertagih
+                      </p>
+                    </div>
+                  )}
                   
                   {/* Santri selection section */}
                   <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
@@ -464,68 +624,83 @@ export default function TagihanModal({
                             Tidak ada santri yang sesuai dengan filter
                           </div>
                         ) : (
-                          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-800">
-                              <tr>
-                                <th scope="col" className="px-2 py-2"></th>
-                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                  Nama
-                                </th>
-                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                  Kamar
-                                </th>
-                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                  Jenjang Pendidikan
-                                </th>
-                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                  Semester
-                                </th>
-                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                  Program Studi
-                                </th>
-                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                  Tahun Masuk
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                              {filteredSantris.map((santri) => (
-                                <tr 
-                                  key={santri.id}
-                                  className={selectedSantriIds.has(santri.id) 
-                                    ? "bg-blue-50 dark:bg-blue-900/30" 
-                                    : "hover:bg-gray-50 dark:hover:bg-gray-800"}
-                                >
-                                  <td className="px-2 py-2 whitespace-nowrap">
-                                    <input
-                                      type="checkbox"
-                                      className="h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
-                                      checked={selectedSantriIds.has(santri.id)}
-                                      onChange={() => handleSelectSantri(santri.id)}
-                                    />
-                                  </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">
-                                    {santri.nama}
-                                  </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                    {santri.kamar}
-                                  </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                    {santri.jenjangPendidikan || "-"}
-                                  </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                    {santri.semester || "-"}
-                                  </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                    {santri.programStudi || "-"}
-                                  </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                    {santri.tahunMasuk}
-                                  </td>
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                              <thead className="bg-gray-50 dark:bg-gray-800">
+                                <tr>
+                                  <th scope="col" className="px-2 py-2 sticky left-0 bg-gray-50 dark:bg-gray-800 z-10"></th>
+                                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky left-8 bg-gray-50 dark:bg-gray-800 z-10">
+                                    Nama
+                                  </th>
+                                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Status Aktif
+                                  </th>
+                                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Kamar
+                                  </th>
+                                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Jenjang Pendidikan
+                                  </th>
+                                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Semester
+                                  </th>
+                                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Program Studi
+                                  </th>
+                                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Tahun Masuk
+                                  </th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                                {filteredSantris.map((santri) => (
+                                  <tr 
+                                    key={santri.id}
+                                    className={selectedSantriIds.has(santri.id) 
+                                      ? "bg-blue-50 dark:bg-blue-900/30" 
+                                      : "hover:bg-gray-50 dark:hover:bg-gray-800"}
+                                  >
+                                    <td className="px-2 py-2 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 z-10">
+                                      <input
+                                        type="checkbox"
+                                        className="h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                                        checked={selectedSantriIds.has(santri.id)}
+                                        onChange={() => handleSelectSantri(santri.id)}
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white sticky left-8 bg-white dark:bg-gray-900 z-10">
+                                      {santri.nama}
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-xs">
+                                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                        ${santri.statusAktif === 'Aktif' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' : 
+                                        santri.statusAktif === 'Boyong' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400' : 
+                                        santri.statusAktif === 'Lulus' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400' :
+                                        santri.statusAktif === 'Dikeluarkan' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400' :
+                                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+                                        {santri.statusAktif}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                      {santri.kamar}
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                      {santri.jenjangPendidikan || "-"}
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                      {santri.semester || "-"}
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                      {santri.programStudi || "-"}
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                      {santri.tahunMasuk}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -551,7 +726,7 @@ export default function TagihanModal({
                       disabled={isSubmitting || selectedSantriIds.size === 0}
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300 dark:disabled:bg-blue-800/50"
                     >
-                      {isSubmitting ? 'Menyimpan...' : 'Buat Tagihan'}
+                      {isSubmitting ? 'Menyimpan...' : editMode ? 'Simpan Perubahan' : 'Buat Tagihan'}
                     </button>
                   </div>
                 </form>
