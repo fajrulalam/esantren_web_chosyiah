@@ -360,12 +360,6 @@ function RekapContent() {
                               >
                                 Tambah Santri
                               </button>
-                              <button
-                                onClick={(e) => handleDeleteClick(e, payment)}
-                                className="rounded-md bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 shadow-sm hover:bg-red-100"
-                              >
-                                Hapus
-                              </button>
                             </div>
                           </td>
                         </tr>

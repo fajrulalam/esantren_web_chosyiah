@@ -695,33 +695,33 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-auto" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-      <div className="bg-white min-h-screen">
+    <div className="fixed inset-0 z-50 overflow-auto bg-opacity-75 bg-gray-800">
+      <div className="bg-white dark:bg-gray-900 min-h-screen transition-colors">
         <div className="container mx-auto py-6 px-4">
           <div className="flex justify-between items-center mb-6">
             <div>
               <button 
                 onClick={onClose}
-                className="flex items-center text-blue-600 hover:text-blue-800 mb-2"
+                className="flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mb-2 transition-colors"
               >
                 <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
                 Kembali
               </button>
-              <h1 className="text-2xl font-bold">Detail Pembayaran: {paymentName}</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">Detail Pembayaran: {paymentName}</h1>
             </div>
             
             <div className="flex gap-3">
               <button
-                onClick={() => setShowTagihanModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Tambah Santri
-              </button>
-              <button
                 onClick={deleteInvoice}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                className="px-4 py-2 rounded-lg text-white font-medium transition-all duration-200 ease-in-out
+                  bg-gradient-to-br from-red-500 to-red-600 
+                  dark:from-red-600 dark:to-red-700
+                  shadow-neumorphic-delete dark:shadow-neumorphic-delete-dark
+                  hover:shadow-neumorphic-delete-pressed dark:hover:shadow-neumorphic-delete-pressed-dark 
+                  active:shadow-neumorphic-delete-pressed dark:active:shadow-neumorphic-delete-pressed-dark
+                  active:translate-y-0.5"
               >
                 Hapus Tagihan
               </button>
@@ -729,80 +729,112 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
           </div>
 
           {/* Invoice Summary with Neumorphic Design */}
-          <div className="mb-6 bg-gray-50 dark:bg-gray-800 rounded-xl p-6 shadow-neumorphic dark:shadow-neumorphic-dark">
-            <h2 className="text-lg font-semibold mb-4">Informasi Tagihan</h2>
+          <div className="mb-6 bg-gray-50 dark:bg-gray-800 rounded-xl p-6 shadow-neumorphic dark:shadow-neumorphic-dark transition-colors">
+            <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200 transition-colors">Informasi Tagihan</h2>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Nominal */}
-              <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-neumorphic dark:shadow-neumorphic-dark">
+              <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-neumorphic dark:shadow-neumorphic-dark transition-all duration-200 cursor-default">
                 <div className="flex items-center justify-between">
-                  <div className="text-gray-500 dark:text-gray-300 text-sm font-medium">Nominal Tagihan</div>
-                  <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-md">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 dark:text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="text-gray-500 dark:text-gray-300 text-sm font-medium transition-colors">Nominal Tagihan</div>
+                  <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-md transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 dark:text-blue-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                 </div>
                 <div className="mt-2">
-                  <p className="text-lg font-bold">{formatCurrency(invoiceDetails.nominal)}</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white transition-colors">{formatCurrency(invoiceDetails.nominal)}</p>
                 </div>
               </div>
               
               {/* Total Santri */}
-              <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-neumorphic dark:shadow-neumorphic-dark">
+              <button 
+                onClick={() => setFilters({status: '', kamar: '', educationLevel: ''})}
+                className={`bg-white dark:bg-gray-700 rounded-lg p-4 transition-all duration-200 cursor-pointer text-left
+                  hover:shadow-neumorphic-pressed hover:dark:shadow-neumorphic-pressed-dark
+                  ${filters.status === '' && filters.kamar === '' && filters.educationLevel === '' 
+                    ? 'shadow-neumorphic-pressed dark:shadow-neumorphic-pressed-dark' 
+                    : 'shadow-neumorphic dark:shadow-neumorphic-dark'}`}
+              >
                 <div className="flex items-center justify-between">
-                  <div className="text-gray-500 dark:text-gray-300 text-sm font-medium">Jumlah Santri Tertagih</div>
-                  <div className="bg-indigo-100 dark:bg-indigo-900 p-2 rounded-md">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600 dark:text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="text-gray-500 dark:text-gray-300 text-sm font-medium transition-colors">Jumlah Santri Tertagih</div>
+                  <div className="bg-indigo-100 dark:bg-indigo-900 p-2 rounded-md transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600 dark:text-indigo-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
                   </div>
                 </div>
                 <div className="mt-2">
-                  <p className="text-lg font-bold">{invoiceDetails.numberOfSantriInvoiced} Santri</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white transition-colors">{invoiceDetails.numberOfSantriInvoiced} Santri</p>
+                  <p className="text-xs text-indigo-500 dark:text-indigo-300 mt-1 transition-colors">
+                    Klik untuk lihat semua
+                  </p>
                 </div>
-              </div>
+              </button>
               
               {/* Menunggu Verifikasi */}
-              <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-neumorphic dark:shadow-neumorphic-dark">
+              <button 
+                onClick={() => setFilters({...filters, status: 'Menunggu Verifikasi'})}
+                className={`bg-white dark:bg-gray-700 rounded-lg p-4 transition-all duration-200 cursor-pointer text-left
+                  hover:shadow-neumorphic-pressed hover:dark:shadow-neumorphic-pressed-dark
+                  ${filters.status === 'Menunggu Verifikasi' 
+                    ? 'shadow-neumorphic-pressed dark:shadow-neumorphic-pressed-dark' 
+                    : 'shadow-neumorphic dark:shadow-neumorphic-dark'}`}
+              >
                 <div className="flex items-center justify-between">
-                  <div className="text-gray-500 dark:text-gray-300 text-sm font-medium">Menunggu Verifikasi</div>
-                  <div className="bg-yellow-100 dark:bg-yellow-900 p-2 rounded-md">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600 dark:text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="text-gray-500 dark:text-gray-300 text-sm font-medium transition-colors">Menunggu Verifikasi</div>
+                  <div className="bg-yellow-100 dark:bg-yellow-900 p-2 rounded-md transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600 dark:text-yellow-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                 </div>
                 <div className="mt-2">
-                  <p className="text-lg font-bold">{invoiceDetails.numberOfWaitingVerification} Santri</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white transition-colors">{invoiceDetails.numberOfWaitingVerification} Santri</p>
+                  <p className="text-xs text-yellow-500 dark:text-yellow-300 mt-1 transition-colors">
+                    {filters.status === 'Menunggu Verifikasi' ? 'Aktif - Klik untuk reset' : 'Klik untuk filter'}
+                  </p>
                 </div>
-              </div>
+              </button>
               
               {/* Sudah Lunas */}
-              <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-neumorphic dark:shadow-neumorphic-dark">
+              <button 
+                onClick={() => setFilters({...filters, status: 'Lunas'})}
+                className={`bg-white dark:bg-gray-700 rounded-lg p-4 transition-all duration-200 cursor-pointer text-left
+                  hover:shadow-neumorphic-pressed hover:dark:shadow-neumorphic-pressed-dark 
+                  ${filters.status === 'Lunas' 
+                    ? 'shadow-neumorphic-pressed dark:shadow-neumorphic-pressed-dark' 
+                    : 'shadow-neumorphic dark:shadow-neumorphic-dark'}`}
+              >
                 <div className="flex items-center justify-between">
-                  <div className="text-gray-500 dark:text-gray-300 text-sm font-medium">Sudah Lunas</div>
-                  <div className="bg-green-100 dark:bg-green-900 p-2 rounded-md">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 dark:text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="text-gray-500 dark:text-gray-300 text-sm font-medium transition-colors">Sudah Lunas</div>
+                  <div className="bg-green-100 dark:bg-green-900 p-2 rounded-md transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 dark:text-green-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                 </div>
                 <div className="mt-2">
-                  <p className="text-lg font-bold">{invoiceDetails.numberOfPaid} Santri</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {Math.round((invoiceDetails.numberOfPaid / (invoiceDetails.numberOfSantriInvoiced || 1)) * 100)}% Selesai
-                  </p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white transition-colors">{invoiceDetails.numberOfPaid} Santri</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors">
+                      {Math.round((invoiceDetails.numberOfPaid / (invoiceDetails.numberOfSantriInvoiced || 1)) * 100)}% Selesai
+                    </p>
+                    <p className="text-xs text-green-500 dark:text-green-300 transition-colors">
+                      {filters.status === 'Lunas' ? 'Aktif' : 'Filter'}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              </button>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-lg transition-colors">
             {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div>
-                <label htmlFor="kamar" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="kamar" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
                   Filter Kamar
                 </label>
                 <select
@@ -810,7 +842,10 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                   name="kamar"
                   value={filters.kamar}
                   onChange={handleFilterChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 
+                    text-gray-700 dark:text-gray-200 shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
+                    focus:shadow-neumorphic-button-pressed focus:dark:shadow-neumorphic-button-pressed-dark
+                    focus:border-blue-500 focus:ring-blue-500 transition-all"
                 >
                   <option value="">Semua Kamar</option>
                   {uniqueKamar.map((kamar) => (
@@ -819,7 +854,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                 </select>
               </div>
               <div>
-                <label htmlFor="educationLevel" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="educationLevel" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
                   Filter Semester
                 </label>
                 <select
@@ -827,7 +862,10 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                   name="educationLevel"
                   value={filters.educationLevel}
                   onChange={handleFilterChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 
+                    text-gray-700 dark:text-gray-200 shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
+                    focus:shadow-neumorphic-button-pressed focus:dark:shadow-neumorphic-button-pressed-dark
+                    focus:border-blue-500 focus:ring-blue-500 transition-all"
                 >
                   <option value="">Semua Semester</option>
                   {uniqueEducationLevels.map((level) => (
@@ -836,7 +874,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                 </select>
               </div>
               <div>
-                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
                   Filter Status Pembayaran
                 </label>
                 <select
@@ -844,7 +882,10 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                   name="status"
                   value={filters.status}
                   onChange={handleFilterChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 
+                    text-gray-700 dark:text-gray-200 shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
+                    focus:shadow-neumorphic-button-pressed focus:dark:shadow-neumorphic-button-pressed-dark
+                    focus:border-blue-500 focus:ring-blue-500 transition-all"
                 >
                   <option value="">Semua Status</option>
                   {uniqueStatuses.map((status) => (
@@ -853,94 +894,182 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                 </select>
               </div>
             </div>
+            
+            {/* Active Filters */}
+            {(filters.status || filters.kamar || filters.educationLevel) && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {filters.status && (
+                  <button
+                    onClick={() => setFilters({ ...filters, status: '' })}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+                      bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200
+                      shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
+                      hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
+                      transition-all duration-200"
+                  >
+                    Status: {filters.status}
+                    <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+                
+                {filters.kamar && (
+                  <button
+                    onClick={() => setFilters({ ...filters, kamar: '' })}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+                      bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200
+                      shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
+                      hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
+                      transition-all duration-200"
+                  >
+                    Kamar: {filters.kamar}
+                    <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+                
+                {filters.educationLevel && (
+                  <button
+                    onClick={() => setFilters({ ...filters, educationLevel: '' })}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+                      bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200
+                      shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
+                      hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
+                      transition-all duration-200"
+                  >
+                    Semester: {filters.educationLevel}
+                    <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => setFilters({ status: '', kamar: '', educationLevel: '' })}
+                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+                    bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200
+                    shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
+                    hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
+                    transition-all duration-200"
+                >
+                  Reset Semua Filter
+                  <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
+            )}
 
             {/* Table */}
             <div className="overflow-auto" style={{ maxWidth: '100%' }}>
-              <div className="shadow-md rounded-lg" style={{ minWidth: '800px' }}>
+              <div className="shadow-neumorphic dark:shadow-neumorphic-dark rounded-lg transition-all" style={{ minWidth: '800px' }}>
                 {pageLoading ? (
                   <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                    <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 dark:border-blue-400"></div>
                   </div>
                 ) : filteredPayments.length === 0 ? (
-                  <p className="text-center py-8 text-gray-500">Tidak ada data pembayaran santri</p>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-8 text-center transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <p className="text-gray-500 dark:text-gray-400 text-lg">Tidak ada data pembayaran santri yang sesuai dengan filter</p>
+                    {(filters.status || filters.kamar || filters.educationLevel) && (
+                      <button
+                        onClick={() => setFilters({ status: '', kamar: '', educationLevel: '' })}
+                        className="mt-4 px-4 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded-md 
+                          shadow-neumorphic-button dark:shadow-neumorphic-button-dark
+                          hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark 
+                          transition-all duration-200"
+                      >
+                        Reset Filter
+                      </button>
+                    )}
+                  </div>
                 ) : (
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50 dark:bg-gray-800">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
+                    <thead className="bg-gray-100 dark:bg-gray-800 transition-colors">
                       <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
                           Nama
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
                           Status Pembayaran
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
                           Total Terbayar
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
                           Total Tagihan
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
                           Semester
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
                           Program Studi
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
                           Kamar
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
                           No. WhatsApp
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
                           Aksi
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
+                    <tbody className="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600 transition-colors">
                       {filteredPayments.map((payment) => (
                         <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white transition-colors">
                             {payment.nama}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                            <span className={`inline-flex px-2 text-xs font-semibold rounded-full ${
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full shadow-neumorphic-button dark:shadow-neumorphic-button-dark ${
                               payment.status === 'Lunas' 
                                 ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' 
                                 : payment.status === 'Menunggu Verifikasi'
                                 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100'
                                 : 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100'
-                            }`}>
+                            } transition-colors`}>
                               {payment.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                             {formatCurrency(payment.paid)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                             {formatCurrency(payment.total)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                             {payment.educationLevel}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                             {payment.programStudi || '-'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                             {payment.kamar}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                             {payment.nomorWaliSantri || '-'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
                             <button 
                               onClick={() => handleActionButtonClick(payment)}
-                              className={`px-3 py-1 text-xs font-semibold rounded-md shadow-sm hover:shadow-neumorphic transition-all ${
-                                payment.status === 'Lunas' 
-                                  ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100' 
-                                  : payment.status === 'Menunggu Verifikasi'
-                                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-800 dark:text-yellow-100'
-                                  : 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-800 dark:text-green-100'
-                              }`}
+                              className={`px-3 py-1 text-xs font-semibold rounded-md
+                                transition-all duration-200
+                                shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
+                                hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
+                                active:translate-y-0.5
+                                ${
+                                  payment.status === 'Lunas' 
+                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' 
+                                    : payment.status === 'Menunggu Verifikasi'
+                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100'
+                                    : 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100'
+                                } transition-colors`}
                             >
                               {payment.status === 'Lunas' 
                                 ? 'Lihat Riwayat' 
@@ -956,7 +1085,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                 )}
               </div>
               {filteredPayments.length > 0 && (
-                <div className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                <div className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400 transition-colors">
                   <p>Scroll horizontally untuk melihat lebih banyak data</p>
                 </div>
               )}
