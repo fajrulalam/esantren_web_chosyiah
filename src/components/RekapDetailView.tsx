@@ -715,13 +715,16 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
             <div className="flex gap-3">
               <button
                 onClick={deleteInvoice}
-                className="px-4 py-2 rounded-lg text-white font-medium transition-all duration-200 ease-in-out
-                  bg-gradient-to-br from-red-500 to-red-600 
-                  dark:from-red-600 dark:to-red-700
-                  shadow-neumorphic-delete dark:shadow-neumorphic-delete-dark
-                  hover:shadow-neumorphic-delete-pressed dark:hover:shadow-neumorphic-delete-pressed-dark 
-                  active:shadow-neumorphic-delete-pressed dark:active:shadow-neumorphic-delete-pressed-dark
-                  active:translate-y-0.5"
+                className="relative px-5 py-2.5 rounded-xl text-white font-medium transition-all duration-200
+                  bg-red-600 dark:bg-red-700
+                  border border-red-500/20 dark:border-red-600/20
+                  before:absolute before:inset-0 before:rounded-xl
+                  before:bg-gradient-to-br before:from-red-400/80 before:to-red-600/90
+                  dark:before:bg-gradient-to-br dark:before:from-red-600/50 dark:before:to-red-800/90
+                  before:z-[-1] before:overflow-hidden
+                  hover:translate-y-[-2px] active:translate-y-0
+                  hover:before:from-red-500/80 hover:before:to-red-700/90
+                  focus:outline-none focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
               >
                 Hapus Tagihan
               </button>
@@ -729,44 +732,52 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
           </div>
 
           {/* Invoice Summary with Neumorphic Design */}
-          <div className="mb-6 bg-gray-50 dark:bg-gray-800 rounded-xl p-6 shadow-neumorphic dark:shadow-neumorphic-dark transition-colors">
+          <div className="mb-6 bg-gray-50 dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700 transition-colors">
             <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200 transition-colors">Informasi Tagihan</h2>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Nominal */}
-              <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-neumorphic dark:shadow-neumorphic-dark transition-all duration-200 cursor-default">
+              <div className="relative bg-white dark:bg-gray-700 rounded-2xl p-5 transition-all duration-200 cursor-default
+                border border-gray-100 dark:border-gray-600
+                before:absolute before:inset-0 before:rounded-2xl 
+                before:bg-gradient-to-br before:from-gray-200/50 before:to-white/90
+                dark:before:bg-gradient-to-br dark:before:from-gray-600/50 dark:before:to-gray-700/90
+                before:z-[-1] before:overflow-hidden">
                 <div className="flex items-center justify-between">
                   <div className="text-gray-500 dark:text-gray-300 text-sm font-medium transition-colors">Nominal Tagihan</div>
-                  <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-md transition-colors">
+                  <div className="bg-blue-50 dark:bg-blue-900/30 p-2 rounded-full transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 dark:text-blue-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                 </div>
-                <div className="mt-2">
-                  <p className="text-lg font-bold text-gray-900 dark:text-white transition-colors">{formatCurrency(invoiceDetails.nominal)}</p>
+                <div className="mt-3">
+                  <p className="text-xl font-bold text-gray-900 dark:text-white transition-colors">{formatCurrency(invoiceDetails.nominal)}</p>
                 </div>
               </div>
               
               {/* Total Santri */}
               <button 
                 onClick={() => setFilters({status: '', kamar: '', educationLevel: ''})}
-                className={`bg-white dark:bg-gray-700 rounded-lg p-4 transition-all duration-200 cursor-pointer text-left
-                  hover:shadow-neumorphic-pressed hover:dark:shadow-neumorphic-pressed-dark
+                className={`relative bg-white dark:bg-gray-700 rounded-2xl p-5 transition-all duration-200 cursor-pointer text-left
+                  border border-gray-100 dark:border-gray-600
+                  before:absolute before:inset-0 before:rounded-2xl
                   ${filters.status === '' && filters.kamar === '' && filters.educationLevel === '' 
-                    ? 'shadow-neumorphic-pressed dark:shadow-neumorphic-pressed-dark' 
-                    : 'shadow-neumorphic dark:shadow-neumorphic-dark'}`}
+                    ? 'before:bg-gradient-to-br before:from-indigo-100/80 before:to-white/90 dark:before:bg-gradient-to-br dark:before:from-indigo-900/30 dark:before:to-gray-700/90 transform translate-y-[-2px]' 
+                    : 'before:bg-gradient-to-br before:from-gray-200/50 before:to-white/90 dark:before:bg-gradient-to-br dark:before:from-gray-600/50 dark:before:to-gray-700/90 hover:translate-y-[-2px]'}
+                  before:z-[-1] before:overflow-hidden
+                  active:translate-y-0`}
               >
                 <div className="flex items-center justify-between">
                   <div className="text-gray-500 dark:text-gray-300 text-sm font-medium transition-colors">Jumlah Santri Tertagih</div>
-                  <div className="bg-indigo-100 dark:bg-indigo-900 p-2 rounded-md transition-colors">
+                  <div className="bg-indigo-50 dark:bg-indigo-900/30 p-2 rounded-full transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600 dark:text-indigo-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
                   </div>
                 </div>
-                <div className="mt-2">
-                  <p className="text-lg font-bold text-gray-900 dark:text-white transition-colors">{invoiceDetails.numberOfSantriInvoiced} Santri</p>
+                <div className="mt-3">
+                  <p className="text-xl font-bold text-gray-900 dark:text-white transition-colors">{invoiceDetails.numberOfSantriInvoiced} Santri</p>
                   <p className="text-xs text-indigo-500 dark:text-indigo-300 mt-1 transition-colors">
                     Klik untuk lihat semua
                   </p>
@@ -776,22 +787,25 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
               {/* Menunggu Verifikasi */}
               <button 
                 onClick={() => setFilters({...filters, status: 'Menunggu Verifikasi'})}
-                className={`bg-white dark:bg-gray-700 rounded-lg p-4 transition-all duration-200 cursor-pointer text-left
-                  hover:shadow-neumorphic-pressed hover:dark:shadow-neumorphic-pressed-dark
+                className={`relative bg-white dark:bg-gray-700 rounded-2xl p-5 transition-all duration-200 cursor-pointer text-left
+                  border border-gray-100 dark:border-gray-600
+                  before:absolute before:inset-0 before:rounded-2xl
                   ${filters.status === 'Menunggu Verifikasi' 
-                    ? 'shadow-neumorphic-pressed dark:shadow-neumorphic-pressed-dark' 
-                    : 'shadow-neumorphic dark:shadow-neumorphic-dark'}`}
+                    ? 'before:bg-gradient-to-br before:from-yellow-100/80 before:to-white/90 dark:before:bg-gradient-to-br dark:before:from-yellow-900/30 dark:before:to-gray-700/90 transform translate-y-[-2px]' 
+                    : 'before:bg-gradient-to-br before:from-gray-200/50 before:to-white/90 dark:before:bg-gradient-to-br dark:before:from-gray-600/50 dark:before:to-gray-700/90 hover:translate-y-[-2px]'}
+                  before:z-[-1] before:overflow-hidden
+                  active:translate-y-0`}
               >
                 <div className="flex items-center justify-between">
                   <div className="text-gray-500 dark:text-gray-300 text-sm font-medium transition-colors">Menunggu Verifikasi</div>
-                  <div className="bg-yellow-100 dark:bg-yellow-900 p-2 rounded-md transition-colors">
+                  <div className="bg-yellow-50 dark:bg-yellow-900/30 p-2 rounded-full transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600 dark:text-yellow-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                 </div>
-                <div className="mt-2">
-                  <p className="text-lg font-bold text-gray-900 dark:text-white transition-colors">{invoiceDetails.numberOfWaitingVerification} Santri</p>
+                <div className="mt-3">
+                  <p className="text-xl font-bold text-gray-900 dark:text-white transition-colors">{invoiceDetails.numberOfWaitingVerification} Santri</p>
                   <p className="text-xs text-yellow-500 dark:text-yellow-300 mt-1 transition-colors">
                     {filters.status === 'Menunggu Verifikasi' ? 'Aktif - Klik untuk reset' : 'Klik untuk filter'}
                   </p>
@@ -801,22 +815,25 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
               {/* Sudah Lunas */}
               <button 
                 onClick={() => setFilters({...filters, status: 'Lunas'})}
-                className={`bg-white dark:bg-gray-700 rounded-lg p-4 transition-all duration-200 cursor-pointer text-left
-                  hover:shadow-neumorphic-pressed hover:dark:shadow-neumorphic-pressed-dark 
+                className={`relative bg-white dark:bg-gray-700 rounded-2xl p-5 transition-all duration-200 cursor-pointer text-left
+                  border border-gray-100 dark:border-gray-600
+                  before:absolute before:inset-0 before:rounded-2xl
                   ${filters.status === 'Lunas' 
-                    ? 'shadow-neumorphic-pressed dark:shadow-neumorphic-pressed-dark' 
-                    : 'shadow-neumorphic dark:shadow-neumorphic-dark'}`}
+                    ? 'before:bg-gradient-to-br before:from-green-100/80 before:to-white/90 dark:before:bg-gradient-to-br dark:before:from-green-900/30 dark:before:to-gray-700/90 transform translate-y-[-2px]' 
+                    : 'before:bg-gradient-to-br before:from-gray-200/50 before:to-white/90 dark:before:bg-gradient-to-br dark:before:from-gray-600/50 dark:before:to-gray-700/90 hover:translate-y-[-2px]'}
+                  before:z-[-1] before:overflow-hidden
+                  active:translate-y-0`}
               >
                 <div className="flex items-center justify-between">
                   <div className="text-gray-500 dark:text-gray-300 text-sm font-medium transition-colors">Sudah Lunas</div>
-                  <div className="bg-green-100 dark:bg-green-900 p-2 rounded-md transition-colors">
+                  <div className="bg-green-50 dark:bg-green-900/30 p-2 rounded-full transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 dark:text-green-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                 </div>
-                <div className="mt-2">
-                  <p className="text-lg font-bold text-gray-900 dark:text-white transition-colors">{invoiceDetails.numberOfPaid} Santri</p>
+                <div className="mt-3">
+                  <p className="text-xl font-bold text-gray-900 dark:text-white transition-colors">{invoiceDetails.numberOfPaid} Santri</p>
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors">
                       {Math.round((invoiceDetails.numberOfPaid / (invoiceDetails.numberOfSantriInvoiced || 1)) * 100)}% Selesai
@@ -830,7 +847,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-lg transition-colors">
+          <div className="relative bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 transition-colors">
             {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div>
@@ -901,11 +918,16 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                 {filters.status && (
                   <button
                     onClick={() => setFilters({ ...filters, status: '' })}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
-                      bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200
-                      shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
-                      hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
-                      transition-all duration-200"
+                    className="relative inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+                      transition-all duration-200
+                      bg-white dark:bg-gray-700
+                      border border-blue-200 dark:border-blue-700
+                      before:absolute before:inset-0 before:rounded-full
+                      before:bg-gradient-to-r before:from-blue-100/80 before:to-blue-50/90
+                      dark:before:bg-gradient-to-r dark:before:from-blue-900/30 dark:before:to-blue-800/10 
+                      before:z-[-1] before:overflow-hidden
+                      text-blue-700 dark:text-blue-300
+                      hover:translate-y-[-1px] active:translate-y-0"
                   >
                     Status: {filters.status}
                     <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -917,11 +939,16 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                 {filters.kamar && (
                   <button
                     onClick={() => setFilters({ ...filters, kamar: '' })}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
-                      bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200
-                      shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
-                      hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
-                      transition-all duration-200"
+                    className="relative inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+                      transition-all duration-200
+                      bg-white dark:bg-gray-700
+                      border border-indigo-200 dark:border-indigo-700
+                      before:absolute before:inset-0 before:rounded-full
+                      before:bg-gradient-to-r before:from-indigo-100/80 before:to-indigo-50/90
+                      dark:before:bg-gradient-to-r dark:before:from-indigo-900/30 dark:before:to-indigo-800/10 
+                      before:z-[-1] before:overflow-hidden
+                      text-indigo-700 dark:text-indigo-300
+                      hover:translate-y-[-1px] active:translate-y-0"
                   >
                     Kamar: {filters.kamar}
                     <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -933,11 +960,16 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                 {filters.educationLevel && (
                   <button
                     onClick={() => setFilters({ ...filters, educationLevel: '' })}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
-                      bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200
-                      shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
-                      hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
-                      transition-all duration-200"
+                    className="relative inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+                      transition-all duration-200
+                      bg-white dark:bg-gray-700
+                      border border-green-200 dark:border-green-700
+                      before:absolute before:inset-0 before:rounded-full
+                      before:bg-gradient-to-r before:from-green-100/80 before:to-green-50/90
+                      dark:before:bg-gradient-to-r dark:before:from-green-900/30 dark:before:to-green-800/10 
+                      before:z-[-1] before:overflow-hidden
+                      text-green-700 dark:text-green-300
+                      hover:translate-y-[-1px] active:translate-y-0"
                   >
                     Semester: {filters.educationLevel}
                     <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -948,11 +980,16 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                 
                 <button
                   onClick={() => setFilters({ status: '', kamar: '', educationLevel: '' })}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
-                    bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200
-                    shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
-                    hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
-                    transition-all duration-200"
+                  className="relative inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+                    transition-all duration-200
+                    bg-white dark:bg-gray-700
+                    border border-red-200 dark:border-red-700
+                    before:absolute before:inset-0 before:rounded-full
+                    before:bg-gradient-to-r before:from-red-100/80 before:to-red-50/90
+                    dark:before:bg-gradient-to-r dark:before:from-red-900/30 dark:before:to-red-800/10 
+                    before:z-[-1] before:overflow-hidden
+                    text-red-700 dark:text-red-300
+                    hover:translate-y-[-1px] active:translate-y-0"
                 >
                   Reset Semua Filter
                   <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -964,7 +1001,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
 
             {/* Table */}
             <div className="overflow-auto" style={{ maxWidth: '100%' }}>
-              <div className="shadow-neumorphic dark:shadow-neumorphic-dark rounded-lg transition-all" style={{ minWidth: '800px' }}>
+              <div className="relative rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden transition-all" style={{ minWidth: '800px' }}>
                 {pageLoading ? (
                   <div className="flex justify-center py-8">
                     <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 dark:border-blue-400"></div>
@@ -978,10 +1015,15 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                     {(filters.status || filters.kamar || filters.educationLevel) && (
                       <button
                         onClick={() => setFilters({ status: '', kamar: '', educationLevel: '' })}
-                        className="mt-4 px-4 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded-md 
-                          shadow-neumorphic-button dark:shadow-neumorphic-button-dark
-                          hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark 
-                          transition-all duration-200"
+                        className="relative mt-4 px-4 py-2 rounded-xl text-blue-700 dark:text-blue-300 font-medium
+                          transition-all duration-200
+                          bg-white dark:bg-gray-700 
+                          border border-blue-200 dark:border-blue-700
+                          before:absolute before:inset-0 before:rounded-xl
+                          before:bg-gradient-to-r before:from-blue-100/80 before:to-blue-50/90
+                          dark:before:bg-gradient-to-r dark:before:from-blue-900/30 dark:before:to-blue-800/10
+                          before:z-[-1] before:overflow-hidden
+                          hover:translate-y-[-2px] active:translate-y-0"
                       >
                         Reset Filter
                       </button>
