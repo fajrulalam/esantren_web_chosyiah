@@ -407,7 +407,7 @@ export default function TagihanModal({
                   as="h3"
                   className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4"
                 >
-                  {editMode ? 'Edit Santri Tagihan' : 'Buat Tagihan Baru'}
+                  {editMode ? 'Pilih Santri untuk Tagihan' : 'Buat Tagihan Baru'}
                 </Dialog.Title>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -616,8 +616,11 @@ export default function TagihanModal({
                       
                       <div className="max-h-48 overflow-y-auto">
                         {isLoadingSantris ? (
-                          <div className="flex justify-center items-center py-8">
+                          <div className="flex flex-col justify-center items-center py-8 space-y-2">
                             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                              {editMode ? "Memuat data santri..." : "Memuat data santri..."}
+                            </span>
                           </div>
                         ) : filteredSantris.length === 0 ? (
                           <div className="py-4 px-4 text-center text-sm text-gray-500 dark:text-gray-400">

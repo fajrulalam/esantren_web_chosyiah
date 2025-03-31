@@ -4,7 +4,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
-import { collection, getDocs, orderBy, query, where, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, where, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { db, functions } from '@/firebase/config';
 import { httpsCallable } from 'firebase/functions';
 import { KODE_ASRAMA } from '@/constants';
@@ -21,6 +21,7 @@ interface PaymentLog {
   numberOfWaitingVerification: number;
   numberOfSantriInvoiced: number;
   timestamp: Timestamp;
+  selectedSantriIds?: string[]; // Added for santri management
 }
 
 // Search params wrapper component
@@ -162,9 +163,31 @@ function RekapContent() {
   };
   
   // Handler to show edit payment modal (to add santri)
-  const handleEditPayment = (e: React.MouseEvent, payment: PaymentLog) => {
+  const handleEditPayment = async (e: React.MouseEvent, payment: PaymentLog) => {
     e.stopPropagation(); // Prevent row click from firing
-    setEditingPayment(payment);
+    
+    try {
+      // Fetch the invoice document to get selectedSantriIds
+      const invoiceRef = doc(db, 'Invoices', payment.id);
+      const invoiceDoc = await getDoc(invoiceRef);
+      
+      if (invoiceDoc.exists()) {
+        const data = invoiceDoc.data();
+        // Set the editing payment with selectedSantriIds included
+        setEditingPayment({
+          ...payment,
+          // Add the selectedSantriIds property to the payment object
+          selectedSantriIds: data.selectedSantriIds || []
+        });
+      } else {
+        // If doc doesn't exist (old record), just edit without pre-selected santris
+        setEditingPayment(payment);
+      }
+    } catch (error) {
+      console.error("Error fetching invoice details:", error);
+      // Still open the modal even if we can't get the existing santris
+      setEditingPayment(payment);
+    }
   };
   
   // Handler to show delete confirmation
@@ -182,7 +205,7 @@ function RekapContent() {
       setIsLoading(true);
       console.log("Attempting to delete invoice with ID:", paymentToDelete.id);
       
-      const deleteInvoiceFunction = httpsCallable(functions, 'deleteInvoiceFunction');
+      const deleteInvoiceFunction = httpsCallable(functions, 'deleteInvoice');
       const result = await deleteInvoiceFunction({ invoiceId: paymentToDelete.id });
       console.log("Delete result:", result);
       
@@ -369,6 +392,7 @@ function RekapContent() {
               existingInvoiceId={editingPayment.id}
               paymentName={editingPayment.paymentName}
               nominalTagihan={editingPayment.nominal}
+              existingSantriIds={editingPayment.selectedSantriIds || []}
               editMode={true}
             />
           )}
