@@ -116,27 +116,25 @@ export default function RekapitulasiPage() {
     }
   };
 
-  // --- NEW Improved Navigation Handler ---
+  // --- ULTRA SIMPLE Navigation Handler ---
   const handleRowClick = (payment: PaymentLog) => {
     console.log("Clicked on payment:", payment.id, payment.paymentName);
 
-    // Create a base64 encoded version of the ID to avoid all URL parsing issues
-    const base64PaymentId = btoa(payment.id);
-    
-    // Add the payment name as a query parameter to improve UX
+    // Create a simple query string approach - completely avoid path params
     const queryParams = new URLSearchParams({
+      id: payment.id,
       name: payment.paymentName,
     }).toString();
 
-    // Construct the URL with the base64 encoded ID and query parameters
-    const url = `/rekapitulasi-detail/${base64PaymentId}?${queryParams}`;
+    // Construct URL with ONLY query parameters - no path params at all
+    const url = `/rekapitulasi/view?${queryParams}`;
 
     console.log("Navigating to URL:", url);
 
     // Navigate to the detail page
     router.push(url);
   };
-  // --- End of NEW Improved Navigation Handler ---
+  // --- End of ULTRA SIMPLE Navigation Handler ---
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
