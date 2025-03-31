@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
 import { collection, getDocs, orderBy, query, where, Timestamp, doc, getDoc, updateDoc, increment, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { db, functions } from '@/firebase/config';
@@ -43,22 +43,7 @@ interface PaymentProof {
   inputtedBy: string;
 }
 
-// Create a client component that wraps the search params handling
-function SearchParamsHandler({
-  onParamsChange
-}: {
-  onParamsChange: (detail: string | null, name: string | null) => void
-}) {
-  const searchParams = useSearchParams();
-  
-  useEffect(() => {
-    const detail = searchParams.get('detail');
-    const name = searchParams.get('name');
-    onParamsChange(detail, name);
-  }, [searchParams, onParamsChange]);
-  
-  return null;
-}
+// No longer needed since we're using proper page routing
 
 export default function RekapitulasiPage() {
   const { user, loading } = useAuth();
@@ -70,127 +55,15 @@ export default function RekapitulasiPage() {
   const [selectedPayment, setSelectedPayment] = useState<PaymentLog | null>(null);
   
   // Detail view state
-  const [showDetailView, setShowDetailView] = useState(false);
-  const [detailPaymentId, setDetailPaymentId] = useState<string | null>(null);
-  const [detailPaymentName, setDetailPaymentName] = useState<string | null>(null);
+  // These states are no longer needed
   
   // Function declaration first
-  const fetchSantriPaymentStatus = async (paymentId: string) => {
-    if (!paymentId) return;
-
-    setDetailLoading(true);
-    try {
-      console.log("Fetching payment status for ID:", paymentId);
-      
-      // First, try to get the invoiceId from PembayaranLogs for backward compatibility
-      const logDocRef = doc(db, `AktivitasCollection/${KODE_ASRAMA}/PembayaranLogs/${paymentId}`);
-      const logDoc = await getDoc(logDocRef);
-      
-      let invoiceId: string | null = null;
-      
-      if (logDoc.exists() && logDoc.data().invoiceId) {
-        // If the PembayaranLogs document has an invoiceId reference, use it
-        invoiceId = logDoc.data().invoiceId;
-        console.log("Using invoiceId from PembayaranLogs:", invoiceId);
-      } else {
-        // If not, assume paymentId itself might be the invoiceId
-        invoiceId = paymentId;
-        console.log("Using paymentId as invoiceId:", invoiceId);
-      }
-      
-      // Try direct Firestore document fetch first
-      const directInvoiceDoc = await getDoc(doc(db, 'Invoices', invoiceId));
-      if (directInvoiceDoc.exists()) {
-        console.log("Invoice document exists directly");
-      } else {
-        console.log("Invoice document doesn't exist directly, will try query");
-      }
-      
-      // Query the PaymentStatuses collection using the invoiceId
-      const paymentStatusesQuery = query(
-        collection(db, 'PaymentStatuses'),
-        where('invoiceId', '==', invoiceId)
-      );
-      
-      const querySnapshot = await getDocs(paymentStatusesQuery);
-      console.log("PaymentStatuses query results count:", querySnapshot.size);
-      
-      // If no results found in the new structure, fall back to the old structure
-      if (querySnapshot.empty) {
-        console.log("Falling back to old structure");
-        const oldStatusCollectionRef = collection(
-          db, 
-          `AktivitasCollection/${KODE_ASRAMA}/PembayaranLogs/${paymentId}/PaymentStatusEachSantri`
-        );
-        
-        const oldQuerySnapshot = await getDocs(oldStatusCollectionRef);
-        console.log("Old structure results count:", oldQuerySnapshot.size);
-        
-        const payments: SantriPaymentStatus[] = [];
-        oldQuerySnapshot.forEach((doc) => {
-          const data = doc.data();
-          payments.push({
-            id: doc.id,
-            nama: data.santriName || 'Tidak ada nama',
-            status: data.status || 'Belum Bayar',
-            paid: data.paid || 0,
-            educationLevel: data.educationLevel || 'Tidak ada data',
-            educationGrade: data.educationGrade || 'Tidak ada data',
-            kamar: data.kamar || 'Tidak ada data',
-            santriId: data.santriId || '',
-            nomorWaliSantri: data.nomorWaliSantri || '',
-            total: data.total || 0,
-            history: data.history || {}
-          });
-        });
-        
-        setSantriPayments(payments);
-        setFilteredPayments(payments);
-      } else {
-        // Process results from the new PaymentStatuses collection
-        console.log("Using new structure results");
-        const payments: SantriPaymentStatus[] = [];
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          payments.push({
-            id: doc.id,
-            nama: data.nama || data.santriName || 'Tidak ada nama',
-            status: data.status || 'Belum Lunas',
-            paid: data.paid || 0,
-            educationLevel: data.educationLevel || 'Tidak ada data',
-            educationGrade: data.educationGrade || 'Tidak ada data',
-            kamar: data.kamar || 'Tidak ada data',
-            santriId: data.santriId || '',
-            nomorWaliSantri: data.nomorWaliSantri || '',
-            total: data.total || 0,
-            history: data.history || {}
-          });
-        });
-        
-        setSantriPayments(payments);
-        setFilteredPayments(payments);
-      }
-    } catch (error) {
-      console.error("Error fetching santri payment status:", error);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
+  // This function is no longer needed since we're handling it in the detail page
   
-  // Then the callback that uses it
-  const handleParamsChange = React.useCallback((detail: string | null, name: string | null) => {
-    if (detail && name && !showDetailView) {
-      setDetailPaymentId(detail);
-      setDetailPaymentName(name);
-      setShowDetailView(true);
-      fetchSantriPaymentStatus(detail);
-    }
-  }, [showDetailView]);
+  // No longer needed since we're using proper page routing
   
-  // Detail page states
-  const [santriPayments, setSantriPayments] = useState<SantriPaymentStatus[]>([]);
-  const [filteredPayments, setFilteredPayments] = useState<SantriPaymentStatus[]>([]);
-  const [detailLoading, setDetailLoading] = useState(false);
+  // We no longer need these states in the main page
+  // Since we're using the detail/[id]/page.tsx for showing details
   const [filters, setFilters] = useState({
     kamar: '',
     educationLevel: '',
@@ -296,35 +169,15 @@ export default function RekapitulasiPage() {
   };
 
   const handleRowClick = (payment: PaymentLog) => {
-    // Instead of navigating to a separate page, show the detail view
-    setDetailPaymentId(payment.id);
-    setDetailPaymentName(payment.paymentName);
-    setShowDetailView(true);
+    // Navigate to the actual detail page instead of showing the internal view
+    const encodedPaymentId = encodeURIComponent(payment.id);
+    const encodedPaymentName = encodeURIComponent(payment.paymentName);
     
-    // Update the URL using Next.js router to make it look like a separate page
-    // Create a new URLSearchParams object
-    const params = new URLSearchParams();
-    params.set('detail', payment.id);
-    params.set('name', payment.paymentName);
-    
-    // Use router.push with the new query string
-    // Account for trailing slash in next.config.ts
-    router.push(`/rekapitulasi/?${params.toString()}`, { scroll: false });
-    
-    // Load the detail data
-    fetchSantriPaymentStatus(payment.id);
+    // Navigate to the detail page with the payment ID and name
+    router.push(`/rekapitulasi/detail/${encodedPaymentId}?name=${encodedPaymentName}`);
   };
   
-  // Function to go back to the main view
-  const handleBackClick = () => {
-    setShowDetailView(false);
-    setDetailPaymentId(null);
-    setDetailPaymentName(null);
-    
-    // Update URL using Next.js router to remove the detail parameters
-    // Using trailingSlash in next.config.ts means URLs should end with a slash
-    router.push('/rekapitulasi/', { scroll: false });
-  };
+  // No longer needed since we're using proper page routing
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -362,32 +215,7 @@ export default function RekapitulasiPage() {
     });
   };
   
-  // Delete invoice function
-  const deleteInvoice = async () => {
-    if (!detailPaymentId) return;
-    
-    if (!confirm('Apakah Anda yakin ingin menghapus tagihan ini? Tindakan ini tidak dapat dibatalkan.')) {
-      return;
-    }
-    
-    setDetailLoading(true);
-    
-    try {
-      console.log("Attempting to delete invoice with ID:", detailPaymentId);
-      
-      const deleteInvoiceFunction = httpsCallable(functions, 'deleteInvoiceFunction');
-      const result = await deleteInvoiceFunction({ invoiceId: detailPaymentId });
-      console.log("Delete result:", result);
-      
-      alert('Tagihan berhasil dihapus');
-      handleBackClick(); // Go back to the main view
-    } catch (error) {
-      console.error("Error deleting invoice:", error);
-      alert('Gagal menghapus tagihan. Silakan coba lagi.');
-    } finally {
-      setDetailLoading(false);
-    }
-  };
+  // This function is no longer needed since we're handling it in the detail page
   
   // Function to get payment proof from history
   const getPaymentProofFromHistory = (payment: SantriPaymentStatus | null): PaymentProof => {
@@ -798,228 +626,7 @@ export default function RekapitulasiPage() {
     .sort((a, b) => parseInt(a) - parseInt(b));
   const uniqueStatuses = [...new Set(santriPayments.map(payment => payment.status))];
 
-  // Detail view component
-  const renderDetailView = () => {
-    if (!detailPaymentId || !detailPaymentName) return null;
-    
-    return (
-      <div className="container mx-auto py-6 px-4 transition-colors dark:bg-gray-900">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <button 
-              onClick={handleBackClick}
-              className="flex items-center text-blue-600 hover:text-blue-800 mb-2"
-            >
-              <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Kembali
-            </button>
-            <h1 className="text-2xl font-bold dark:text-white">Detail Pembayaran: {detailPaymentName}</h1>
-          </div>
-          
-          <button
-            onClick={deleteInvoice}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-          >
-            Hapus Tagihan
-          </button>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-colors">
-          {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-            <div>
-              <label htmlFor="kamar" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filter Kamar
-              </label>
-              <select
-                id="kamar"
-                name="kamar"
-                value={filters.kamar}
-                onChange={handleFilterChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">Semua Kamar</option>
-                {uniqueKamar.map((kamar) => (
-                  <option key={kamar} value={kamar}>{kamar}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="educationLevel" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filter Jenjang Pendidikan
-              </label>
-              <select
-                id="educationLevel"
-                name="educationLevel"
-                value={filters.educationLevel}
-                onChange={handleFilterChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">Semua Jenjang</option>
-                {uniqueEducationLevels.map((level) => (
-                  <option key={level} value={level}>{level}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="semester" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filter Semester
-              </label>
-              <select
-                id="semester"
-                name="semester"
-                value={filters.semester}
-                onChange={handleFilterChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">Semua Semester</option>
-                {uniqueSemester.map((semester) => (
-                  <option key={semester} value={semester}>{semester}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="programStudi" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filter Program Studi
-              </label>
-              <select
-                id="programStudi"
-                name="programStudi"
-                value={filters.programStudi}
-                onChange={handleFilterChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">Semua Program Studi</option>
-                {uniqueProgramStudi.map((prodi) => (
-                  <option key={prodi} value={prodi}>{prodi}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filter Status Pembayaran
-              </label>
-              <select
-                id="status"
-                name="status"
-                value={filters.status}
-                onChange={handleFilterChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">Semua Status</option>
-                {uniqueStatuses.map((status) => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-x-auto">
-            {detailLoading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-              </div>
-            ) : filteredPayments.length === 0 ? (
-              <p className="text-center py-8 text-gray-500 dark:text-gray-400">Tidak ada data pembayaran santri</p>
-            ) : (
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Nama
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Status Pembayaran
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Total Terbayar
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Jenjang Pendidikan
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Semester
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Program Studi
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Kelas
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Kamar
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Aksi
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {filteredPayments.map((payment) => (
-                    <tr key={payment.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                        {payment.nama}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        <span className={`inline-flex px-2 text-xs font-semibold rounded-full ${
-                          payment.status === 'Lunas' 
-                            ? 'bg-green-100 text-green-800' 
-                            : payment.status === 'Menunggu Verifikasi'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {payment.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {formatCurrency(payment.paid)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {payment.educationLevel || "-"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {payment.semester || "-"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {payment.programStudi || "-"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {payment.educationGrade || "-"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {payment.kamar || "-"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        <button 
-                          onClick={() => handleActionButtonClick(payment)}
-                          className={`px-3 py-1 text-xs font-semibold rounded-md ${
-                            payment.status === 'Lunas' 
-                              ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' 
-                              : payment.status === 'Menunggu Verifikasi'
-                              ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                              : 'bg-green-100 text-green-800 hover:bg-green-200'
-                          }`}
-                        >
-                          {payment.status === 'Lunas' 
-                            ? 'Lihat Riwayat' 
-                            : payment.status === 'Menunggu Verifikasi'
-                            ? 'Verifikasi'
-                            : 'Ingatkan'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // This function is no longer needed since we're handling it in the detail page
 
   // Main list view
   const renderMainView = () => {
@@ -1116,13 +723,8 @@ export default function RekapitulasiPage() {
 
   return (
     <>
-      {/* Handle URL parameters with proper suspense boundary */}
-      <Suspense fallback={null}>
-        <SearchParamsHandler onParamsChange={handleParamsChange} />
-      </Suspense>
-      
-      {/* Render either the detail view or the main view */}
-      {showDetailView ? renderDetailView() : renderMainView()}
+      {/* We're no longer handling detail view in this component, always render the main view */}
+      {renderMainView()}
       
       {/* Payment Proof Verification Modal */}
       {showPaymentProofModal && selectedSantriPayment && (
