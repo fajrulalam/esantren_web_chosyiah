@@ -330,15 +330,28 @@ export default function TagihanModal({
         // Get a reference to the invoice
         const invoiceDocRef = doc(db, 'Invoices', existingInvoiceId);
         
-        // 1. Add santris to the invoice through Firebase Function
+        // 1. Add santris to the invoice through Firebase Function HTTP endpoint
         if (santriIdsToAdd.length > 0) {
           try {
-            // Call the function to add santris to the invoice
-            const addSantrisToInvoice = httpsCallable(functions, 'addSantrisToInvoice');
-            await addSantrisToInvoice({
-              invoiceId: existingInvoiceId,
-              santriIds: santriIdsToAdd
+            // Call the HTTP endpoint instead of the callable function
+            const response = await fetch('https://us-central1-e-santren.cloudfunctions.net/addSantrisToInvoiceFunction', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                data: {
+                  invoiceId: existingInvoiceId,
+                  santriIds: santriIdsToAdd
+                }
+              })
             });
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+              throw new Error(result.message || 'Failed to add santris');
+            }
           } catch (error) {
             console.error("Error adding santris to invoice:", error);
             alert("Gagal menambahkan santri ke tagihan.");
@@ -347,15 +360,28 @@ export default function TagihanModal({
           }
         }
         
-        // 2. Remove santris from the invoice through Firebase Function
+        // 2. Remove santris from the invoice through Firebase Function HTTP endpoint
         if (santriIdsToRemove.length > 0) {
           try {
-            // Call the function to remove santris from the invoice
-            const removeSantrisFromInvoice = httpsCallable(functions, 'removeSantrisFromInvoice');
-            await removeSantrisFromInvoice({
-              invoiceId: existingInvoiceId,
-              santriIds: santriIdsToRemove
+            // Call the HTTP endpoint instead of the callable function
+            const response = await fetch('https://us-central1-e-santren.cloudfunctions.net/removeSantrisFromInvoiceFunction', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                data: {
+                  invoiceId: existingInvoiceId,
+                  santriIds: santriIdsToRemove
+                }
+              })
             });
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+              throw new Error(result.message || 'Failed to remove santris');
+            }
           } catch (error) {
             console.error("Error removing santris from invoice:", error);
             alert("Gagal menghapus santri dari tagihan.");

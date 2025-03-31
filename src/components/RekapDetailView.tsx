@@ -149,9 +149,25 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     try {
       console.log("Attempting to delete invoice with ID:", paymentId);
       
-      const deleteInvoiceFunction = httpsCallable(functions, 'deleteInvoiceFunction');
-      const result = await deleteInvoiceFunction({ invoiceId: paymentId });
+      // Call the HTTP endpoint instead of the callable function
+      const response = await fetch('https://us-central1-e-santren.cloudfunctions.net/deleteInvoiceFunction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: {
+            invoiceId: paymentId
+          }
+        })
+      });
+      
+      const result = await response.json();
       console.log("Delete result:", result);
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to delete invoice');
+      }
       
       alert('Tagihan berhasil dihapus');
       onClose();
