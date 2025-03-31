@@ -53,12 +53,14 @@ export default function TagihanModal({
   const [santris, setSantris] = useState<Santri[]>([]);
   const [filteredSantris, setFilteredSantris] = useState<Santri[]>([]);
   const [selectedSantriIds, setSelectedSantriIds] = useState<Set<string>>(new Set());
+  const [initialSelectedIds, setInitialSelectedIds] = useState<Set<string>>(new Set()); // Track original selections
+  const [hasChanges, setHasChanges] = useState(false); // Track if changes were made
   const [isSelectAll, setIsSelectAll] = useState(false);
   const [isLoadingSantris, setIsLoadingSantris] = useState(false);
   
   // Filter states
   const [filters, setFilters] = useState({
-    statusAktif: 'Aktif',
+    statusAktif: editMode ? '' : 'Aktif', // Show all santris in edit mode, only active in create mode
     jenjangPendidikan: '',
     programStudi: '',
     semester: '',
@@ -69,6 +71,12 @@ export default function TagihanModal({
   // Initialize the form with existing invoice data if in edit mode
   useEffect(() => {
     if (isOpen) {
+      // Set appropriate filter for edit/create mode
+      setFilters(prev => ({
+        ...prev,
+        statusAktif: editMode ? '' : 'Aktif' // Show all santris in edit mode, only active in create
+      }));
+      
       if (editMode && paymentName && nominalTagihan !== undefined) {
         setFormData({
           paymentName: paymentName,
@@ -95,15 +103,18 @@ export default function TagihanModal({
         });
       }
       setSelectedSantriIds(new Set());
+      setInitialSelectedIds(new Set());
+      setHasChanges(false);
       setIsSelectAll(false);
     }
   }, [isOpen, editMode, paymentName, nominalTagihan]);
   
-  // Fetch all active santris
+  // Fetch all santris (filtered by status in applyFilters if needed)
   const fetchSantris = async () => {
     setIsLoadingSantris(true);
     try {
       const santriRef = collection(db, "SantriCollection");
+      // Only filter by asrama code, status filtering will be done client-side
       const q = query(santriRef, where("kodeAsrama", "==", KODE_ASRAMA));
       const querySnapshot = await getDocs(q);
       
@@ -122,7 +133,7 @@ export default function TagihanModal({
       
       setSantris(santriData);
       
-      // Apply initial filter for Aktif santris
+      // Apply filters (in edit mode, statusAktif filter will be empty to show all santris)
       applyFilters(santriData, filters);
     } catch (error) {
       console.error("Error fetching santri data:", error);
@@ -135,18 +146,22 @@ export default function TagihanModal({
   useEffect(() => {
     if (editMode && existingSantriIds && existingSantriIds.length > 0 && santris.length > 0) {
       // Create a new Set with the existing santris
-      const initialSelectedIds = new Set<string>();
+      const newInitialSelectedIds = new Set<string>();
       
       // Map only the santris that are in the current santri list
       santris.forEach(santri => {
         if (existingSantriIds.includes(santri.id)) {
-          initialSelectedIds.add(santri.id);
+          newInitialSelectedIds.add(santri.id);
         }
       });
       
-      setSelectedSantriIds(initialSelectedIds);
+      // Store both as current selection and initial selection for comparison
+      setSelectedSantriIds(new Set(newInitialSelectedIds));
+      setInitialSelectedIds(newInitialSelectedIds);
+      setHasChanges(false); // Reset changes flag
+      
       // Update select all checkbox if all filtered santris are selected
-      setIsSelectAll(initialSelectedIds.size === filteredSantris.length && filteredSantris.length > 0);
+      setIsSelectAll(newInitialSelectedIds.size === filteredSantris.length && filteredSantris.length > 0);
     }
   }, [editMode, existingSantriIds, santris, filteredSantris]);
 
@@ -178,21 +193,12 @@ export default function TagihanModal({
       filtered = filtered.filter(santri => santri.kamar === currentFilters.kamar);
     }
     
-    // In edit mode, we need to filter out santris that are already in the invoice
-    // UNLESS they're also in our existingSantriIds (that means they're part of the invoice we're editing)
-    if (editMode && existingSantriIds) {
-      // We want to show selected santris for this invoice but hide santris from other invoices
-      filtered = filtered.filter(santri => {
-        // If it's in existingSantriIds, we keep it (it's already part of this invoice)
-        if (existingSantriIds.includes(santri.id)) {
-          return true;
-        }
-        
-        // Otherwise, we keep it only if statusTanggungan is not already 'Belum Lunas' or 'Menunggu Verifikasi'
-        // (which would mean it's part of another invoice)
-        return !['Belum Lunas', 'Menunggu Verifikasi'].includes(santri.statusTanggungan);
-      });
-    }
+    // In edit mode, we want to show ALL santris, including those from other invoices
+  // This allows adding ANY santri to THIS invoice
+  if (editMode) {
+    // No filtering based on statusTanggungan in edit mode - show all santris
+    // We'll just let the checkboxes indicate which ones are selected
+  }
     
     setFilteredSantris(filtered);
     
@@ -200,6 +206,12 @@ export default function TagihanModal({
       // Only reset selection when filters change in create mode, not edit mode
       setSelectedSantriIds(new Set());
       setIsSelectAll(false);
+    } else {
+      // In edit mode, update the selectAll state based on the filtered santris
+      setIsSelectAll(
+        filteredSantris.length > 0 && 
+        filteredSantris.every(santri => selectedSantriIds.has(santri.id))
+      );
     }
   };
   
@@ -211,16 +223,54 @@ export default function TagihanModal({
     applyFilters(santris, newFilters);
   };
   
+  // Helper function to check if selections have changed from initial state
+  const checkForChanges = (currentSelection: Set<string>) => {
+    if (!editMode) return true; // Always enable button in create mode
+    
+    // If sizes are different, there are changes
+    if (currentSelection.size !== initialSelectedIds.size) {
+      setHasChanges(true);
+      return;
+    }
+    
+    // Check if any IDs are different
+    let changed = false;
+    
+    // Check for additions (in current but not in initial)
+    for (const id of currentSelection) {
+      if (!initialSelectedIds.has(id)) {
+        changed = true;
+        break;
+      }
+    }
+    
+    // Check for removals (in initial but not in current)
+    if (!changed) {
+      for (const id of initialSelectedIds) {
+        if (!currentSelection.has(id)) {
+          changed = true;
+          break;
+        }
+      }
+    }
+    
+    setHasChanges(changed);
+  };
+  
   // Handle select all
   const handleSelectAll = () => {
+    let newSelectedIds;
     if (isSelectAll) {
-      setSelectedSantriIds(new Set());
+      newSelectedIds = new Set<string>();
     } else {
-      const ids = new Set<string>();
-      filteredSantris.forEach(santri => ids.add(santri.id));
-      setSelectedSantriIds(ids);
+      newSelectedIds = new Set<string>();
+      filteredSantris.forEach(santri => newSelectedIds.add(santri.id));
     }
+    setSelectedSantriIds(newSelectedIds);
     setIsSelectAll(!isSelectAll);
+    
+    // Check if selections have changed from initial state
+    checkForChanges(newSelectedIds);
   };
   
   // Handle individual selection
@@ -233,6 +283,9 @@ export default function TagihanModal({
     }
     setSelectedSantriIds(newSelectedIds);
     setIsSelectAll(newSelectedIds.size === filteredSantris.length);
+    
+    // Check if selections have changed from initial state
+    checkForChanges(newSelectedIds);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -473,9 +526,22 @@ export default function TagihanModal({
                       <p className="text-blue-600 dark:text-blue-400">
                         Nominal: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(nominalTagihan || 0)}
                       </p>
-                      <p className="text-xs text-blue-500 dark:text-blue-400 mt-2">
-                        {existingSantriIds?.length || 0} santri saat ini tertagih
-                      </p>
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-blue-500 dark:text-blue-400">
+                          {existingSantriIds?.length || 0} santri saat ini tertagih
+                        </p>
+                        <div className="text-xs">
+                          {hasChanges ? (
+                            <span className="text-yellow-600 dark:text-yellow-400 font-medium">
+                              ● Perubahan belum disimpan
+                            </span>
+                          ) : (
+                            <span className="text-green-600 dark:text-green-400 font-medium">
+                              ● Tidak ada perubahan
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                   
@@ -614,7 +680,12 @@ export default function TagihanModal({
                         </span>
                       </div>
                       
-                      <div className="max-h-48 overflow-y-auto">
+                      {editMode && (
+                        <div className="mb-1 text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                          <span className="text-blue-500 mr-1">●</span> Santri yang saat ini sudah termasuk dalam tagihan
+                        </div>
+                      )}
+                      <div className="max-h-72 overflow-y-auto">
                         {isLoadingSantris ? (
                           <div className="flex flex-col justify-center items-center py-8 space-y-2">
                             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
@@ -663,7 +734,11 @@ export default function TagihanModal({
                                       ? "bg-blue-50 dark:bg-blue-900/30" 
                                       : "hover:bg-gray-50 dark:hover:bg-gray-800"}
                                   >
-                                    <td className="px-2 py-2 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 z-10">
+                                    <td className={`px-2 py-2 whitespace-nowrap sticky left-0 z-10 ${
+                                      selectedSantriIds.has(santri.id) 
+                                        ? "bg-blue-50 dark:bg-blue-900/30" 
+                                        : "bg-white dark:bg-gray-900"
+                                    }`}>
                                       <input
                                         type="checkbox"
                                         className="h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
@@ -671,8 +746,15 @@ export default function TagihanModal({
                                         onChange={() => handleSelectSantri(santri.id)}
                                       />
                                     </td>
-                                    <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white sticky left-8 bg-white dark:bg-gray-900 z-10">
+                                    <td className={`px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white sticky left-8 z-10 flex items-center ${
+                                      selectedSantriIds.has(santri.id) 
+                                        ? "bg-blue-50 dark:bg-blue-900/30" 
+                                        : "bg-white dark:bg-gray-900"
+                                    }`}>
                                       {santri.nama}
+                                      {editMode && initialSelectedIds.has(santri.id) && (
+                                        <span className="ml-2 text-blue-500 text-xs" title="Termasuk dalam tagihan saat ini">●</span>
+                                      )}
                                     </td>
                                     <td className="px-3 py-2 whitespace-nowrap text-xs">
                                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -726,7 +808,9 @@ export default function TagihanModal({
                     </button>
                     <button
                       type="submit"
-                      disabled={isSubmitting || selectedSantriIds.size === 0}
+                      disabled={isSubmitting || 
+                               selectedSantriIds.size === 0 || 
+                               (editMode && !hasChanges)} // Disable if no changes in edit mode
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300 dark:disabled:bg-blue-800/50"
                     >
                       {isSubmitting ? 'Menyimpan...' : editMode ? 'Simpan Perubahan' : 'Buat Tagihan'}
