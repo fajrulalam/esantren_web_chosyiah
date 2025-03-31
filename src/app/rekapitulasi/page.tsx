@@ -129,11 +129,23 @@ export default function RekapitulasiPage() {
 
   const handleRowClick = (payment: PaymentLog) => {
     // Navigate to the actual detail page instead of showing the internal view
-    const encodedPaymentId = encodeURIComponent(payment.id);
+    console.log("Clicked on payment:", payment.id, payment.paymentName);
+    
+    // Remove any problematic characters from the ID 
+    // (like slashes that can interfere with URL routing)
+    const cleanPaymentId = payment.id.replace(/\//g, '_');
+    
+    // Then encode for URL safety
+    const encodedPaymentId = encodeURIComponent(cleanPaymentId);
     const encodedPaymentName = encodeURIComponent(payment.paymentName);
     
+    // Account for trailing slash in next.config.ts
+    const url = `/rekapitulasi/detail/${encodedPaymentId}/?name=${encodedPaymentName}`;
+    
+    console.log("Navigating to URL:", url);
+    
     // Navigate to the detail page with the payment ID and name
-    router.push(`/rekapitulasi/detail/${encodedPaymentId}?name=${encodedPaymentName}`);
+    router.push(url);
   };
   
   // No longer needed since we're using proper page routing
