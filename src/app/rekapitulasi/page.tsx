@@ -8,7 +8,7 @@ import { collection, getDocs, orderBy, query, where, Timestamp } from 'firebase/
 import { db } from '@/firebase/config'; // Assuming functions is not directly used here, removed import
 import { KODE_ASRAMA } from '@/constants';
 import TagihanModal from '@/components/TagihanModal';
-import RekapDetailView from '@/components/RekapDetailView';
+import RekapDetailView from '../../../components/RekapDetailView';
 // Removed import for httpsCallable as it wasn't used in the final code provided
 // import { httpsCallable } from 'firebase/functions';
 
