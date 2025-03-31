@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
 import { collection, getDocs, orderBy, query, where, Timestamp } from 'firebase/firestore';
-import { db } from '@/firebase/config'; // Assuming functions is not directly used here, removed import
+import { db, functions } from '@/firebase/config';
+import { httpsCallable } from 'firebase/functions';
 import { KODE_ASRAMA } from '@/constants';
 import TagihanModal from '@/components/TagihanModal';
 import RekapDetailView from '@/components/RekapDetailView';
-// Removed import for httpsCallable as it wasn't used in the final code provided
-// import { httpsCallable } from 'firebase/functions';
+// Now we're using httpsCallable for deleting invoices directly in this component
 
 // Interface for the data displayed in the main table
 interface PaymentLog {
@@ -32,6 +32,9 @@ function RekapContent() {
   const [payments, setPayments] = useState<PaymentLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showTagihanModal, setShowTagihanModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<PaymentLog | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<PaymentLog | null>(null);
   // selectedPayment state is removed as it's not used for modal/detail view anymore
 
   // Check for URL parameters that may contain a payment ID
@@ -157,6 +160,48 @@ function RekapContent() {
     // Reset the URL to just the base path
     window.history.pushState({}, '', '/rekapitulasi');
   };
+  
+  // Handler to show edit payment modal (to add santri)
+  const handleEditPayment = (e: React.MouseEvent, payment: PaymentLog) => {
+    e.stopPropagation(); // Prevent row click from firing
+    setEditingPayment(payment);
+  };
+  
+  // Handler to show delete confirmation
+  const handleDeleteClick = (e: React.MouseEvent, payment: PaymentLog) => {
+    e.stopPropagation(); // Prevent row click from firing
+    setPaymentToDelete(payment);
+    setShowDeleteConfirm(true);
+  };
+  
+  // Handler to delete invoice
+  const deleteInvoice = async () => {
+    if (!paymentToDelete) return;
+    
+    try {
+      setIsLoading(true);
+      console.log("Attempting to delete invoice with ID:", paymentToDelete.id);
+      
+      const deleteInvoiceFunction = httpsCallable(functions, 'deleteInvoiceFunction');
+      const result = await deleteInvoiceFunction({ invoiceId: paymentToDelete.id });
+      console.log("Delete result:", result);
+      
+      // Clear the delete confirmation modal
+      setShowDeleteConfirm(false);
+      setPaymentToDelete(null);
+      
+      // Refresh the payments list
+      fetchPayments();
+      
+      // Show success message
+      alert('Tagihan berhasil dihapus');
+    } catch (error) {
+      console.error("Error deleting invoice:", error);
+      alert('Gagal menghapus tagihan. Silakan coba lagi.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -254,6 +299,9 @@ function RekapContent() {
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Tanggal Pembuatan
                       </th>
+                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Aksi
+                      </th>
                     </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -281,6 +329,22 @@ function RekapContent() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                             {formatDate(payment.timestamp)}
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-center space-x-2">
+                              <button
+                                onClick={(e) => handleEditPayment(e, payment)}
+                                className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600 shadow-sm hover:bg-blue-100"
+                              >
+                                Tambah Santri
+                              </button>
+                              <button
+                                onClick={(e) => handleDeleteClick(e, payment)}
+                                className="rounded-md bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 shadow-sm hover:bg-red-100"
+                              >
+                                Hapus
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                     ))}
                     </tbody>
@@ -295,6 +359,48 @@ function RekapContent() {
               onClose={() => setShowTagihanModal(false)}
               onSuccess={fetchPayments} // Refresh list after successful creation
           />
+          
+          {/* Modal for editing payment (adding santri) */}
+          {editingPayment && (
+            <TagihanModal
+              isOpen={!!editingPayment}
+              onClose={() => setEditingPayment(null)}
+              onSuccess={fetchPayments}
+              existingInvoiceId={editingPayment.id}
+              paymentName={editingPayment.paymentName}
+              nominalTagihan={editingPayment.nominal}
+              editMode={true}
+            />
+          )}
+          
+          {/* Delete confirmation modal */}
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 z-30 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white rounded-lg p-8 max-w-md w-full">
+                <h3 className="text-lg font-semibold mb-4">Konfirmasi Penghapusan</h3>
+                <p className="mb-6">
+                  Apakah Anda yakin ingin menghapus tagihan <span className="font-semibold">{paymentToDelete?.paymentName}</span>? Tindakan ini tidak dapat dibatalkan.
+                </p>
+                <div className="flex justify-end space-x-3">
+                  <button 
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setPaymentToDelete(null);
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button 
+                    onClick={deleteInvoice}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
