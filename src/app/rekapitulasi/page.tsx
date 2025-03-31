@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
@@ -23,10 +23,11 @@ interface PaymentLog {
   timestamp: Timestamp;
 }
 
-export default function RekapitulasiPage() {
+// Search params wrapper component
+function RekapContent() {
+  const searchParams = useSearchParams();
   const { user, loading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [payments, setPayments] = useState<PaymentLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -297,5 +298,18 @@ export default function RekapitulasiPage() {
         </>
       )}
     </div>
+  );
+}
+
+// Main page component with suspense
+export default function RekapitulasiPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex justify-center items-center min-h-screen dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    }>
+      <RekapContent />
+    </Suspense>
   );
 }
