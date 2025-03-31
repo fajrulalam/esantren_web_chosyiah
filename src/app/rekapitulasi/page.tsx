@@ -116,25 +116,27 @@ export default function RekapitulasiPage() {
     }
   };
 
-  // --- Corrected Navigation Handler ---
+  // --- NEW Improved Navigation Handler ---
   const handleRowClick = (payment: PaymentLog) => {
     console.log("Clicked on payment:", payment.id, payment.paymentName);
 
-    // Directly encode the original payment ID to make it URL-safe.
-    // This handles characters like '/' or spaces automatically.
-    const encodedPaymentId = encodeURIComponent(payment.id);
+    // Create a base64 encoded version of the ID to avoid all URL parsing issues
+    const base64PaymentId = btoa(payment.id);
+    
+    // Add the payment name as a query parameter to improve UX
+    const queryParams = new URLSearchParams({
+      name: payment.paymentName,
+    }).toString();
 
-    // Construct the URL path based on the directory structure:
-    // /app/rekapitulasi/detail/[id]/page.tsx maps to /rekapitulasi/detail/<encoded_id>
-    // IMPORTANT: The detail page needs to use decodeURIComponent() on the received ID.
-    const url = `/rekapitulasi/detail/${encodedPaymentId}`;
+    // Construct the URL with the base64 encoded ID and query parameters
+    const url = `/rekapitulasi-detail/${base64PaymentId}?${queryParams}`;
 
     console.log("Navigating to URL:", url);
 
     // Navigate to the detail page
     router.push(url);
   };
-  // --- End of Correction ---
+  // --- End of NEW Improved Navigation Handler ---
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
