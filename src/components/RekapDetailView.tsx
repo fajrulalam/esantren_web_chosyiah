@@ -56,7 +56,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
   const [filteredPayments, setFilteredPayments] = useState<SantriPaymentStatus[]>([]);
   const [filters, setFilters] = useState({
     kamar: '',
-    educationLevel: '',
+    educationGrade: '',
     status: ''
   });
   
@@ -893,7 +893,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                 <select
                   id="educationLevel"
                   name="educationLevel"
-                  value={filters.educationLevel}
+                  value={filters.educationGrade}
                   onChange={handleFilterChange}
                   className="w-full rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 
                     text-gray-700 dark:text-gray-200 shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
@@ -1099,7 +1099,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                             {formatCurrency(payment.total)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
-                            {payment.educationLevel}
+                            {payment.educationGrade}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                             {payment.kamar}

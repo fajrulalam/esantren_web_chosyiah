@@ -19,6 +19,7 @@ interface SantriData {
   nama: string;
   kamar: string;
   kelas: string;
+  semester?: string;
   jenjangPendidikan: string;
   programStudi?: string;
   nomorWalisantri: string;
@@ -128,6 +129,7 @@ export const createPaymentStatusesOnInvoiceCreation = async (
               nama: data.nama || 'Unknown',
               kamar: data.kamar || '',
               kelas: data.kelas || '',
+              semester: data.semester || '',
               jenjangPendidikan: data.jenjangPendidikan || '',
               programStudi: data.programStudi || '',
               nomorWalisantri: data.nomorWalisantri || '',
@@ -162,6 +164,7 @@ export const createPaymentStatusesOnInvoiceCreation = async (
           nama: data.nama || 'Unknown',
           kamar: data.kamar || '',
           kelas: data.kelas || '',
+          semester: data.semester || '',
           jenjangPendidikan: data.jenjangPendidikan || '',
           programStudi: data.programStudi || '',
           nomorWalisantri: data.nomorWalisantri || '',
@@ -227,7 +230,7 @@ export const createPaymentStatusesOnInvoiceCreation = async (
           invoiceId: invoiceId,
           santriId: santri.id,
           santriName: santri.nama,
-          educationGrade: santri.kelas,
+          educationGrade: santri.kelas || santri.semester || '',
           educationLevel: santri.jenjangPendidikan,
           programStudi: santri.programStudi || '',
           kamar: santri.kamar,
@@ -405,6 +408,7 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
             nama: data.nama || 'Unknown',
             kamar: data.kamar || '',
             kelas: data.kelas || '',
+            semester: data.semester || '',
             jenjangPendidikan: data.jenjangPendidikan || '',
             programStudi: data.programStudi || '',
             nomorWalisantri: data.nomorWalisantri || '',
@@ -469,7 +473,7 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
         santriId: santri.id,
         santriName: santri.nama,
         nama: santri.nama,
-        educationGrade: santri.kelas,
+        educationGrade: santri.kelas || santri.semester || '',
         educationLevel: santri.jenjangPendidikan,
         programStudi: santri.programStudi || '',
         kamar: santri.kamar,
