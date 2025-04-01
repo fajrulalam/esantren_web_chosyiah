@@ -453,7 +453,16 @@ export default function TagihanModal({
     .filter(Boolean)
     .filter((v, i, a) => a.indexOf(v) === i)
     .sort((a, b) => parseInt(a) - parseInt(b));
-  const uniqueProgramStudi = [...new Set(santris.map(santri => santri.programStudi).filter(Boolean))].sort();
+  // Normalize program studi capitalization for the filter dropdown
+  const uniqueProgramStudi = [...new Set(
+    santris.map(santri => santri.programStudi?.toUpperCase()).filter(Boolean)
+  )].sort().map(prodi => {
+    // Find the first occurrence of this program studi (case insensitive) to use its original capitalization
+    const firstMatch = santris.find(santri => 
+      santri.programStudi?.toUpperCase() === prodi
+    );
+    return firstMatch?.programStudi || prodi;
+  });
   
   return (
     <Transition show={isOpen} as={Fragment}>
