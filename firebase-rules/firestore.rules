@@ -43,10 +43,8 @@ service cloud.firestore {
     
     // TagihanCollection rules
     match /TagihanCollection/{tagihanId} {
-      // Pengurus, pengasuh, superAdmin can read all tagihan
-      // Wali santri can only read their own santri's tagihan
-      allow read: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin() ||
-                    (userHasRole("waliSantri") && resource.data.santriId == getSantriIdForWali());
+      // Allow anyone to read tagihan
+      allow read: if true;
       
       // Only pengurus, pengasuh, and superAdmins can create/update/delete tagihan
       allow create, update, delete: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
@@ -54,8 +52,8 @@ service cloud.firestore {
     
     // NEW: Invoices collection rules
     match /Invoices/{invoiceId} {
-      // Any authenticated user can read invoice data
-      allow read: if request.auth != null;
+      // Allow anyone to read invoice data
+      allow read: if true;
       
       // Only pengurus, pengasuh, and superAdmins can create/update invoices
       allow create, update: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
@@ -66,10 +64,8 @@ service cloud.firestore {
     
     // NEW: PaymentStatuses collection rules
     match /PaymentStatuses/{paymentStatusId} {
-      // Pengurus, pengasuh, superAdmin can read all payment statuses
-      // Wali santri can only read their own santri's payment statuses
-      allow read: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin() ||
-                   (userHasRole("waliSantri") && resource.data.santriId == getSantriIdForWali());
+      // Allow anyone to read payment statuses
+      allow read: if true;
       
       // Only pengurus, pengasuh, and superAdmins can update payment statuses
       allow update: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
@@ -83,8 +79,8 @@ service cloud.firestore {
     
     // NEW: Counters collection rules
     match /Counters/{counterId} {
-      // Only pengurus, pengasuh, and superAdmins can read counters
-      allow read: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
+      // Allow anyone to read counters
+      allow read: if true;
       
       // No direct writes to counters - this is managed by Cloud Functions
       allow write: if false;

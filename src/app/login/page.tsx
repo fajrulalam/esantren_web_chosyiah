@@ -219,7 +219,7 @@ export default function Login() {
                         className={userType === 'waliSantri' ? activeTabStyle : inactiveTabStyle}
                         onClick={() => setUserType('waliSantri')}
                     >
-                        Wali Santri
+                        Santri
                     </button>
                     <button
                         className={userType === 'staff' ? activeTabStyle : inactiveTabStyle}

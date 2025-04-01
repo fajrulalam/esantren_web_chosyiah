@@ -148,11 +148,11 @@ export default function PaymentHistory() {
     const getPaymentStatusClass = (status: string) => {
         switch (status) {
             case 'Lunas':
-                return 'bg-green-100 text-green-600';
+                return 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300';
             case 'Menunggu Verifikasi':
-                return 'bg-orange-200 text-orange-700';
+                return 'bg-orange-200 text-orange-700 dark:bg-orange-900 dark:text-orange-300';
             default:
-                return 'bg-red-100 text-red-600';
+                return 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300';
         }
     };
 
@@ -201,7 +201,7 @@ export default function PaymentHistory() {
 
     return (
         <div className="container mx-auto py-6 px-4">
-            <h1 className="text-2xl font-bold mb-6">
+            <h1 className="text-2xl font-bold mb-6 dark:text-white">
                 History Pembayaran {santriName || (santriData?.nama || 'Santri')}
             </h1>
             
@@ -209,27 +209,27 @@ export default function PaymentHistory() {
                 <div className="space-y-4">
                     {/* Shimmer loading animation for payment cards */}
                     {[1, 2, 3].map((i) => (
-                        <div key={i} className="invoice-card max-w-full border border-gray-200 rounded-lg p-4 bg-white shadow-lg">
+                        <div key={i} className="invoice-card max-w-full border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-lg">
                             {isSmallScreen ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                                     <div className="col-span-1 md:col-span-1 w-[75%]">
-                                        <div className="h-6 w-3/4 bg-gray-200 rounded animate-pulse mb-2"></div>
-                                        <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse"></div>
+                                        <div className="h-6 w-3/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
+                                        <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
                                     </div>
                                     <div className="flex flex-col justify-end items-end">
-                                        <div className="h-5 w-28 bg-gray-200 rounded-full animate-pulse mb-3"></div>
-                                        <div className="h-10 w-20 bg-gray-200 rounded animate-pulse"></div>
+                                        <div className="h-5 w-28 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse mb-3"></div>
+                                        <div className="h-10 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-3 gap-4 items-center">
-                                    <div className="h-6 w-3/4 bg-gray-200 rounded animate-pulse"></div>
+                                    <div className="h-6 w-3/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
                                     <div className="flex flex-col items-center justify-center">
-                                        <div className="h-5 w-28 bg-gray-200 rounded-full animate-pulse mb-1"></div>
-                                        <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mt-1"></div>
+                                        <div className="h-5 w-28 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse mb-1"></div>
+                                        <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mt-1"></div>
                                     </div>
                                     <div className="flex justify-end">
-                                        <div className="h-10 w-24 bg-gray-200 rounded animate-pulse"></div>
+                                        <div className="h-10 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
                                     </div>
                                 </div>
                             )}
@@ -237,12 +237,12 @@ export default function PaymentHistory() {
                     ))}
                 </div>
             ) : error ? (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+                <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded relative mb-4">
                     <span className="block sm:inline">{error}</span>
                 </div>
             ) : payments.length === 0 && showEmptyState ? (
-                <div className="bg-white shadow-lg rounded-lg p-6 text-center">
-                    <p className="text-gray-700 mb-4">Belum ada riwayat pembayaran</p>
+                <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 text-center">
+                    <p className="text-gray-700 dark:text-gray-300 mb-4">Belum ada riwayat pembayaran</p>
                     <button 
                         onClick={() => {
                             if (user?.santriId) {
@@ -251,7 +251,7 @@ export default function PaymentHistory() {
                                 fetchPayments(santriData.id);
                             }
                         }}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                        className="bg-blue-600 dark:bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 dark:hover:bg-amber-700 transition-colors"
                     >
                         Muat Ulang Data
                     </button>
@@ -261,13 +261,13 @@ export default function PaymentHistory() {
                     {payments.map((payment) => (
                         <div
                             key={payment.id}
-                            className="invoice-card max-w-full border border-gray-200 rounded-lg p-4 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.01] transform"
+                            className="invoice-card max-w-full border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.01] transform"
                         >
                             {isSmallScreen ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                                     <div className="col-span-1 md:col-span-1 w-[75%]">
-                                        <div className="text-base font-medium truncate mb-2">{payment.paymentName}</div>
-                                        <div className="text-sm text-gray-600">
+                                        <div className="text-base font-medium truncate mb-2 dark:text-white">{payment.paymentName}</div>
+                                        <div className="text-sm text-gray-600 dark:text-gray-400">
                                             {formatCurrency(payment.paid)} / {formatCurrency(payment.total)}
                                         </div>
                                     </div>
@@ -280,13 +280,13 @@ export default function PaymentHistory() {
                                         {payment.status === 'Belum Lunas' ? (
                                             <div className="flex flex-col space-y-2">
                                                 <button
-                                                    className="border border-blue-600 bg-white text-blue-600 font-bold px-4 py-2 rounded hover:bg-blue-50 transition-all duration-300"
+                                                    className="border border-blue-600 dark:border-amber-500 bg-white dark:bg-gray-800 text-blue-600 dark:text-amber-500 font-bold px-4 py-2 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-all duration-300"
                                                     onClick={() => handleOpenPaymentModal(payment.id)}
                                                 >
                                                     Bayar
                                                 </button>
                                                 <button
-                                                    className="text-blue-600 text-sm hover:underline"
+                                                    className="text-blue-600 dark:text-amber-500 text-sm hover:underline"
                                                     onClick={() => handleOpenStatusModal(payment.id)}
                                                 >
                                                     Lihat Riwayat
@@ -294,7 +294,7 @@ export default function PaymentHistory() {
                                             </div>
                                         ) : (
                                             <button
-                                                className="border border-blue-600 bg-white text-blue-600 font-bold px-4 py-2 rounded hover:bg-blue-50 transition-all duration-300"
+                                                className="border border-blue-600 dark:border-amber-500 bg-white dark:bg-gray-800 text-blue-600 dark:text-amber-500 font-bold px-4 py-2 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-all duration-300"
                                                 onClick={() => handleOpenStatusModal(payment.id)}
                                             >
                                                 Lihat Detail
@@ -304,13 +304,13 @@ export default function PaymentHistory() {
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-3 gap-4 items-center">
-                                    <div className="text-base font-medium truncate">{payment.paymentName}</div>
+                                    <div className="text-base font-medium truncate dark:text-white">{payment.paymentName}</div>
 
                                     <div className="flex flex-col items-center justify-center">
                                     <span className={`px-3 py-1 rounded-full text-xs font-medium mb-1 ${getPaymentStatusClass(payment.status)}`}>
                                         {payment.status}
                                     </span>
-                                        <div className="text-sm text-gray-600 mt-1">
+                                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                                             {formatCurrency(payment.paid)} / {formatCurrency(payment.total)}
                                         </div>
                                     </div>
@@ -319,13 +319,13 @@ export default function PaymentHistory() {
                                         {payment.status === 'Belum Lunas' ? (
                                             <div className="flex flex-col space-y-2">
                                                 <button
-                                                    className="border border-blue-600 bg-white text-blue-600 font-bold px-4 py-2 rounded hover:bg-blue-50 transition-all duration-300"
+                                                    className="border border-blue-600 dark:border-amber-500 bg-white dark:bg-gray-800 text-blue-600 dark:text-amber-500 font-bold px-4 py-2 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-all duration-300"
                                                     onClick={() => handleOpenPaymentModal(payment.id)}
                                                 >
                                                     Bayar
                                                 </button>
                                                 <button
-                                                    className="text-blue-600 text-sm hover:underline"
+                                                    className="text-blue-600 dark:text-amber-500 text-sm hover:underline"
                                                     onClick={() => handleOpenStatusModal(payment.id)}
                                                 >
                                                     Lihat Riwayat
@@ -333,7 +333,7 @@ export default function PaymentHistory() {
                                             </div>
                                         ) : (
                                             <button
-                                                className="border border-blue-600 bg-white text-blue-600 font-bold px-4 py-2 rounded hover:bg-blue-50 transition-all duration-300"
+                                                className="border border-blue-600 dark:border-amber-500 bg-white dark:bg-gray-800 text-blue-600 dark:text-amber-500 font-bold px-4 py-2 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-all duration-300"
                                                 onClick={() => handleOpenStatusModal(payment.id)}
                                             >
                                                 Lihat Detail

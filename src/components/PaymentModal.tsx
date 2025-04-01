@@ -278,20 +278,20 @@ export default function PaymentModal({ closeModal, paymentId, isMobile, onPaymen
     return (
         <div className={containerClass}>
             {!isMobile && (
-                <div className="absolute inset-0" onClick={resetAndClose}></div>
+                <div className="absolute inset-0 bg-black/30 dark:bg-black/50" onClick={resetAndClose}></div>
             )}
 
-            <div className={isMobile ? 'w-full rounded-t-xl shadow-lg bg-gray-50 z-30' : 'modal-content rounded-lg shadow-lg bg-gray-50 z-30'} onClick={(e) => e.stopPropagation()}>
+            <div className={isMobile ? 'w-full rounded-t-xl shadow-lg bg-gray-50 dark:bg-gray-900 z-30' : 'modal-content rounded-lg shadow-lg bg-gray-50 dark:bg-gray-900 z-30'} onClick={(e) => e.stopPropagation()}>
                 {isMobile && (
-                    <div className="w-16 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
+                    <div className="w-16 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mb-4"></div>
                 )}
 
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-medium">
+                    <h3 className="text-xl font-medium dark:text-white">
                         {paymentData ? `Bayar ${paymentData.paymentName}` : 'Pembayaran'}
                     </h3>
                     {!isMobile && (
-                        <button onClick={resetAndClose} className="text-text-light hover:text-text">
+                        <button onClick={resetAndClose} className="text-text-light dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
                             ✕
                         </button>
                     )}
@@ -299,16 +299,18 @@ export default function PaymentModal({ closeModal, paymentId, isMobile, onPaymen
 
                 {paymentData ? (
                     <div className="mb-6">
-                        <div className="text-gray-600 mb-2">
+                        <div className="text-gray-600 dark:text-gray-300 mb-2">
                             Total: {formatCurrency(paymentData.total)} • 
                             Dibayar: {formatCurrency(paymentData.paid)} • 
                             Sisa: {formatCurrency(paymentData.total - paymentData.paid)}
                         </div>
-                        <label className="block text-text-light mb-2">Jenis Pembayaran</label>
+                        <label className="block text-text-light dark:text-gray-300 mb-2">Jenis Pembayaran</label>
                         <div className="grid grid-cols-1 gap-2">
                             <button
                                 className={`w-full py-3 px-4 rounded-md font-bold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                                    !isPartial ? 'bg-blue-600 text-white border border-blue-600 focus:ring-blue-500' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500'
+                                    !isPartial 
+                                      ? 'bg-blue-600 dark:bg-amber-600 text-white border border-blue-600 dark:border-amber-600 focus:ring-blue-500 dark:focus:ring-amber-500' 
+                                      : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-gray-500 dark:focus:ring-gray-600'
                                 }`}
                                 onClick={(e) => {
                                     e.preventDefault();
@@ -336,21 +338,21 @@ export default function PaymentModal({ closeModal, paymentId, isMobile, onPaymen
                     </div>
                 ) : (
                     <div className="flex justify-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 dark:border-amber-500"></div>
                     </div>
                 )}
 
                 {isPartial && (
                     <div className="mb-6">
-                        <label className="block text-text-light mb-2">Jumlah Pembayaran</label>
+                        <label className="block text-text-light dark:text-gray-300 mb-2">Jumlah Pembayaran</label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span className="text-gray-500">Rp</span>
+                                <span className="text-gray-500 dark:text-gray-400">Rp</span>
                             </div>
                             <input
                                 type="text"
                                 inputMode="numeric"
-                                className="w-full p-3 pl-10 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all duration-200"
+                                className="w-full p-3 pl-10 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-amber-500 focus:border-blue-500 dark:focus:border-amber-500 transition-all duration-200"
                                 value={amount}
                                 onChange={(e) => {
                                     // Remove all non-numeric characters
@@ -382,7 +384,7 @@ export default function PaymentModal({ closeModal, paymentId, isMobile, onPaymen
                             />
                         </div>
                         {paymentData && (
-                            <p className="mt-1 text-sm text-gray-500">
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                 Sisa yang harus dibayar: {formatCurrency(paymentData.total - paymentData.paid)}
                             </p>
                         )}
@@ -390,11 +392,13 @@ export default function PaymentModal({ closeModal, paymentId, isMobile, onPaymen
                 )}
 
                 <div className="mb-6">
-                    <label className="block text-text-light mb-2">Metode Pembayaran</label>
+                    <label className="block text-text-light dark:text-gray-300 mb-2">Metode Pembayaran</label>
                     <div className="flex flex-wrap gap-2">
                         <button
                             className={`py-2 px-4 rounded-md font-medium transition-all duration-200 ${
-                                paymentMethod === 'transfer' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                                paymentMethod === 'transfer' 
+                                ? 'bg-blue-600 dark:bg-amber-600 text-white' 
+                                : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                             }`}
                             onClick={() => setPaymentMethod('transfer')}
                             type="button"
@@ -403,7 +407,9 @@ export default function PaymentModal({ closeModal, paymentId, isMobile, onPaymen
                         </button>
                         <button
                             className={`py-2 px-4 rounded-md font-medium transition-all duration-200 ${
-                                paymentMethod === 'ewallet' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                                paymentMethod === 'ewallet' 
+                                ? 'bg-blue-600 dark:bg-amber-600 text-white' 
+                                : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                             }`}
                             onClick={() => setPaymentMethod('ewallet')}
                             type="button"
@@ -412,7 +418,9 @@ export default function PaymentModal({ closeModal, paymentId, isMobile, onPaymen
                         </button>
                         <button
                             className={`py-2 px-4 rounded-md font-medium transition-all duration-200 ${
-                                paymentMethod === 'cash' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                                paymentMethod === 'cash' 
+                                ? 'bg-blue-600 dark:bg-amber-600 text-white' 
+                                : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                             }`}
                             onClick={() => setPaymentMethod('cash')}
                             type="button"
@@ -423,23 +431,23 @@ export default function PaymentModal({ closeModal, paymentId, isMobile, onPaymen
                 </div>
 
                 <div className="mb-6">
-                    <label className="block text-text-light mb-2">Bukti Pembayaran</label>
+                    <label className="block text-text-light dark:text-gray-300 mb-2">Bukti Pembayaran</label>
                     <div className="relative">
                         <div 
-                            className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary transition-all duration-200"
+                            className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6 text-center hover:border-blue-500 dark:hover:border-amber-500 transition-all duration-200"
                             onClick={() => fileInputRef.current?.click()}
                         >
                             {imagePreview ? (
-                                <div className="text-text">
+                                <div className="text-gray-900 dark:text-white">
                                     <img 
                                         src={imagePreview} 
                                         alt="Bukti Pembayaran" 
-                                        className="w-32 h-32 mx-auto mb-3 rounded-md object-contain" 
+                                        className="w-32 h-32 mx-auto mb-3 rounded-md object-contain dark:bg-gray-800" 
                                     />
                                     <p className="mb-1">File dipilih:</p>
                                     <p className="font-medium">{image?.name}</p>
                                     <button
-                                        className="mt-2 text-danger hover:underline text-sm inline-flex items-center"
+                                        className="mt-2 text-red-600 dark:text-red-400 hover:underline text-sm inline-flex items-center"
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
@@ -458,11 +466,11 @@ export default function PaymentModal({ closeModal, paymentId, isMobile, onPaymen
                                 </div>
                             ) : (
                                 <div>
-                                    <svg className="w-10 h-10 mx-auto mb-3 text-text-light" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg className="w-10 h-10 mx-auto mb-3 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                     </svg>
-                                    <p className="text-text-light mb-1">Klik untuk memilih file</p>
-                                    <p className="text-xs text-text-light">Maksimal 5MB (JPG, PNG, PDF)</p>
+                                    <p className="text-gray-500 dark:text-gray-400 mb-1">Klik untuk memilih file</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Maksimal 5MB (JPG, PNG, PDF)</p>
                                 </div>
                             )}
                             <input
@@ -477,21 +485,21 @@ export default function PaymentModal({ closeModal, paymentId, isMobile, onPaymen
                 </div>
 
                 {error && (
-                    <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md border border-red-300">
+                    <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-md border border-red-300 dark:border-red-800">
                         {error}
                     </div>
                 )}
                 
                 <div className="button-container">
                     <button
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded font-medium transition-all duration-200 hover:bg-gray-100"
+                        className="px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded font-medium transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                         onClick={resetAndClose}
                         disabled={loading}
                     >
                         Batal
                     </button>
                     <button
-                        className="px-4 py-2 bg-blue-600 text-white rounded font-medium transition-all duration-200 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="px-4 py-2 bg-blue-600 dark:bg-amber-600 text-white rounded font-medium transition-all duration-200 hover:bg-blue-700 dark:hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-amber-500 focus:ring-opacity-50"
                         onClick={handlePayment}
                         disabled={loading || !paymentData}
                     >
