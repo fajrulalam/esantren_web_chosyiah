@@ -19,6 +19,7 @@ interface SantriPaymentStatus {
   kamar: string;
   santriId: string;
   nomorWaliSantri?: string;
+  nomorTelpon?: string;
   total: number;
   history?: any;
 }
@@ -259,6 +260,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
             kamar: data.kamar || 'Tidak ada data',
             santriId: data.santriId || '',
             nomorWaliSantri: data.nomorWaliSantri || '',
+            nomorTelpon: data.nomorTelpon || '',
             total: data.total || 0,
             history: data.history || {}
           });
@@ -282,6 +284,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
             kamar: data.kamar || 'Tidak ada data',
             santriId: data.santriId || '',
             nomorWaliSantri: data.nomorWaliSantri || '',
+            nomorTelpon: data.nomorTelpon || '',
             total: data.total || 0,
             history: data.history || {}
           });
@@ -349,10 +352,10 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     
     if (payment.status === 'Belum Lunas') {
       // Open WhatsApp with the reminder message
-      if (payment.nomorWaliSantri) {
-        const phoneNumber = payment.nomorWaliSantri.startsWith('+62') 
-          ? payment.nomorWaliSantri.substring(1) 
-          : payment.nomorWaliSantri;
+      if (payment.nomorTelpon) {
+        const phoneNumber = payment.nomorTelpon.startsWith('+62')
+          ? payment.nomorTelpon.substring(1)
+          : payment.nomorTelpon;
 
         const message = `[PENGINGAT PEMBAYARAN SANTRI]\n\nAssalamu'alaikum Wr. Wb. Wali Santri dari Ananda ${payment.nama},\n\nKami mohon izin mengingatkan kembali mengenai pembayaran *${paymentName}* sebesar *${formatCurrency(payment.total - payment.paid)}* yang masih belum terselesaikan. Kami sangat menghargai perhatian serta kerja sama Bapak/Ibu.\n\nJazakumullah khairan katsiran.`
         window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
@@ -424,7 +427,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
         });
         
         // Send WhatsApp confirmation message
-        if (selectedPayment.nomorWaliSantri) {
+        if (selectedPayment.nomorTelpon) {
           // Determine if it's a partial payment (paid amount is less than total)
           const isPartialPayment = selectedPayment.paid + paymentAmount < selectedPayment.total;
           
@@ -471,7 +474,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
         });
         
         // Open WhatsApp with the rejection message
-        if (selectedPayment.nomorWaliSantri) {
+        if (selectedPayment.nomorTelpon) {
           openWhatsAppWithRejectionMessage(selectedPayment, finalRejectReason);
         }
       }
@@ -512,9 +515,9 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
   
   // Helper function to open WhatsApp with rejection message
   const openWhatsAppWithRejectionMessage = (payment: SantriPaymentStatus, reason: string) => {
-    const phoneNumber = payment.nomorWaliSantri.startsWith('+62') 
-      ? payment.nomorWaliSantri.substring(1) 
-      : payment.nomorWaliSantri;
+    const phoneNumber = payment.nomorTelpon.startsWith('+62')
+      ? payment.nomorTelpon.substring(1)
+      : payment.nomorTelpon;
 
     const message = `[Bukti Pembayaran Perlu Diunggah Ulang]\n\n*Assalamu'alaikum Wali Santri dari Ananda ${payment.nama},\n\n*Kami informasikan bahwa bukti pembayaran untuk *${paymentName}* yang sebelumnya diunggah belum dapat diverifikasi karena:\n\n*${reason}\n\n*Mohon untuk mengunggah ulang bukti pembayaran atau melakukan pembayaran kembali melalui aplikasi E-Santren. Apabila ada pertanyaan, silakan menghubungi admin asrama.\n\nJazakumullah khairan katsiran atas perhatian dan kerja samanya.`;
     window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
@@ -604,7 +607,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
       });
       
       // Open WhatsApp with the revocation message
-      if (selectedPayment.nomorWaliSantri) {
+      if (selectedPayment.nomorTelpon) {
         openWhatsAppWithRevocationMessage(selectedPayment, finalRevokeReason);
       }
       
@@ -644,9 +647,9 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
   
   // Helper function to open WhatsApp with revocation message
   const openWhatsAppWithRevocationMessage = (payment: SantriPaymentStatus, reason: string) => {
-    const phoneNumber = payment.nomorWaliSantri.startsWith('+62') 
-      ? payment.nomorWaliSantri.substring(1) 
-      : payment.nomorWaliSantri;
+    const phoneNumber = payment.nomorTelpon.startsWith('+62')
+      ? payment.nomorTelpon.substring(1)
+      : payment.nomorTelpon;
 
     const message = `[Permintaan Unggah Ulang Bukti Pembayaran]\n\n*Assalamu'alaikum Wali Santri dari Ananda ${payment.nama}*,\n\nKami informasikan bahwa pembayaran untuk *${paymentName}* yang sebelumnya telah terverifikasi terpaksa kami *batalkan* karena:\n\n*${reason}*\n\nDimohon untuk segera menghubungi admin asrama atau mengulang proses pembayaran melalui aplikasi E-Santren.\n\nJazakumullah khairan katsiran atas perhatian dan kerja samanya.`;
     window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
@@ -659,9 +662,9 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     isPartialPaymentType: boolean,
     amount: number
   ) => {
-    const phoneNumber = payment.nomorWaliSantri.startsWith('+62') 
-      ? payment.nomorWaliSantri.substring(1) 
-      : payment.nomorWaliSantri;
+    const phoneNumber = payment.nomorTelpon.startsWith('+62')
+      ? payment.nomorTelpon.substring(1)
+      : payment.nomorTelpon;
 
     let message = '';
     
@@ -1105,7 +1108,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                             {payment.kamar}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
-                            {payment.nomorWaliSantri || '-'}
+                            {payment.nomorTelpon || '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right">
                             <button 

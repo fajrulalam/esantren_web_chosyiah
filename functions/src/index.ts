@@ -186,11 +186,11 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
         console.log(`Fetching ${santriIds.length} santri documents to add to invoice ${invoiceId}`,
             { structuredData: true });
 
-        const santriPromises = santriIds.map(santriId =>
+        const fetchSantriPromises = santriIds.map(santriId =>
             admin.firestore().collection("SantriCollection").doc(santriId).get()
         );
 
-        const santriDocs = await Promise.all(santriPromises);
+        const santriDocs = await Promise.all(fetchSantriPromises);
         const santriList = [];
         let missingCount = 0;
 
@@ -209,6 +209,7 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
                 jenjangPendidikan: data.jenjangPendidikan || '',
                 programStudi: data.programStudi || '',
                 nomorWalisantri: data.nomorWalisantri || '',
+                nomorTelpon: data.nomorTelpon || '',
                 kodeAsrama: data.kodeAsrama,
                 jumlahTunggakan: data.jumlahTunggakan || 0
               });
@@ -263,13 +264,14 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
         const updatedSantriData = new Map();
         
         // Fetch all santri documents in parallel
-        const fetchPromises = santriList.map(async (santri) => {
+        const santriDetailPromises = santriList.map(async (santri) => {
           const santriDoc = await admin.firestore().collection('SantriCollection').doc(santri.id).get();
           if (santriDoc.exists) {
             const data = santriDoc.data();
             updatedSantriData.set(santri.id, {
               semester: data.semester || '',
-              kelas: data.kelas || ''
+              kelas: data.kelas || '',
+              nomorTelpon: data.nomorTelpon || ''
             });
             
             console.log(`Santri data for ${santri.id}: semester=${data.semester || 'N/A'}, kelas=${data.kelas || 'N/A'}`);
@@ -277,7 +279,7 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
         });
         
         // Wait for all fetches to complete
-        await Promise.all(fetchPromises);
+        await Promise.all(santriDetailPromises);
         
         // 5. Now create payment status documents in a batch
         const batch = admin.firestore().batch();
@@ -306,6 +308,7 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
             programStudi: santri.programStudi || '',
             kamar: santri.kamar,
             nomorWaliSantri: santri.nomorWalisantri,
+            nomorTelpon: santri.nomorTelpon,
             status: "Belum Lunas",
             paid: 0,
             total: nominal,

@@ -23,6 +23,7 @@ interface SantriData {
   jenjangPendidikan: string;
   programStudi?: string;
   nomorWalisantri: string;
+  nomorTelpon?: string;
   kodeAsrama: string;
   jumlahTunggakan?: number;
 }
@@ -133,6 +134,7 @@ export const createPaymentStatusesOnInvoiceCreation = async (
               jenjangPendidikan: data.jenjangPendidikan || '',
               programStudi: data.programStudi || '',
               nomorWalisantri: data.nomorWalisantri || '',
+              nomorTelpon: data.nomorTelpon || '',
               kodeAsrama: data.kodeAsrama,
               jumlahTunggakan: data.jumlahTunggakan || 0
             });
@@ -168,6 +170,7 @@ export const createPaymentStatusesOnInvoiceCreation = async (
           jenjangPendidikan: data.jenjangPendidikan || '',
           programStudi: data.programStudi || '',
           nomorWalisantri: data.nomorWalisantri || '',
+          nomorTelpon: data.nomorTelpon || '',
           kodeAsrama: data.kodeAsrama || kodeAsrama,
           jumlahTunggakan: data.jumlahTunggakan || 0
         });
@@ -224,13 +227,14 @@ export const createPaymentStatusesOnInvoiceCreation = async (
     );
     
     // Fetch all santri documents in parallel to get the correct semester fields
-    const santriPromises = santriList.map(async (santri) => {
+    const updateSantriPromises = santriList.map(async (santri) => {
       const santriDoc = await db.collection("SantriCollection").doc(santri.id).get();
       if (santriDoc.exists) {
         const data = santriDoc.data();
         updatedSantriData.set(santri.id, {
           semester: data.semester || '',
           kelas: data.kelas || '',
+          nomorTelpon: data.nomorTelpon || '',
         });
         
         functions.logger.info(
@@ -240,7 +244,7 @@ export const createPaymentStatusesOnInvoiceCreation = async (
       }
     });
     
-    await Promise.all(santriPromises);
+    await Promise.all(updateSantriPromises);
     
     // Create payment status documents in batches
     // This ensures we don't exceed Firestore's write limits
@@ -274,6 +278,7 @@ export const createPaymentStatusesOnInvoiceCreation = async (
           programStudi: santri.programStudi || '',
           kamar: santri.kamar,
           nomorWaliSantri: santri.nomorWalisantri,
+          nomorTelpon: santri.nomorTelpon || '',
           status: "Belum Lunas",
           paid: 0,
           total: nominal,
@@ -428,11 +433,11 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
     functions.logger.info(`Fetching ${santriIds.length} santri documents to add to invoice ${invoiceId}`, 
       { structuredData: true });
     
-    const santriPromises = santriIds.map(santriId => 
+    const fetchPromises = santriIds.map(santriId => 
       db.collection("SantriCollection").doc(santriId).get()
     );
     
-    const santriDocs = await Promise.all(santriPromises);
+    const santriDocs = await Promise.all(fetchPromises);
     const santriList: SantriData[] = [];
     let missingCount = 0;
     
@@ -451,6 +456,7 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
             jenjangPendidikan: data.jenjangPendidikan || '',
             programStudi: data.programStudi || '',
             nomorWalisantri: data.nomorWalisantri || '',
+            nomorTelpon: data.nomorTelpon || '',
             kodeAsrama: data.kodeAsrama,
             jumlahTunggakan: data.jumlahTunggakan || 0
           });
@@ -507,13 +513,14 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
     );
     
     // Fetch all santri documents in parallel to get the correct semester fields
-    const santriPromises = santriList.map(async (santri) => {
+    const detailPromises = santriList.map(async (santri) => {
       const santriDoc = await db.collection("SantriCollection").doc(santri.id).get();
       if (santriDoc.exists) {
         const data = santriDoc.data();
         updatedSantriData.set(santri.id, {
           semester: data.semester || '',
           kelas: data.kelas || '',
+          nomorTelpon: data.nomorTelpon || '',
         });
         
         functions.logger.info(
@@ -523,7 +530,7 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
       }
     });
     
-    await Promise.all(santriPromises);
+    await Promise.all(detailPromises);
     
     // Create payment status documents for each new santri
     const batch = db.batch();
@@ -555,6 +562,7 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
         programStudi: santri.programStudi || '',
         kamar: santri.kamar,
         nomorWaliSantri: santri.nomorWalisantri,
+        nomorTelpon: santri.nomorTelpon || '',
         status: "Belum Lunas",
         paid: 0,
         total: nominal,
