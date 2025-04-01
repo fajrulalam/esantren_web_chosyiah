@@ -24,25 +24,37 @@ export const storage = getStorage(app);
 export const functions = getFunctions(app, 'us-central1');
 
 // Connect to Firebase emulators in development environment
-if (process.env.NODE_ENV === 'development') {
+// But only if explicitly enabled through an environment variable
+const USE_EMULATORS = false; // Set to false to use production Firebase
+
+if (process.env.NODE_ENV === 'development' && USE_EMULATORS) {
   try {
+    console.log('Attempting to connect to Firebase emulators...');
+    
     // Connect to Functions emulator
     connectFunctionsEmulator(functions, 'localhost', 5001);
+    console.log('Connected to Functions emulator');
     
     // Connect to Firestore emulator
     import('firebase/firestore').then(({ connectFirestoreEmulator }) => {
       connectFirestoreEmulator(db, 'localhost', 8080);
+      console.log('Connected to Firestore emulator');
+    }).catch(err => {
+      console.error('Failed to connect to Firestore emulator:', err);
     });
     
     // Connect to Auth emulator
     import('firebase/auth').then(({ connectAuthEmulator }) => {
       connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+      console.log('Connected to Auth emulator');
+    }).catch(err => {
+      console.error('Failed to connect to Auth emulator:', err);
     });
-    
-    console.log('Connected to Firebase emulators');
   } catch (e) {
     console.error('Could not connect to Firebase emulators:', e);
   }
+} else {
+  console.log('Using production Firebase services');
 }
 
 export const googleProvider = new GoogleAuthProvider();

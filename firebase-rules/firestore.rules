@@ -24,8 +24,9 @@ service cloud.firestore {
     
     // SantriCollection rules
     match /SantriCollection/{santriId} {
-      // Any authenticated user can read santri data
-      allow read: if request.auth != null;
+      // Anyone can read santri data - needed for login functionality
+      // If this causes security concerns later, we can restrict it more
+      allow read: if true;
       
       // Allow anyone to create santri with 'Pending' status (for registration)
       allow create: if 

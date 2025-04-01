@@ -253,51 +253,100 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const formattedName = capitalizeName(namaSantri.trim());
       
       console.log("Attempting login with formatted name:", formattedName);
+      console.log("Attempting login with phone:", nomorTelpon);
+      
+      // CHECK FIRESTORE CONNECTION
+      try {
+        // Verify db is initialized correctly
+        console.log("Checking Firebase initialization...");
+        if (!db) {
+          throw new Error("Firestore DB not initialized properly");
+        }
+        console.log("Firebase DB object exists:", !!db);
+        
+        // Try to get the DB name or ID if possible
+        try {
+          // @ts-ignore - Just for debugging
+          console.log("DB details:", db._databaseId ? db._databaseId.projectId : "Unknown");
+        } catch (e) {
+          console.log("Could not get DB details");
+        }
+      } catch (dbError) {
+        console.error("Firebase DB check failed:", dbError);
+        throw new Error("Firebase DB initialization issue");
+      }
       
       // Import necessary Firestore functions
-      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      console.log("Importing Firestore functions...");
+      const { collection, query, where, getDocs, limit, getFirestore } = await import('firebase/firestore');
+      
+      // Re-initialize Firestore to ensure it's working
+      console.log("Re-initializing Firestore connection...");
+      const firestore = getFirestore();
+      
+      // First, let's try to get all santri to see if we can access the collection at all
+      try {
+        console.log("Testing collection access with a simple query...");
+        const testQuery = query(
+          collection(firestore, "SantriCollection"),
+          limit(1)
+        );
+        const testSnapshot = await getDocs(testQuery);
+        console.log("Collection access test result:", !testSnapshot.empty ? "Success" : "Empty result");
+      } catch (testError) {
+        console.error("Collection access test failed:", testError);
+        // Don't throw yet, try the main query
+      }
       
       // Query Firestore for santri documents that match both nama and nomorTelpon
-      const santriCollectionRef = collection(db, "SantriCollection");
-      const santriQuery = query(
-        santriCollectionRef,
-        where("nama", "==", formattedName),
-        where("nomorTelpon", "==", nomorTelpon)
-      );
+      console.log("Executing login query with name and phone...");
       
-      const querySnapshot = await getDocs(santriQuery);
-      
-      // Check if we found any matching documents
-      if (!querySnapshot.empty) {
-        // Get the first matching document
-        const santriDoc = querySnapshot.docs[0];
-        const santriData = santriDoc.data();
-        const santriId = santriDoc.id;
+      try {
+        const santriCollectionRef = collection(firestore, "SantriCollection");
+        const santriQuery = query(
+          santriCollectionRef,
+          where("nama", "==", formattedName),
+          where("nomorTelpon", "==", nomorTelpon)
+        );
         
-        console.log("Santri found:", santriData.nama);
+        console.log("Query constructed, fetching results...");
+        const querySnapshot = await getDocs(santriQuery);
         
-        // Create user data object
-        const userData = {
-          uid: `wali_${santriId}`,
-          email: null,
-          role: "waliSantri" as UserRole,
-          santriId: santriId
-        };
-        
-        // Set wali santri user without firebase auth
-        setUser(userData);
-        setSantriName(formattedName);
-        
-        // Store in localStorage for persistence
-        localStorage.setItem('waliSantriUser', JSON.stringify(userData));
-        localStorage.setItem('santriName', formattedName);
-        
-        return true;
-      } else {
-        console.log("Santri tidak ditemukan dengan nama dan nomor telepon tersebut");
-        console.log("Attempted with name:", formattedName);
-        console.log("Attempted with phone:", nomorTelpon);
-        return false;
+        // Check if we found any matching documents
+        if (!querySnapshot.empty) {
+          // Get the first matching document
+          const santriDoc = querySnapshot.docs[0];
+          const santriData = santriDoc.data();
+          const santriId = santriDoc.id;
+          
+          console.log("Santri found:", santriData.nama);
+          
+          // Create user data object
+          const userData = {
+            uid: `wali_${santriId}`,
+            email: null,
+            role: "waliSantri" as UserRole,
+            santriId: santriId
+          };
+          
+          // Set wali santri user without firebase auth
+          setUser(userData);
+          setSantriName(formattedName);
+          
+          // Store in localStorage for persistence
+          localStorage.setItem('waliSantriUser', JSON.stringify(userData));
+          localStorage.setItem('santriName', formattedName);
+          
+          return true;
+        } else {
+          console.log("Santri tidak ditemukan dengan nama dan nomor telepon tersebut");
+          console.log("Attempted with name:", formattedName);
+          console.log("Attempted with phone:", nomorTelpon);
+          return false;
+        }
+      } catch (queryError) {
+        console.error("Login query failed:", queryError);
+        throw queryError;
       }
     } catch (error) {
       console.error("Error signing in as santri:", error);
@@ -373,41 +422,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("Checking name existence:", formattedName);
       
       // Import necessary Firestore functions
-      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      const { collection, query, where, getDocs, limit, getFirestore } = await import('firebase/firestore');
       
-      // Query Firestore for santri documents that match the name
-      const santriCollectionRef = collection(db, "SantriCollection");
-      const santriQuery = query(
-        santriCollectionRef,
-        where("nama", "==", formattedName)
-      );
+      // Re-initialize Firestore to ensure it's working
+      console.log("Re-initializing Firestore connection for name check...");
+      const firestore = getFirestore();
       
-      const querySnapshot = await getDocs(santriQuery);
-      
-      // For debugging
-      if (!querySnapshot.empty) {
-        console.log("Name found in database:", querySnapshot.docs[0].data().nama);
-      } else {
-        console.log("Name not found in database. Searched for:", formattedName);
-        
-        // For debugging, let's get all names that start with the same first character
-        const firstChar = formattedName.charAt(0);
-        if (firstChar) {
-          const debugQuery = query(
-            santriCollectionRef,
-            where("nama", ">=", firstChar),
-            where("nama", "<", firstChar + "\uf8ff")
-          );
-          
-          const debugSnapshot = await getDocs(debugQuery);
-          console.log("Similar names in database:", 
-            debugSnapshot.docs.map(doc => doc.data().nama).slice(0, 10)
-          );
-        }
+      // Try a simple query first to check access
+      try {
+        console.log("Testing collection access for name check...");
+        const testQuery = query(
+          collection(firestore, "SantriCollection"),
+          limit(1)
+        );
+        await getDocs(testQuery);
+        console.log("Collection access for name check successful");
+      } catch (testError) {
+        console.error("Collection access test for name check failed:", testError);
+        // Don't throw yet, try the name query
       }
       
-      // Return true if at least one document matches
-      return !querySnapshot.empty;
+      // Query Firestore for santri documents that match the name
+      try {
+        console.log("Executing name query...");
+        const santriCollectionRef = collection(firestore, "SantriCollection");
+        const santriQuery = query(
+          santriCollectionRef,
+          where("nama", "==", formattedName)
+        );
+        
+        console.log("Name query constructed, fetching results...");
+        const querySnapshot = await getDocs(santriQuery);
+        
+        // For debugging
+        if (!querySnapshot.empty) {
+          console.log("Name found in database:", querySnapshot.docs[0].data().nama);
+        } else {
+          console.log("Name not found in database. Searched for:", formattedName);
+          
+          // For debugging, let's get all names that start with the same first character
+          const firstChar = formattedName.charAt(0);
+          if (firstChar) {
+            try {
+              const debugQuery = query(
+                santriCollectionRef,
+                where("nama", ">=", firstChar),
+                where("nama", "<", firstChar + "\uf8ff"),
+                limit(10) // Limit to 10 results for performance
+              );
+              
+              const debugSnapshot = await getDocs(debugQuery);
+              console.log("Similar names in database:", 
+                debugSnapshot.docs.map(doc => doc.data().nama)
+              );
+            } catch (debugError) {
+              console.error("Debug query for similar names failed:", debugError);
+            }
+          }
+        }
+        
+        // Return true if at least one document matches
+        return !querySnapshot.empty;
+      } catch (queryError) {
+        console.error("Name check query failed:", queryError);
+        throw queryError;
+      }
     } catch (error) {
       console.error("Error checking santri name:", error);
       return false;
@@ -423,38 +502,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("Checking phone for:", formattedName, "Phone:", nomorTelpon);
       
       // Import necessary Firestore functions
-      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      const { collection, query, where, getDocs, getFirestore, limit } = await import('firebase/firestore');
       
-      // Query Firestore for santri documents that match both the name and phone number
-      const santriCollectionRef = collection(db, "SantriCollection");
-      const santriQuery = query(
-        santriCollectionRef,
-        where("nama", "==", formattedName),
-        where("nomorTelpon", "==", nomorTelpon)
-      );
+      // Re-initialize Firestore
+      const firestore = getFirestore();
       
-      const querySnapshot = await getDocs(santriQuery);
-      
-      if (!querySnapshot.empty) {
-        console.log("Phone matches for:", querySnapshot.docs[0].data().nama);
-      } else {
-        console.log("Phone doesn't match for:", formattedName);
-        
-        // Get the actual phone for this name to debug
-        const nameQuery = query(
+      try {
+        // Query Firestore for santri documents that match both the name and phone number
+        const santriCollectionRef = collection(firestore, "SantriCollection");
+        const santriQuery = query(
           santriCollectionRef,
-          where("nama", "==", formattedName)
+          where("nama", "==", formattedName),
+          where("nomorTelpon", "==", nomorTelpon)
         );
         
-        const nameSnapshot = await getDocs(nameQuery);
-        if (!nameSnapshot.empty) {
-          console.log("Actual phone in DB:", nameSnapshot.docs[0].data().nomorTelpon);
-          console.log("Provided phone:", nomorTelpon);
+        const querySnapshot = await getDocs(santriQuery);
+        
+        if (!querySnapshot.empty) {
+          console.log("Phone matches for:", querySnapshot.docs[0].data().nama);
+        } else {
+          console.log("Phone doesn't match for:", formattedName);
+          
+          // Get the actual phone for this name to debug
+          try {
+            const nameQuery = query(
+              santriCollectionRef,
+              where("nama", "==", formattedName)
+            );
+            
+            const nameSnapshot = await getDocs(nameQuery);
+            if (!nameSnapshot.empty) {
+              console.log("Actual phone in DB:", nameSnapshot.docs[0].data().nomorTelpon);
+              console.log("Provided phone:", nomorTelpon);
+            } else {
+              console.log("No santri found with this name for phone check");
+            }
+          } catch (nameQueryError) {
+            console.error("Failed to fetch santri by name for phone check:", nameQueryError);
+          }
         }
+        
+        // Return true if at least one document matches both criteria
+        return !querySnapshot.empty;
+      } catch (queryError) {
+        console.error("Phone check query failed:", queryError);
+        throw queryError;
       }
-      
-      // Return true if at least one document matches both criteria
-      return !querySnapshot.empty;
     } catch (error) {
       console.error("Error checking santri phone:", error);
       return false;
