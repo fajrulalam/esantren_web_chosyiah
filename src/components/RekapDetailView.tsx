@@ -1071,7 +1071,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                           Kamar
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
-                          No. WhatsApp
+                          No. WhatsApp Rekap Detail View
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
                           Aksi
