@@ -42,7 +42,7 @@ export default function Navbar() {
 
     // Claymorphism styling for the navbar
     const navbarClasses = `
-        fixed top-0 left-0 right-0 z-50 transition-all duration-300
+        fixed top-0 left-0 right-0 z-30 transition-all duration-300
         ${isScrolled 
             ? 'bg-amber-50/90 backdrop-blur-md py-3 shadow-lg' 
             : 'bg-amber-50 py-5'}

@@ -9,11 +9,19 @@ export interface Santri {
   jenjangPendidikan: string;
   semester?: string;
   programStudi?: string;
-  statusAktif: 'Aktif' | 'Boyong' | 'Lulus' | 'Dikeluarkan';
+  statusAktif: 'Aktif' | 'Boyong' | 'Lulus' | 'Dikeluarkan' | 'Pending' | 'Ditolak';
   tanggalLahir: string;
   kodeAsrama: string;
   jumlahTunggakan: number;
   nomorTelpon?: string;
+  email?: string;
+  tempatLahir?: string;
+  namaOrangTua?: string;
+  alamatRumah?: string;
+  sekolahAsal?: string;
+  paymentOption?: string;
+  paymentProofUrl?: string;
+  rejectReason?: string;
 }
 
 export interface SantriFormData {
@@ -25,7 +33,7 @@ export interface SantriFormData {
   jenjangPendidikan: string;
   semester?: string;
   programStudi?: string;
-  statusAktif: 'Aktif' | 'Boyong' | 'Lulus' | 'Dikeluarkan';
+  statusAktif: 'Aktif' | 'Boyong' | 'Lulus' | 'Dikeluarkan' | 'Pending' | 'Ditolak';
   tanggalLahir: string;
   nomorTelpon?: string;
 }

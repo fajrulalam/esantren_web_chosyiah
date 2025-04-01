@@ -10,6 +10,7 @@ import { db } from '@/firebase/config';
 import { Santri, SantriFormData } from '@/types/santri';
 import { KODE_ASRAMA } from '@/constants';
 import SantriModal from '@/components/SantriModal';
+import SantriVerificationModal from '@/components/SantriVerificationModal';
 import CSVImportModal from '@/components/CSVImportModal';
 import ImportProgressPanel from '@/components/ImportProgressPanel';
 import { exportToExcel } from '@/utils/excelExport';
@@ -37,7 +38,9 @@ export default function DataSantriPage() {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [selectedSantri, setSelectedSantri] = useState<Santri | undefined>(undefined);
+  const [selectedSantriIdForVerification, setSelectedSantriIdForVerification] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Bulk actions state
@@ -159,6 +162,11 @@ export default function DataSantriPage() {
   const handleEditSantri = (santri: Santri) => {
     setSelectedSantri(santri);
     setIsModalOpen(true);
+  };
+  
+  const handleVerifySantri = (santriId: string) => {
+    setSelectedSantriIdForVerification(santriId);
+    setIsVerificationModalOpen(true);
   };
   
   // Handle form submission (add or update)
@@ -536,6 +544,8 @@ export default function DataSantriPage() {
             >
               <option value="all">Semua Status</option>
               <option value="Aktif">Aktif</option>
+              <option value="Pending">Pending</option>
+              <option value="Ditolak">Ditolak</option>
               <option value="Boyong">Boyong</option>
               <option value="Lulus">Lulus</option>
               <option value="Dikeluarkan">Dikeluarkan</option>
@@ -763,17 +773,28 @@ export default function DataSantriPage() {
                         santri.statusAktif === 'Boyong' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400' : 
                         santri.statusAktif === 'Lulus' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400' :
                         santri.statusAktif === 'Dikeluarkan' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400' :
+                        santri.statusAktif === 'Pending' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-400' :
+                        santri.statusAktif === 'Ditolak' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400' :
                         'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                         {santri.statusAktif}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
-                      <button
-                        onClick={() => handleEditSantri(santri)}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 transition-colors"
-                      >
-                        Edit
-                      </button>
+                      {santri.statusAktif === 'Pending' ? (
+                        <button
+                          onClick={() => handleVerifySantri(santri.id)}
+                          className="text-purple-600 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-300 transition-colors"
+                        >
+                          Verifikasi
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleEditSantri(santri)}
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 transition-colors"
+                        >
+                          Edit
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -793,6 +814,16 @@ export default function DataSantriPage() {
         isSubmitting={isSubmitting}
         title={selectedSantri ? 'Edit Data Santri' : 'Tambah Santri Baru'}
       />
+      
+      {/* Verification Modal */}
+      {isVerificationModalOpen && (
+        <SantriVerificationModal
+          closeModal={() => setIsVerificationModalOpen(false)}
+          santriId={selectedSantriIdForVerification}
+          isMobile={window.innerWidth < 768}
+          onVerificationComplete={fetchSantris}
+        />
+      )}
       
       {/* CSV Import Modal - only show when explicitly opened */}
       {isImportModalOpen && (
