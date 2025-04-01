@@ -11,183 +11,215 @@ export default function Navbar() {
     const pathname = usePathname();
     const router = useRouter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isScrolled, setIsScrolled] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 20);
+        };
+        
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     const handleLogout = async () => {
         try {
             await logOut();
-            // Force navigation to home page and refresh - consider if this full refresh is always needed
             window.location.href = '/';
         } catch (error) {
             console.error('Error logging out:', error);
-            // Fallback redirect in case of error
             router.push('/');
         }
     };
 
     const isActive = (path: string) => {
-        // Make both paths consistent by removing trailing slashes for comparison
         const currentPath = pathname?.replace(/\/$/, '');
         const targetPath = path.replace(/\/$/, '');
         
-        // For main navigation items, we want to match the base path
-        // This handles both exact matches and nested routes
         return currentPath === targetPath || 
                (targetPath !== '/' && currentPath?.startsWith(targetPath));
     };
 
-    // These classes create the neumorphic "pushed down" effect for active items
-    const activeClass = "bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 shadow-neumorphic-inset dark:shadow-neumorphic-inset-dark";
-    const inactiveClass = "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shadow-none";
+    // Claymorphism styling for the navbar
+    const navbarClasses = `
+        fixed top-0 left-0 right-0 z-50 transition-all duration-300
+        ${isScrolled 
+            ? 'bg-amber-50/90 backdrop-blur-md py-3 shadow-lg' 
+            : 'bg-amber-50 py-5'}
+    `;
+
+    // Claymorphism button styling
+    const buttonClasses = `
+        relative px-5 py-2 font-medium text-amber-900 rounded-xl
+        ${isScrolled ? 'bg-amber-100' : 'bg-amber-200'} 
+        border-2 border-amber-200
+        hover:bg-amber-300 active:bg-amber-400
+        transition-all duration-300
+        shadow-[4px_4px_10px_#d6d0c4,-4px_-4px_10px_#fffef4]
+        active:shadow-[2px_2px_5px_#d6d0c4,-2px_-2px_5px_#fffef4]
+        active:translate-x-[1px] active:translate-y-[1px]
+    `;
+    
+    // Claymorphism active link styling
+    const activeClass = `
+        bg-amber-200 text-amber-900 rounded-xl px-4 py-2
+        shadow-[inset_2px_2px_5px_#d6d0c4,inset_-2px_-2px_5px_#fffef4]
+    `;
+    
+    const inactiveClass = `
+        text-amber-900 hover:bg-amber-100 rounded-xl px-4 py-2
+        transition-all duration-200
+    `;
 
     return (
-        <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm transition-colors">
+        <nav className={navbarClasses}>
             <div className="container mx-auto px-4">
                 <div className="flex justify-between h-16 items-center">
                     <div className="flex-shrink-0">
-                        <Link href="/" className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                            E-Santren Chosyi'ah
+                        <Link href="/" className="text-2xl font-bold text-amber-800">
+                            Asrama Chosyi'ah
                         </Link>
                     </div>
 
-                    {user && (
-                        <>
-                            {/* Desktop navigation */}
-                            <div className="hidden md:block">
-                                <div className="flex items-center space-x-4">
-                                    {/* Use conditional rendering based on user role */}
-                                    {user.role !== 'waliSantri' ? (
-                                        <>
-                                            <Link
-                                                href="/rekapitulasi"
-                                                className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                                                    isActive('/rekapitulasi') ? activeClass : inactiveClass
-                                                }`}
-                                            >
-                                                Rekapitulasi
-                                            </Link>
-                                            <Link
-                                                href="/data-santri"
-                                                className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                                                    isActive('/data-santri') ? activeClass : inactiveClass
-                                                }`}
-                                            >
-                                                Data Santri
-                                            </Link>
-                                            {user.role === 'superAdmin' && (
-                                                <Link
-                                                    href="/user-management"
-                                                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                                                        isActive('/user-management') ? activeClass : inactiveClass
-                                                    }`}
-                                                >
-                                                    User Management
-                                                </Link>
-                                            )}
-                                        </>
-                                    ) : (
+                    {/* Desktop navigation */}
+                    <div className="hidden md:flex items-center space-x-4">
+                        {user ? (
+                            <>
+                                {/* User is logged in - show dashboard links */}
+                                {user.role !== 'waliSantri' ? (
+                                    <>
                                         <Link
-                                            href="/payment-history"
-                                            className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                                                isActive('/payment-history') ? activeClass : inactiveClass
-                                            }`}
+                                            href="/rekapitulasi"
+                                            className={isActive('/rekapitulasi') ? activeClass : inactiveClass}
                                         >
-                                            History Pembayaran
+                                            Rekapitulasi
                                         </Link>
-                                    )}
-                                    <DarkModeToggle />
-                                    <button
-                                        onClick={handleLogout}
-                                        className="ml-4 px-3 py-2 rounded-md text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors duration-200"
+                                        <Link
+                                            href="/data-santri"
+                                            className={isActive('/data-santri') ? activeClass : inactiveClass}
+                                        >
+                                            Data Santri
+                                        </Link>
+                                        {user.role === 'superAdmin' && (
+                                            <Link
+                                                href="/user-management"
+                                                className={isActive('/user-management') ? activeClass : inactiveClass}
+                                            >
+                                                User Management
+                                            </Link>
+                                        )}
+                                    </>
+                                ) : (
+                                    <Link
+                                        href="/payment-history"
+                                        className={isActive('/payment-history') ? activeClass : inactiveClass}
                                     >
-                                        Logout
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Mobile menu button */}
-                            <div className="md:hidden -mr-2 flex items-center">
+                                        History Pembayaran
+                                    </Link>
+                                )}
+                                <DarkModeToggle />
                                 <button
-                                    onClick={() => setIsMenuOpen(!isMenuOpen)}
-                                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-300 hover:text-gray-500 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors duration-200" // Added transition
-                                    aria-controls="mobile-menu" // Added aria-controls
-                                    aria-expanded={isMenuOpen} // Added aria-expanded
+                                    onClick={handleLogout}
+                                    className={`${buttonClasses} bg-red-100 text-red-900 hover:bg-red-200 active:bg-red-300 border-red-200`}
                                 >
-                                    <span className="sr-only">Open main menu</span>
-                                    {!isMenuOpen ? (
-                                        <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                                        </svg>
-                                    ) : (
-                                        <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    )}
+                                    Logout
                                 </button>
-                            </div>
-                        </>
-                    )}
+                            </>
+                        ) : (
+                            <>
+                                {/* User is not logged in - show login button */}
+                                <Link href="/login" className={buttonClasses}>
+                                    Masuk
+                                </Link>
+                                <DarkModeToggle />
+                            </>
+                        )}
+                    </div>
+
+                    {/* Mobile menu button */}
+                    <div className="md:hidden flex items-center">
+                        <DarkModeToggle />
+                        <button
+                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            className="ml-2 inline-flex items-center justify-center p-2 rounded-xl text-amber-800 hover:bg-amber-100 transition-colors duration-200"
+                            aria-controls="mobile-menu"
+                            aria-expanded={isMenuOpen}
+                        >
+                            <span className="sr-only">Open main menu</span>
+                            {!isMenuOpen ? (
+                                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                                </svg>
+                            ) : (
+                                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Mobile menu, show/hide based on menu state. */}
-            {isMenuOpen && user && (
-                <div className="md:hidden" id="mobile-menu"> {/* Added id matching aria-controls */}
-                    <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                        {user.role !== 'waliSantri' ? (
+            {/* Mobile menu */}
+            {isMenuOpen && (
+                <div className="md:hidden" id="mobile-menu">
+                    <div className="px-4 pt-2 pb-3 space-y-2 bg-amber-50 shadow-inner">
+                        {user ? (
                             <>
-                                <Link
-                                    href="/rekapitulasi"
-                                    className={`block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 ${
-                                        isActive('/rekapitulasi') ? activeClass : inactiveClass
-                                    }`}
-                                    onClick={() => setIsMenuOpen(false)}
-                                >
-                                    Rekapitulasi
-                                </Link>
-                                <Link
-                                    href="/data-santri"
-                                    className={`block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 ${
-                                        isActive('/data-santri') ? activeClass : inactiveClass
-                                    }`}
-                                    onClick={() => setIsMenuOpen(false)}
-                                >
-                                    Data Santri
-                                </Link>
-                                {user.role === 'superAdmin' && (
+                                {user.role !== 'waliSantri' ? (
+                                    <>
+                                        <Link
+                                            href="/rekapitulasi"
+                                            className={`block ${isActive('/rekapitulasi') ? activeClass : inactiveClass}`}
+                                            onClick={() => setIsMenuOpen(false)}
+                                        >
+                                            Rekapitulasi
+                                        </Link>
+                                        <Link
+                                            href="/data-santri"
+                                            className={`block ${isActive('/data-santri') ? activeClass : inactiveClass}`}
+                                            onClick={() => setIsMenuOpen(false)}
+                                        >
+                                            Data Santri
+                                        </Link>
+                                        {user.role === 'superAdmin' && (
+                                            <Link
+                                                href="/user-management"
+                                                className={`block ${isActive('/user-management') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                User Management
+                                            </Link>
+                                        )}
+                                    </>
+                                ) : (
                                     <Link
-                                        href="/user-management"
-                                        className={`block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 ${
-                                            isActive('/user-management') ? activeClass : inactiveClass
-                                        }`}
+                                        href="/payment-history"
+                                        className={`block ${isActive('/payment-history') ? activeClass : inactiveClass}`}
                                         onClick={() => setIsMenuOpen(false)}
                                     >
-                                        User Management
+                                        History Pembayaran
                                     </Link>
                                 )}
+                                <button
+                                    onClick={async () => {
+                                        setIsMenuOpen(false);
+                                        await handleLogout();
+                                    }}
+                                    className="w-full text-left mt-4 text-red-900 px-4 py-2 rounded-xl bg-red-100 hover:bg-red-200 transition-colors"
+                                >
+                                    Logout
+                                </button>
                             </>
                         ) : (
                             <Link
-                                href="/payment-history"
-                                className={`block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 ${
-                                    isActive('/payment-history') ? activeClass : inactiveClass
-                                }`}
+                                href="/login"
+                                className="block px-4 py-2 text-amber-900 bg-amber-200 rounded-xl shadow-[4px_4px_10px_#d6d0c4,-4px_-4px_10px_#fffef4]"
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                History Pembayaran
+                                Masuk
                             </Link>
                         )}
-                        <div className="flex items-center justify-between px-3 py-2">
-                            <DarkModeToggle />
-                            <button
-                                onClick={async () => {
-                                    setIsMenuOpen(false);
-                                    await handleLogout();
-                                }}
-                                className="text-red-600 dark:text-red-400 px-3 py-2 rounded-md text-base font-medium hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors duration-200"
-                            >
-                                Logout
-                            </button>
-                        </div>
                     </div>
                 </div>
             )}

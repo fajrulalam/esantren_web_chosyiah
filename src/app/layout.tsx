@@ -1,35 +1,33 @@
 import type { ReactNode } from 'react';
 import '@/styles/globals.css';
-import { Inter } from 'next/font/google';
+import { Nunito } from 'next/font/google';
 import { AuthProvider } from '@/firebase/auth';
 import Navbar from '@/components/Navbar';
 
-const inter = Inter({ 
+const nunito = Nunito({ 
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-inter',
+  variable: '--font-nunito',
+  weight: ['400', '500', '600', '700', '800'],
 });
 
 export const metadata = {
-  title: 'Sistem Pembayaran Asrama',
-  description: 'Aplikasi untuk mengelola pembayaran santri',
+  title: 'Asrama Chosyi\'ah',
+  description: 'Website Resmi Asrama Chosyi\'ah Darul Ulum',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="id" className={inter.variable}>
-      <body className="antialiased bg-gray-50 dark:bg-gray-900 transition-colors">
+    <html lang="id" className={nunito.variable}>
+      <body className="antialiased font-nunito">
         <AuthProvider>
           <div className="min-h-screen flex flex-col">
             <Navbar />
             <main className="flex-grow">
               {children}
             </main>
-            <footer className="py-6 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 transition-colors">
-              <div className="container mx-auto px-4 text-center text-gray-600 dark:text-gray-300 text-sm">
-                © {new Date().getFullYear()} Sistem Pembayaran Asrama. Hak cipta dilindungi.
-              </div>
-            </footer>
+            {/* Footer removed from layout as we have custom footer in landing page */}
+            {/* Each authenticated page will have its own footer if needed */}
           </div>
         </AuthProvider>
       </body>

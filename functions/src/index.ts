@@ -42,8 +42,11 @@ export const getInvoicePayments = getInvoicePaymentStatusesQuery;
 export const getSantriPaymentHistory = getSantriPaymentHistoryFunc;
 export const getInvoicePaymentStatuses = getInvoicePaymentStatusesFunc;
 
-// Export HTTP callable function for deleting invoices with CORS support
-export const deleteInvoiceFunction = functions.https.onRequest((request, response) => {
+// Keep the existing callable function
+export const deleteInvoiceFunction = deleteInvoice;
+
+// Create a new HTTP function with CORS support
+export const deleteInvoiceHttp = functions.https.onRequest((request, response) => {
   return corsHandler(request, response, async () => {
     try {
       // Extract data from the request
@@ -145,8 +148,12 @@ export const deleteInvoiceFunction = functions.https.onRequest((request, respons
   });
 });
 
-// Export HTTP callable functions for modifying invoices with CORS support
-export const addSantrisToInvoiceFunction = functions.https.onRequest((request, response) => {
+// Keep the existing callable functions
+export const addSantrisToInvoiceFunction = addSantrisToInvoice;
+export const removeSantrisFromInvoiceFunction = removeSantrisFromInvoice;
+
+// Create new HTTP functions with CORS support
+export const addSantrisToInvoiceHttp = functions.https.onRequest((request, response) => {
   return corsHandler(request, response, async () => {
     try {
       // Extract data from the request
@@ -303,7 +310,7 @@ export const addSantrisToInvoiceFunction = functions.https.onRequest((request, r
   });
 });
 
-export const removeSantrisFromInvoiceFunction = functions.https.onRequest((request, response) => {
+export const removeSantrisFromInvoiceHttp = functions.https.onRequest((request, response) => {
   return corsHandler(request, response, async () => {
     try {
       // Extract data from the request

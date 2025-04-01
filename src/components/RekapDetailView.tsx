@@ -149,8 +149,8 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     try {
       console.log("Attempting to delete invoice with ID:", paymentId);
       
-      // Call the HTTP endpoint instead of the callable function
-      const response = await fetch('https://us-central1-e-santren.cloudfunctions.net/deleteInvoiceFunction', {
+      // Call the HTTP endpoint with CORS support
+      const response = await fetch('https://us-central1-e-santren.cloudfunctions.net/deleteInvoiceHttp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

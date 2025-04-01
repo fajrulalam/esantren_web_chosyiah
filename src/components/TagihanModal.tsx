@@ -333,8 +333,8 @@ export default function TagihanModal({
         // 1. Add santris to the invoice through Firebase Function HTTP endpoint
         if (santriIdsToAdd.length > 0) {
           try {
-            // Call the HTTP endpoint instead of the callable function
-            const response = await fetch('https://us-central1-e-santren.cloudfunctions.net/addSantrisToInvoiceFunction', {
+            // Call the HTTP endpoint with CORS support
+            const response = await fetch('https://us-central1-e-santren.cloudfunctions.net/addSantrisToInvoiceHttp', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -363,8 +363,8 @@ export default function TagihanModal({
         // 2. Remove santris from the invoice through Firebase Function HTTP endpoint
         if (santriIdsToRemove.length > 0) {
           try {
-            // Call the HTTP endpoint instead of the callable function
-            const response = await fetch('https://us-central1-e-santren.cloudfunctions.net/removeSantrisFromInvoiceFunction', {
+            // Call the HTTP endpoint with CORS support
+            const response = await fetch('https://us-central1-e-santren.cloudfunctions.net/removeSantrisFromInvoiceHttp', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
