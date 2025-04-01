@@ -480,7 +480,7 @@ export default function Registration() {
                         className="w-5 h-5 text-amber-600 bg-amber-100 border-amber-300 focus:ring-amber-500"
                       />
                       <label htmlFor="pangkalOnly" className="ml-3 text-amber-800">
-                        Membayar uang pangkal saja
+                        Membayar uang pangkal saja (Rp 2.250.000)
                       </label>
                     </div>
                     <div className="flex items-center">
@@ -494,7 +494,7 @@ export default function Registration() {
                         className="w-5 h-5 text-amber-600 bg-amber-100 border-amber-300 focus:ring-amber-500"
                       />
                       <label htmlFor="pangkalAndSyahriah" className="ml-3 text-amber-800">
-                        Membayar uang pangkal dan syahriah 6 bulan
+                        Membayar uang pangkal dan syahriah 6 bulan (Rp 3.960.000)
                       </label>
                     </div>
                   </div>
@@ -540,9 +540,9 @@ export default function Registration() {
                     Silakan lakukan pembayaran sesuai opsi yang dipilih ke rekening berikut:
                   </p>
                   <div className="bg-white p-4 rounded-lg border border-amber-200">
-                    <p className="font-medium">Bank BRI</p>
-                    <p className="text-lg font-bold">1234-5678-9012-3456</p>
-                    <p>a.n. Yayasan Pesantren Hurun Inn</p>
+                    <p className="font-medium">Bank BSI</p>
+                    <p className="text-lg font-bold">9999019991</p>
+                    <p>a.n. PP Darul Ulum Asrama Chosyiah</p>
                   </div>
                   <p className="mt-4 text-amber-700 text-sm">
                     Pastikan bukti pembayaran menunjukkan nominal dan tanggal pembayaran dengan jelas.
