@@ -27,8 +27,17 @@ service cloud.firestore {
       // Any authenticated user can read santri data
       allow read: if request.auth != null;
       
-      // Only pengurus, pengasuh, and superAdmins can create/update/delete santri data
-      allow create, update, delete: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
+      // Allow anyone to create santri with 'Pending' status (for registration)
+      allow create: if 
+        // No authentication required for registration
+        request.resource.data.statusAktif == 'Pending' && 
+        // Make sure required fields are present
+        request.resource.data.nama is string &&
+        request.resource.data.email is string &&
+        request.resource.data.kodeAsrama is string;
+      
+      // Only pengurus, pengasuh, and superAdmins can update/delete santri data
+      allow update, delete: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
     }
     
     // TagihanCollection rules

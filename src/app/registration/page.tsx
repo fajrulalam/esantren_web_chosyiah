@@ -4,8 +4,8 @@ import { useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { httpsCallable } from 'firebase/functions';
-import { storage, functions } from '@/firebase/config';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { storage, db } from '@/firebase/config';
 import { KODE_ASRAMA } from '@/constants';
 
 // Placeholder image for success page
@@ -54,7 +54,7 @@ export default function Registration() {
     window.scrollTo(0, 0);
   };
 
-  // Handle the registration via Firebase functions
+  // Handle the registration directly via Firestore
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -86,7 +86,7 @@ export default function Registration() {
         kodeAsrama: KODE_ASRAMA,
         statusTanggungan: 'Menunggu Verifikasi',
         kamar: '-',
-        statusAktif: 'Pending',
+        statusAktif: 'Pending', // This is required by security rules
         
         // Other required fields from Santri interface
         kelas: formData.programStudi, // Can be updated later by admin
@@ -98,44 +98,22 @@ export default function Registration() {
         // Payment related fields
         paymentOption: formData.paymentOption,
         paymentProofUrl: paymentProofUrl,
+        
+        // Timestamp fields
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
       
       console.log("Registration data:", santriData);
       
-      let resultData;
+      // Directly add to Firestore collection (now allowed by security rules)
+      const docRef = await addDoc(collection(db, 'SantriCollection'), santriData);
       
-      // Instead of trying both approaches sequentially which can lead to CORS errors,
-      // let's just use the most reliable method directly: the HTTP endpoint with extra CORS headers
-      
-      // Define the function endpoint URL
-      const functionUrl = 'https://us-central1-e-santren.cloudfunctions.net/registerSantriHttp';
-      
-      // Make the HTTP request with appropriate headers
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        // Use a simpler body structure to avoid any issues
-        body: JSON.stringify(santriData)
-      });
-      
-      // Check if the response was successful
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}, Message: ${await response.text()}`);
-      }
-      
-      // Parse the JSON response
-      resultData = await response.json();
-      
-      if (!resultData.success) {
-        throw new Error(resultData.message || 'Terjadi kesalahan saat mendaftar');
-      }
+      console.log("Document written with ID: ", docRef.id);
       
       // Save registered data for WhatsApp link
       setRegisteredData({
-        id: resultData.id,
+        id: docRef.id,
         ...santriData
       });
       
