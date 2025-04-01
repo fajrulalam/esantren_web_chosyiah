@@ -17,18 +17,24 @@ export const metadata = {
   description: "Website Resmi Asrama Chosyi'ah Darul Ulum",
   icons: {
     icon: [
-      { url: '/favicon.ico', type: 'image/x-icon' },
+      { url: '/favicon.ico', type: 'image/png' },
+      { url: '/favicon.png', type: 'image/png' },
     ],
     apple: [
-      { url: '/favicon.ico', sizes: '180x180', type: 'image/x-icon' },
+      { url: '/favicon.ico', sizes: '180x180', type: 'image/png' },
+      { url: '/favicon.png', sizes: '180x180', type: 'image/png' },
     ],
-    shortcut: '/favicon.ico',
+    shortcut: ['/favicon.ico', '/favicon.png'],
   },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
       <html lang="id" className={nunito.variable}>
+      <head>
+        <link rel="icon" href="/favicon.ico" type="image/png" />
+        <link rel="icon" href="/favicon.png" type="image/png" />
+      </head>
       <body className="antialiased font-nunito dark:bg-gray-900 transition-colors">
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <AuthProvider>

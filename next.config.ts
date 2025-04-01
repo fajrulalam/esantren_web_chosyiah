@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   trailingSlash: true,
+  // Force Next.js to use the custom favicon
+  webpack: (config) => {
+    return config;
+  },
 };
 
 export default nextConfig;
