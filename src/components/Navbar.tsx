@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DarkModeToggle from '@/components/DarkModeToggle';
 
 export default function Navbar() {
