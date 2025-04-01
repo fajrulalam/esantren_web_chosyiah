@@ -425,57 +425,62 @@ export const testCors = functions.https.onRequest((request, response) => {
   });
 });
 
-// Public API endpoint for registering new santri
+// Shared function for santri registration
+const registerSantriImpl = async (data: any) => {
+  // Prepare Santri data with all required fields
+  const santriData = {
+    email: data.email,
+    nama: data.nama,
+    tempatLahir: data.tempatLahir,
+    tanggalLahir: data.tanggalLahir,
+    namaOrangTua: data.namaOrangTua,
+    alamatRumah: data.alamatRumah,
+    nomorTelpon: data.nomorTelpon,
+    nomorWalisantri: data.nomorWalisantri,
+    programStudi: data.programStudi,
+    sekolahAsal: data.sekolahAsal,
+    
+    // Automatic fields
+    kodeAsrama: data.kodeAsrama,
+    statusTanggungan: 'Menunggu Verifikasi',
+    kamar: '-',
+    statusAktif: 'Pending',
+    
+    // Other required fields from Santri interface
+    kelas: data.programStudi,
+    tahunMasuk: new Date().getFullYear().toString(),
+    jenjangPendidikan: 'PT',
+    semester: '1',
+    jumlahTunggakan: 0,
+    
+    // Payment related fields
+    paymentOption: data.paymentOption,
+    paymentProofUrl: data.paymentProofUrl,
+    
+    // Timestamp fields
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  };
+  
+  // Add to SantriCollection
+  const docRef = await admin.firestore().collection('SantriCollection').add(santriData);
+  
+  // Note: Counters are not updated here because statusAktif is 'Pending'
+  // It will be updated when admin approves and changes status to 'Aktif'
+  
+  console.log(`New santri registration: ${docRef.id}`, santriData);
+  
+  return {
+    success: true,
+    id: docRef.id,
+    message: 'Pendaftaran berhasil! Silakan menunggu konfirmasi dari admin.'
+  };
+};
+
+// Public API endpoint for registering new santri (callable function)
 export const registerSantri = functions.https.onCall(async (data, context) => {
   try {
-    // Prepare Santri data with all required fields
-    const santriData = {
-      email: data.email,
-      nama: data.nama,
-      tempatLahir: data.tempatLahir,
-      tanggalLahir: data.tanggalLahir,
-      namaOrangTua: data.namaOrangTua,
-      alamatRumah: data.alamatRumah,
-      nomorTelpon: data.nomorTelpon,
-      nomorWalisantri: data.nomorWalisantri,
-      programStudi: data.programStudi,
-      sekolahAsal: data.sekolahAsal,
-      
-      // Automatic fields
-      kodeAsrama: data.kodeAsrama,
-      statusTanggungan: 'Menunggu Verifikasi',
-      kamar: '-',
-      statusAktif: 'Pending',
-      
-      // Other required fields from Santri interface
-      kelas: data.programStudi,
-      tahunMasuk: new Date().getFullYear().toString(),
-      jenjangPendidikan: 'PT',
-      semester: '1',
-      jumlahTunggakan: 0,
-      
-      // Payment related fields
-      paymentOption: data.paymentOption,
-      paymentProofUrl: data.paymentProofUrl,
-      
-      // Timestamp fields
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    };
-    
-    // Add to SantriCollection
-    const docRef = await admin.firestore().collection('SantriCollection').add(santriData);
-    
-    // Note: Counters are not updated here because statusAktif is 'Pending'
-    // It will be updated when admin approves and changes status to 'Aktif'
-    
-    console.log(`New santri registration: ${docRef.id}`, santriData);
-    
-    return {
-      success: true,
-      id: docRef.id,
-      message: 'Pendaftaran berhasil! Silakan menunggu konfirmasi dari admin.'
-    };
+    return await registerSantriImpl(data);
   } catch (error) {
     console.error('Error registering santri:', error);
     throw new functions.https.HttpsError(
@@ -483,4 +488,34 @@ export const registerSantri = functions.https.onCall(async (data, context) => {
       'Terjadi kesalahan saat mendaftar. Silakan coba lagi nanti.'
     );
   }
+});
+
+// HTTP endpoint with CORS support for registering new santri
+export const registerSantriHttp = functions.https.onRequest((request, response) => {
+  // Enable CORS using the corsHandler
+  return corsHandler(request, response, async () => {
+    try {
+      // Extract data from the request
+      const data = request.method === 'POST' ? request.body.data || request.body : {};
+      
+      if (!data.email || !data.nama || !data.kodeAsrama) {
+        return response.status(400).json({
+          success: false,
+          error: 'Missing required fields',
+          message: 'Data santri tidak lengkap. Silakan lengkapi formulir.'
+        });
+      }
+      
+      const result = await registerSantriImpl(data);
+      
+      return response.status(200).json(result);
+    } catch (error) {
+      console.error('Error in registerSantriHttp:', error);
+      return response.status(500).json({
+        success: false,
+        error: 'internal',
+        message: 'Terjadi kesalahan saat mendaftar. Silakan coba lagi nanti.'
+      });
+    }
+  });
 });

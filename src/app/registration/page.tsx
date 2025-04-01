@@ -54,7 +54,7 @@ export default function Registration() {
     window.scrollTo(0, 0);
   };
 
-  // Create a Firebase function to handle the registration
+  // Handle the registration via Firebase functions
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -102,10 +102,29 @@ export default function Registration() {
       
       console.log("Registration data:", santriData);
       
-      // Call the Firebase Function to register the santri
-      const registerSantri = httpsCallable(functions, 'registerSantri');
-      const result = await registerSantri(santriData);
-      const resultData = result.data as any;
+      let resultData;
+      
+      try {
+        // First try using the callable function
+        const registerSantri = httpsCallable(functions, 'registerSantri');
+        const result = await registerSantri(santriData);
+        resultData = result.data as any;
+      } catch (callableError) {
+        console.error('Error with callable function, trying HTTP endpoint:', callableError);
+        
+        // Fallback to HTTP endpoint with fetch if callable fails
+        const response = await fetch('https://us-central1-e-santren.cloudfunctions.net/registerSantriHttp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: santriData
+          })
+        });
+        
+        resultData = await response.json();
+      }
       
       if (!resultData.success) {
         throw new Error(resultData.message || 'Terjadi kesalahan saat mendaftar');
