@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
 import { useState, useEffect } from 'react';
@@ -76,7 +77,14 @@ export default function Navbar() {
                 <div className="container mx-auto px-4">
                     <div className="flex justify-between h-16 items-center">
                         <div className="flex-shrink-0">
-                            <Link href="/" className="text-2xl font-bold text-amber-800 dark:text-amber-300">
+                            <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-amber-800 dark:text-amber-300">
+                                <Image 
+                                    src="/favicon.png" 
+                                    alt="Logo" 
+                                    width={48} 
+                                    height={48} 
+                                    className="w-12 h-12" 
+                                />
                                 Asrama Chosyi'ah
                             </Link>
                         </div>
