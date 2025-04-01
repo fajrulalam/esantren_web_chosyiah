@@ -414,7 +414,9 @@ export default function TagihanModal({
         const timestamp = Date.now(); // Current timestamp in milliseconds
         
         // Create a human-readable invoice ID
-        const invoiceId = `${formattedDate}_${formData.paymentName.replace(/\s+/g, '_')}_${timestamp}`;
+        // Replace all spaces with underscores and all slashes with hyphens to avoid Firestore path issues
+        const safePaymentName = formData.paymentName.replace(/\s+/g, '_').replace(/\//g, '-');
+        const invoiceId = `${formattedDate}_${safePaymentName}_${timestamp}`;
         
         // Create the invoice with selected santri IDs
         const invoiceDocRef = doc(db, 'Invoices', invoiceId);
