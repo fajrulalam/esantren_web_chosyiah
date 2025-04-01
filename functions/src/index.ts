@@ -17,7 +17,7 @@ import {
   getSantriPaymentHistory as getSantriPaymentHistoryQuery,
   getInvoicePaymentStatuses as getInvoicePaymentStatusesQuery
 } from "./queryUtils";
-import { corsHandler } from "./corsConfig";
+import { corsHandler, setCorsHeaders } from "./corsConfig";
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -490,9 +490,18 @@ export const registerSantri = functions.https.onCall(async (data, context) => {
   }
 });
 
-// HTTP endpoint with CORS support for registering new santri
+// HTTP endpoint with enhanced CORS support for registering new santri
 export const registerSantriHttp = functions.https.onRequest((request, response) => {
-  // Enable CORS using the corsHandler
+  // Apply CORS headers immediately and manually
+  setCorsHeaders(response);
+  
+  // Handle OPTIONS preflight requests
+  if (request.method === 'OPTIONS') {
+    response.status(204).end();
+    return;
+  }
+  
+  // Then proceed with the handler
   return corsHandler(request, response, async () => {
     try {
       // Extract data from the request
@@ -508,9 +517,13 @@ export const registerSantriHttp = functions.https.onRequest((request, response) 
       
       const result = await registerSantriImpl(data);
       
+      // Apply CORS headers again just to be sure
+      setCorsHeaders(response);
       return response.status(200).json(result);
     } catch (error) {
       console.error('Error in registerSantriHttp:', error);
+      // Apply CORS headers in error responses too
+      setCorsHeaders(response);
       return response.status(500).json({
         success: false,
         error: 'internal',

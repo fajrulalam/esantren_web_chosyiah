@@ -104,27 +104,30 @@ export default function Registration() {
       
       let resultData;
       
-      try {
-        // First try using the callable function
-        const registerSantri = httpsCallable(functions, 'registerSantri');
-        const result = await registerSantri(santriData);
-        resultData = result.data as any;
-      } catch (callableError) {
-        console.error('Error with callable function, trying HTTP endpoint:', callableError);
-        
-        // Fallback to HTTP endpoint with fetch if callable fails
-        const response = await fetch('https://us-central1-e-santren.cloudfunctions.net/registerSantriHttp', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            data: santriData
-          })
-        });
-        
-        resultData = await response.json();
+      // Instead of trying both approaches sequentially which can lead to CORS errors,
+      // let's just use the most reliable method directly: the HTTP endpoint with extra CORS headers
+      
+      // Define the function endpoint URL
+      const functionUrl = 'https://us-central1-e-santren.cloudfunctions.net/registerSantriHttp';
+      
+      // Make the HTTP request with appropriate headers
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        // Use a simpler body structure to avoid any issues
+        body: JSON.stringify(santriData)
+      });
+      
+      // Check if the response was successful
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}, Message: ${await response.text()}`);
       }
+      
+      // Parse the JSON response
+      resultData = await response.json();
       
       if (!resultData.success) {
         throw new Error(resultData.message || 'Terjadi kesalahan saat mendaftar');
