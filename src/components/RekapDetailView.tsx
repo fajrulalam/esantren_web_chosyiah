@@ -1016,8 +1016,8 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
             )}
 
             {/* Table */}
-            <div className="overflow-auto" style={{ maxWidth: '100%' }}>
-              <div className="relative rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden transition-all" style={{ minWidth: '800px' }}>
+            <div className="overflow-x-auto" style={{ maxWidth: '100%' }}>
+              <div className="relative rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden transition-all" style={{ minWidth: '1000px' }}>
                 {pageLoading ? (
                   <div className="flex justify-center py-8">
                     <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 dark:border-blue-400"></div>
@@ -1104,7 +1104,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                             {payment.educationLevel}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors uppercase">
                             {payment.programStudi || '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
