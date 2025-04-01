@@ -1,54 +1,20 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 
 const DarkModeToggle = () => {
-  const [darkMode, setDarkMode] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    // Check if user has a preferred color scheme
-    if (typeof window !== 'undefined') {
-      // First check local storage
-      const storedPreference = localStorage.getItem('darkMode');
-
-      // If no stored preference, check system preference
-      if (storedPreference === null) {
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setDarkMode(systemPrefersDark);
-        
-        if (systemPrefersDark) {
-          document.documentElement.classList.add('dark');
-          localStorage.setItem('darkMode', 'true');
-        } else {
-          document.documentElement.classList.remove('dark');
-          localStorage.setItem('darkMode', 'false');
-        }
-      } else {
-        // Use stored preference
-        const isDarkMode = storedPreference === 'true';
-        setDarkMode(isDarkMode);
-        
-        if (isDarkMode) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
-      }
-    }
-  }, []);
+  // Wait for mounting to avoid hydration mismatch
+  useEffect(() => setMounted(true), []);
 
   const toggleDarkMode = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-    
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('darkMode', 'true');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('darkMode', 'false');
-    }
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
+
+  if (!mounted) return null;
 
   return (
     <button
@@ -56,7 +22,7 @@ const DarkModeToggle = () => {
       className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
       aria-label="Toggle dark mode"
     >
-      {darkMode ? (
+      {theme === 'dark' ? (
         // Sun icon for light mode
         <svg 
           xmlns="http://www.w3.org/2000/svg" 
