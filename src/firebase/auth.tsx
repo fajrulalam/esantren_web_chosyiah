@@ -29,7 +29,9 @@ interface AuthContextProps {
   santriName: string | null;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
-  signInAsWaliSantri: (namaSantri: string, nomorTelpon: string) => Promise<boolean>;
+  signInAsSantri: (namaSantri: string, nomorTelpon: string) => Promise<boolean>;
+  checkSantriName: (namaSantri: string) => Promise<boolean>;
+  checkSantriPhone: (namaSantri: string, nomorTelpon: string) => Promise<boolean>;
   createNewUser: (userData: {
     email: string;
     name: string;
@@ -181,13 +183,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const capitalizeName = (name: string): string => {
     if (!name) return '';
     
+    // Trim any leading/trailing whitespace
+    const trimmedName = name.trim();
+    
     // First, ensure the first character is not a period
-    if (name.startsWith('.')) {
-      return name.substring(1);
+    if (trimmedName.startsWith('.')) {
+      return capitalizeName(trimmedName.substring(1));
     }
     
+    // Handle extra spaces
+    const normalizedName = trimmedName.replace(/\s+/g, ' ');
+    
+    // Convert name to lowercase first for consistency
+    const lowercaseName = normalizedName.toLowerCase();
+    
     // Split by spaces to handle each word
-    return name.split(' ').map(word => {
+    return lowercaseName.split(' ').map(word => {
       // Skip empty words
       if (!word) return '';
       
@@ -198,24 +209,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // For words with periods inside (like "M.Fajrul")
       if (word.includes('.') && !word.endsWith('.')) {
-        return word.split('.').map(namePart => {
-          if (!namePart) return '.';
-          return namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
+        const parts = word.split('.');
+        return parts.map((namePart, index) => {
+          if (!namePart) {
+            // Handle consecutive periods
+            return index < parts.length - 1 ? '.' : '';
+          }
+          return namePart.charAt(0).toUpperCase() + namePart.slice(1);
         }).join('.');
       }
       
-      // Regular words: capitalize first letter, lowercase the rest
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      // Special case for common Indonesian naming particles
+      const particles = ['bin', 'binti', 'al', 'el', 'van', 'von', 'de', 'der', 'dan', 'den'];
+      if (particles.includes(word)) {
+        return word;
+      }
+      
+      // For "name-name" format with hyphens
+      if (word.includes('-')) {
+        return word.split('-').map(namePart => 
+          namePart.charAt(0).toUpperCase() + namePart.slice(1)
+        ).join('-');
+      }
+      
+      // Regular words: capitalize first letter
+      return word.charAt(0).toUpperCase() + word.slice(1);
     }).join(' ');
   };
+  
+  // Log the capitalization function for testing
+  console.log("Capitalization examples:");
+  console.log("m. fajrul alam → ", capitalizeName("m. fajrul alam"));
+  console.log("M.FAJRUL ALAM → ", capitalizeName("M.FAJRUL ALAM"));
+  console.log("m.fajrul alam → ", capitalizeName("m.fajrul alam"));
+  console.log("Muhammad Fajrul → ", capitalizeName("Muhammad Fajrul"));
 
   // Sign in as wali santri (special case - no auth)
-  const signInAsWaliSantri = async (namaSantri: string, nomorTelpon: string) => {
+  const signInAsSantri = async (namaSantri: string, nomorTelpon: string) => {
     try {
       setLoading(true);
       
       // Format the name to ensure proper capitalization
-      const formattedName = capitalizeName(namaSantri);
+      const formattedName = capitalizeName(namaSantri.trim());
+      
+      console.log("Attempting login with formatted name:", formattedName);
       
       // Import necessary Firestore functions
       const { collection, query, where, getDocs } = await import('firebase/firestore');
@@ -237,6 +274,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const santriData = santriDoc.data();
         const santriId = santriDoc.id;
         
+        console.log("Santri found:", santriData.nama);
+        
         // Create user data object
         const userData = {
           uid: `wali_${santriId}`,
@@ -256,10 +295,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return true;
       } else {
         console.log("Santri tidak ditemukan dengan nama dan nomor telepon tersebut");
+        console.log("Attempted with name:", formattedName);
+        console.log("Attempted with phone:", nomorTelpon);
         return false;
       }
     } catch (error) {
-      console.error("Error signing in as wali santri:", error);
+      console.error("Error signing in as santri:", error);
       return false;
     } finally {
       setLoading(false);
@@ -323,13 +364,112 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Check if a santri name exists in the database
+  const checkSantriName = async (namaSantri: string): Promise<boolean> => {
+    try {
+      // Format the name to ensure proper capitalization
+      const formattedName = capitalizeName(namaSantri.trim());
+      
+      console.log("Checking name existence:", formattedName);
+      
+      // Import necessary Firestore functions
+      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      
+      // Query Firestore for santri documents that match the name
+      const santriCollectionRef = collection(db, "SantriCollection");
+      const santriQuery = query(
+        santriCollectionRef,
+        where("nama", "==", formattedName)
+      );
+      
+      const querySnapshot = await getDocs(santriQuery);
+      
+      // For debugging
+      if (!querySnapshot.empty) {
+        console.log("Name found in database:", querySnapshot.docs[0].data().nama);
+      } else {
+        console.log("Name not found in database. Searched for:", formattedName);
+        
+        // For debugging, let's get all names that start with the same first character
+        const firstChar = formattedName.charAt(0);
+        if (firstChar) {
+          const debugQuery = query(
+            santriCollectionRef,
+            where("nama", ">=", firstChar),
+            where("nama", "<", firstChar + "\uf8ff")
+          );
+          
+          const debugSnapshot = await getDocs(debugQuery);
+          console.log("Similar names in database:", 
+            debugSnapshot.docs.map(doc => doc.data().nama).slice(0, 10)
+          );
+        }
+      }
+      
+      // Return true if at least one document matches
+      return !querySnapshot.empty;
+    } catch (error) {
+      console.error("Error checking santri name:", error);
+      return false;
+    }
+  };
+
+  // Check if a phone number matches a santri's registered number
+  const checkSantriPhone = async (namaSantri: string, nomorTelpon: string): Promise<boolean> => {
+    try {
+      // Format the name to ensure proper capitalization
+      const formattedName = capitalizeName(namaSantri.trim());
+      
+      console.log("Checking phone for:", formattedName, "Phone:", nomorTelpon);
+      
+      // Import necessary Firestore functions
+      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      
+      // Query Firestore for santri documents that match both the name and phone number
+      const santriCollectionRef = collection(db, "SantriCollection");
+      const santriQuery = query(
+        santriCollectionRef,
+        where("nama", "==", formattedName),
+        where("nomorTelpon", "==", nomorTelpon)
+      );
+      
+      const querySnapshot = await getDocs(santriQuery);
+      
+      if (!querySnapshot.empty) {
+        console.log("Phone matches for:", querySnapshot.docs[0].data().nama);
+      } else {
+        console.log("Phone doesn't match for:", formattedName);
+        
+        // Get the actual phone for this name to debug
+        const nameQuery = query(
+          santriCollectionRef,
+          where("nama", "==", formattedName)
+        );
+        
+        const nameSnapshot = await getDocs(nameQuery);
+        if (!nameSnapshot.empty) {
+          console.log("Actual phone in DB:", nameSnapshot.docs[0].data().nomorTelpon);
+          console.log("Provided phone:", nomorTelpon);
+        }
+      }
+      
+      // Return true if at least one document matches both criteria
+      return !querySnapshot.empty;
+    } catch (error) {
+      console.error("Error checking santri phone:", error);
+      return false;
+    }
+  };
+
   const value = {
     user,
     loading,
     santriName,
     signInWithEmail,
     signInWithGoogle,
-    signInAsWaliSantri,
+    signInAsSantri,
+    checkSantriName,
+    checkSantriPhone,
     createNewUser,
     logOut
   };

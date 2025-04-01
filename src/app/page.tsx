@@ -28,26 +28,26 @@ export default function Home() {
   // Loading State
   if (loading) {
     return (
-        <div className="flex justify-center items-center min-h-screen bg-amber-50">
+        <div className="flex justify-center items-center min-h-screen bg-amber-50 dark:bg-gray-900">
           {/* Simple spinner */}
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500 dark:border-amber-400"></div>
         </div>
     );
   }
 
   // Main component render
   return (
-      <div className="min-h-screen bg-amber-50 font-sans"> {/* Using a common sans-serif font */}
+      <div className="min-h-screen bg-amber-50 dark:bg-gray-900 font-sans"> {/* Added dark mode background */}
 
         {/* Header Placeholder (Optional - Add your actual header/nav here) */}
-        {/* <header className="bg-white shadow-sm p-4 sticky top-0 z-50"> ... </header> */}
+        {/* <header className="bg-white dark:bg-gray-800 shadow-sm p-4 sticky top-0 z-50"> ... </header> */}
 
         {/* Hero Section */}
         <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 text-center">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-amber-900 mb-4">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-amber-900 dark:text-amber-400 mb-4">
             Selamat Datang di Asrama Chosyi'ah
           </h1>
-          <h2 className="text-xl md:text-2xl text-amber-700 mb-8 max-w-3xl mx-auto">
+          <h2 className="text-xl md:text-2xl text-amber-700 dark:text-amber-300 mb-8 max-w-3xl mx-auto">
             Membentuk Generasi Islami yang Berakhlak Mulia, Cerdas, dan Mandiri di Lingkungan yang Mendukung.
           </h2>
 
@@ -56,14 +56,20 @@ export default function Home() {
             <Link
                 href="/registration"
                 className="
-              inline-flex items-center justify-center px-8 py-3
+              inline-flex items-center justify-center px-8 py-4
               font-semibold text-white rounded-lg
               bg-gradient-to-r from-amber-500 to-amber-600
-              hover:from-amber-600 hover:to-amber-700
+              hover:from-amber-500 hover:to-amber-500
               focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500
-              transition duration-150 ease-in-out
+              transition-all duration-300 ease-in-out
               shadow-md hover:shadow-lg
+              dark:shadow-amber-400/50 dark:hover:shadow-amber-300/70 dark:shadow-xl dark:hover:shadow-2xl
+              dark:ring-4 dark:ring-amber-400/50 dark:hover:ring-amber-300/60
+              dark:hover:scale-105
+              relative dark:after:absolute dark:after:inset-0 dark:after:-z-10 dark:after:rounded-xl
+              dark:after:bg-amber-400/30 dark:after:blur-xl dark:after:scale-125
               text-lg group
+              z-10
             "
             >
               Daftar Sekarang
@@ -88,7 +94,7 @@ export default function Home() {
           {/* Hero Images / Features Grid - Simplified */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mt-16 md:mt-24">
             {/* Feature Card 1: Room */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1">
               <div className="relative h-48 w-full">
                 <Image
                     src="/room.png" // Replace with your actual image path
@@ -100,15 +106,15 @@ export default function Home() {
                 />
               </div>
               <div className="p-5">
-                <h3 className="text-lg font-semibold text-amber-800 mb-2">Fasilitas Kamar Nyaman</h3>
-                <p className="text-sm text-amber-700">
+                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-2">Fasilitas Kamar Nyaman</h3>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
                   Kamar bersih dan kondusif untuk istirahat dan belajar, dilengkapi fasilitas pendukung.
                 </p>
               </div>
             </div>
 
             {/* Feature Card 2: Hallway */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1">
               <div className="relative h-48 w-full">
                 <Image
                     src="/hallway.png" // Replace with your actual image path
@@ -120,15 +126,15 @@ export default function Home() {
                 />
               </div>
               <div className="p-5">
-                <h3 className="text-lg font-semibold text-amber-800 mb-2">Lingkungan Belajar Tertib</h3>
-                <p className="text-sm text-amber-700">
+                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-2">Lingkungan Belajar Tertib</h3>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
                   Suasana asri dan teratur yang mendukung fokus belajar dan pembentukan karakter Islami.
                 </p>
               </div>
             </div>
 
             {/* Feature Card 3: Canteen */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1">
               <div className="relative h-48 w-full">
                 <Image
                     src="/canteen.jpg" // Replace with your actual image path
@@ -140,15 +146,15 @@ export default function Home() {
                 />
               </div>
               <div className="p-5">
-                <h3 className="text-lg font-semibold text-amber-800 mb-2">Makanan Sehat & Halal</h3>
-                <p className="text-sm text-amber-700">
+                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-2">Makanan Sehat & Halal</h3>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
                   Menyediakan makanan bergizi, higienis, dan halal dengan menu bervariasi setiap hari.
                 </p>
               </div>
             </div>
 
             {/* Feature Card 4: Bathroom */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1">
               <div className="relative h-48 w-full">
                 <Image
                     src="/bathroom.png" // Replace with your actual image path
@@ -160,8 +166,8 @@ export default function Home() {
                 />
               </div>
               <div className="p-5">
-                <h3 className="text-lg font-semibold text-amber-800 mb-2">Sanitasi Bersih & Terjaga</h3>
-                <p className="text-sm text-amber-700">
+                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-2">Sanitasi Bersih & Terjaga</h3>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
                   Fasilitas kamar mandi yang terawat baik dengan ketersediaan air bersih yang cukup.
                 </p>
               </div>
@@ -171,56 +177,69 @@ export default function Home() {
 
         {/* Location Section - Simplified Styling */}
         <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-amber-900 text-center mb-12">Lokasi Strategis & Mudah Diakses</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-amber-900 dark:text-amber-400 text-center mb-12">Lokasi Strategis & Mudah Diakses</h2>
           <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center">
-            {/* Location Image */}
+            {/* Location Image with Map Link */}
             <div className="md:w-1/2 w-full">
-              <div className="relative h-64 sm:h-80 w-full rounded-xl overflow-hidden shadow-lg">
-                <Image
-                    src="/location.png" // Replace with your actual image path
-                    alt="Peta Lokasi Asrama Chosyi'ah"
-                    fill
-                    style={{ objectFit: 'cover' }}
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    onError={(e) => e.currentTarget.src = 'https://placehold.co/800x600/FFF0DB/92400E?text=Lokasi+Asrama'} // Placeholder
-                />
-              </div>
+              <a 
+                href="https://www.google.com/maps/dir//PP.+Darul+Ulum,+Rejoso,+Jl.+KH.+Moh.+As'ad+Umar,+Wonokerto+Selatan,+Peterongan,+Kec.+Peterongan,+Kabupaten+Jombang,+Jawa+Timur+61481/@-7.5454306,112.1957389,12z/data=!4m8!4m7!1m0!1m5!1m1!1s0x2e786ada431d1f53:0x15df885880cd6a3b!2m2!1d112.278137!2d-7.5454451?entry=ttu&g_ep=EgoyMDI1MDMyNS4xIKXMDSoASAFQAw%3D%3D"
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="block cursor-pointer transition-transform hover:scale-[1.02] duration-300"
+                title="Lihat di Google Maps"
+              >
+                <div className="relative h-64 sm:h-80 w-full rounded-xl overflow-hidden shadow-lg">
+                  <Image
+                      src="/location_updated.png" // Replace with your actual image path
+                      alt="Peta Lokasi Asrama Chosyi'ah"
+                      fill
+                      style={{ objectFit: 'cover', backgroundColor: 'rgba(251, 191, 36, 0.1)' }}
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      onError={(e) => e.currentTarget.src = 'https://placehold.co/800x600/FFF0DB/92400E?text=Lokasi+Asrama'} // Placeholder
+                      className="hover:opacity-95 transition-opacity"
+                  />
+                  <div className="absolute bottom-2 right-2 bg-white dark:bg-gray-800 rounded-full px-2 py-1 text-xs text-amber-700 dark:text-amber-300 shadow-sm flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+                    Buka Maps
+                  </div>
+                </div>
+              </a>
             </div>
             {/* Location Details */}
             <div className="md:w-1/2 w-full">
               {/* Using a simple card style */}
-              <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
-                <p className="text-amber-800 mb-4">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 md:p-8">
+                <p className="text-amber-800 dark:text-amber-300 mb-4">
                   Terletak di lingkungan yang tenang dan kondusif untuk belajar, Asrama Chosyi'ah mudah dijangkau dari berbagai penjuru kota.
                 </p>
-                <p className="text-amber-800 mb-6">
+                <p className="text-amber-800 dark:text-amber-300 mb-6">
                   Alamat kami di <span className="font-semibold">Jl. Pesantren No. 123, Kelurahan Contoh, Kecamatan Teladan, Kota Surabaya, Jawa Timur 60111</span>, dekat dengan fasilitas umum.
                 </p>
                 {/* Contact Info List */}
                 <div className="space-y-3">
                   {/* Address */}
                   <div className="flex items-start gap-3">
-                    <div className="mt-1 flex-shrink-0 bg-amber-100 p-2 rounded-full">
+                    <div className="mt-1 flex-shrink-0 bg-amber-100 dark:bg-amber-900/30 p-2 rounded-full">
                       {/* Lucide Icon Placeholder: map-pin */}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700 dark:text-amber-400"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
                     </div>
-                    <p className="text-amber-900 text-sm">Jl. Pesantren No. 123, Surabaya 60111</p>
+                    <p className="text-amber-900 dark:text-amber-300 text-sm">Jl. Pesantren No. 123, Surabaya 60111</p>
                   </div>
                   {/* Phone */}
                   <div className="flex items-start gap-3">
-                    <div className="mt-1 flex-shrink-0 bg-amber-100 p-2 rounded-full">
+                    <div className="mt-1 flex-shrink-0 bg-amber-100 dark:bg-amber-900/30 p-2 rounded-full">
                       {/* Lucide Icon Placeholder: phone */}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700 dark:text-amber-400"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                     </div>
-                    <p className="text-amber-900 text-sm">+62 812-3456-7890</p>
+                    <p className="text-amber-900 dark:text-amber-300 text-sm">+62 812-3456-7890</p>
                   </div>
                   {/* Email */}
                   <div className="flex items-start gap-3">
-                    <div className="mt-1 flex-shrink-0 bg-amber-100 p-2 rounded-full">
+                    <div className="mt-1 flex-shrink-0 bg-amber-100 dark:bg-amber-900/30 p-2 rounded-full">
                       {/* Lucide Icon Placeholder: mail */}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700 dark:text-amber-400"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                     </div>
-                    <p className="text-amber-900 text-sm">info@pesantrenchosyiah.ac.id</p> {/* Updated Email */}
+                    <p className="text-amber-900 dark:text-amber-300 text-sm">info@pesantrenchosyiah.ac.id</p> {/* Updated Email */}
                   </div>
                 </div>
               </div>
@@ -231,40 +250,40 @@ export default function Home() {
         {/* Registration Section - Simplified Styling */}
         <section id="daftar" className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
           {/* Simple background, removed complex gradient and decorative elements */}
-          <div className="bg-amber-100 rounded-2xl p-6 md:p-10 lg:p-12 border border-amber-200 shadow-sm">
-            <h2 className="text-3xl md:text-4xl font-bold text-amber-800 mb-10 text-center">
+          <div className="bg-amber-100 dark:bg-gray-800 rounded-2xl p-6 md:p-10 lg:p-12 border border-amber-200 dark:border-gray-700 shadow-sm">
+            <h2 className="text-3xl md:text-4xl font-bold text-amber-800 dark:text-amber-400 mb-10 text-center">
               Mulai Perjalanan Pendidikan Islami Anda Bersama Kami
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
               {/* Registration Info Card */}
-              <div className="order-2 md:order-1 bg-white rounded-xl shadow-lg p-6 md:p-8">
+              <div className="order-2 md:order-1 bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 md:p-8">
                 {/* Icon and Title */}
                 <div className="flex items-center mb-5">
-                  <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0 mr-3 shadow-sm">
+                  <div className="w-10 h-10 bg-amber-500 dark:bg-amber-600 rounded-lg flex items-center justify-center flex-shrink-0 mr-3 shadow-sm">
                     {/* Lucide Icon Placeholder: user-plus */}
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
                   </div>
-                  <h3 className="text-2xl font-semibold text-amber-800">Pendaftaran Santri Baru</h3>
+                  <h3 className="text-2xl font-semibold text-amber-800 dark:text-amber-400">Pendaftaran Santri Baru</h3>
                 </div>
 
-                <p className="text-amber-700 mb-5">
+                <p className="text-amber-700 dark:text-amber-300 mb-5">
                   Kami membuka pendaftaran untuk tahun ajaran 2025/2026. Raih kesempatan belajar di lingkungan Islami yang berkualitas.
                 </p>
 
                 {/* Registration Details */}
                 <div className="mb-6 text-sm space-y-2">
                   <div className="flex justify-between">
-                    <span className="font-semibold text-amber-800">Tahun Ajaran:</span>
-                    <span className="text-amber-900">2025/2026</span>
+                    <span className="font-semibold text-amber-800 dark:text-amber-400">Tahun Ajaran:</span>
+                    <span className="text-amber-900 dark:text-amber-300">2025/2026</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="font-semibold text-amber-800">Biaya Pendaftaran:</span>
-                    <span className="text-amber-900">Rp 2.225.000</span>
+                    <span className="font-semibold text-amber-800 dark:text-amber-400">Biaya Pendaftaran:</span>
+                    <span className="text-amber-900 dark:text-amber-300">Rp 2.225.000</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="font-semibold text-amber-800">Status:</span>
-                    <span className="font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Dibuka</span>
+                    <span className="font-semibold text-amber-800 dark:text-amber-400">Status:</span>
+                    <span className="font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">Dibuka</span>
                   </div>
                 </div>
 
@@ -276,11 +295,17 @@ export default function Home() {
                      inline-flex items-center justify-center w-full sm:w-auto px-6 py-3
                      font-semibold text-white rounded-lg
                      bg-gradient-to-r from-amber-500 to-amber-600
-                     hover:from-amber-600 hover:to-amber-700
+                     hover:from-amber-500 hover:to-amber-500
                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500
-                     transition duration-150 ease-in-out
+                     transition-all duration-300 ease-in-out
                      shadow-md hover:shadow-lg
+                     dark:shadow-amber-400/40 dark:hover:shadow-amber-300/60 dark:shadow-lg dark:hover:shadow-xl
+                     dark:ring-2 dark:ring-amber-400/30 dark:hover:ring-amber-300/50
+                     dark:hover:scale-102
+                     relative dark:after:absolute dark:after:inset-0 dark:after:-z-10 dark:after:rounded-xl
+                     dark:after:bg-amber-400/20 dark:after:blur-lg dark:after:scale-110
                      text-base group
+                     z-10
                    "
                   >
                     Daftar Sekarang
@@ -291,8 +316,8 @@ export default function Home() {
                   {/* Urgency Nudge - positioned below */}
                   <div className="
                    inline-flex items-center px-3 py-1 rounded-full
-                   text-xs font-medium text-red-800
-                   bg-red-100 border border-red-200
+                   text-xs font-medium text-red-800 dark:text-red-300
+                   bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800
                    shadow-sm
                  ">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
@@ -306,7 +331,7 @@ export default function Home() {
               {/* Contact & Image Area */}
               <div className="order-1 md:order-2 space-y-6">
                 {/* Image */}
-                <div className="relative h-64 w-full rounded-xl overflow-hidden shadow-lg border border-amber-200">
+                <div className="relative h-64 w-full rounded-xl overflow-hidden shadow-lg border border-amber-200 dark:border-gray-700">
                   <Image
                       src="/join us real.png" // Replace with your actual image path
                       alt="Santri belajar di Asrama Chosyi'ah"
@@ -318,38 +343,38 @@ export default function Home() {
                 </div>
 
                 {/* Contact Info Card */}
-                <div className="bg-white/80 backdrop-blur-sm p-5 rounded-xl shadow-md border border-amber-100">
-                  <h3 className="text-lg font-semibold text-amber-800 mb-3 flex items-center">
+                <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm p-5 rounded-xl shadow-md border border-amber-100 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-3 flex items-center">
                     {/* Lucide Icon Placeholder: phone-call */}
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-amber-600"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><path d="M14.05 2a9 9 0 0 1 8 7.94"/><path d="M14.05 6A5 5 0 0 1 18 10"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-amber-600 dark:text-amber-500"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><path d="M14.05 2a9 9 0 0 1 8 7.94"/><path d="M14.05 6A5 5 0 0 1 18 10"/></svg>
                     Informasi Pendaftaran
                   </h3>
                   <div className="space-y-2 text-sm">
                     {/* Phone Contact */}
                     <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-amber-100 rounded-full flex-shrink-0">
+                      <div className="p-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-full flex-shrink-0">
                         {/* Lucide Icon Placeholder: smartphone */}
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700 dark:text-amber-400"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
                       </div>
-                      <p className="text-amber-900 font-medium">+62 812-3456-7890 (Admin)</p>
+                      <p className="text-amber-900 dark:text-amber-300 font-medium">+62 812-3456-7890 (Admin)</p>
                     </div>
                     {/* Email Contact */}
                     <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-amber-100 rounded-full flex-shrink-0">
+                      <div className="p-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-full flex-shrink-0">
                         {/* Lucide Icon Placeholder: mail */}
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700 dark:text-amber-400"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                       </div>
-                      <p className="text-amber-900 font-medium">pendaftaran@pesantrenchosyiah.ac.id</p> {/* Updated Email */}
+                      <p className="text-amber-900 dark:text-amber-300 font-medium">pendaftaran@pesantrenchosyiah.ac.id</p> {/* Updated Email */}
                     </div>
                     {/* Office Hours */}
                     <div className="flex items-start gap-2">
-                      <div className="p-1.5 bg-amber-100 rounded-full flex-shrink-0 mt-0.5">
+                      <div className="p-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-full flex-shrink-0 mt-0.5">
                         {/* Lucide Icon Placeholder: clock */}
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700 dark:text-amber-400"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                       </div>
                       <div>
-                        <p className="text-amber-900 font-medium">Senin - Jumat: 08.00 - 16.00 WIB</p>
-                        <p className="text-amber-900 font-medium">Sabtu: 08.00 - 12.00 WIB</p>
+                        <p className="text-amber-900 dark:text-amber-300 font-medium">Senin - Jumat: 08.00 - 16.00 WIB</p>
+                        <p className="text-amber-900 dark:text-amber-300 font-medium">Sabtu: 08.00 - 12.00 WIB</p>
                       </div>
                     </div>
                   </div>
@@ -360,42 +385,42 @@ export default function Home() {
         </section>
 
         {/* Footer */}
-        <footer className="bg-amber-100 border-t border-amber-200 pt-12 pb-8 mt-16">
+        <footer className="bg-amber-100 dark:bg-gray-800 border-t border-amber-200 dark:border-gray-700 pt-12 pb-8 mt-16">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-8">
               {/* Footer Column 1: About */}
               <div>
-                <h3 className="text-lg font-semibold text-amber-800 mb-3">Asrama Chosyi'ah</h3>
-                <p className="text-sm text-amber-700 mb-4">
+                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-3">Asrama Chosyi'ah</h3>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mb-4">
                   Membentuk generasi Islami yang berakhlak mulia, cerdas, dan mandiri.
                 </p>
                 {/* Optional: Add social media icons here */}
               </div>
               {/* Footer Column 2: Programs */}
               <div>
-                <h3 className="text-lg font-semibold text-amber-800 mb-3">Program Unggulan</h3>
+                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-3">Program Unggulan</h3>
                 <ul className="space-y-2 text-sm">
-                  <li><a href="#" className="text-amber-700 hover:text-amber-900 transition duration-150">Program Tahfidz Al-Qur'an</a></li>
-                  <li><a href="#" className="text-amber-700 hover:text-amber-900 transition duration-150">Kajian Kitab Kuning</a></li>
-                  <li><a href="#" className="text-amber-700 hover:text-amber-900 transition duration-150">Pengembangan Diri</a></li>
-                  <li><a href="#" className="text-amber-700 hover:text-amber-900 transition duration-150">Bahasa Arab & Inggris</a></li>
+                  <li><a href="#" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Program Tahfidz Al-Qur'an</a></li>
+                  <li><a href="#" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Kajian Kitab Kuning</a></li>
+                  <li><a href="#" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Pengembangan Diri</a></li>
+                  <li><a href="#" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Bahasa Arab & Inggris</a></li>
                 </ul>
               </div>
               {/* Footer Column 3: Quick Links */}
               <div>
-                <h3 className="text-lg font-semibold text-amber-800 mb-3">Tautan Cepat</h3>
+                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-3">Tautan Cepat</h3>
                 <ul className="space-y-2 text-sm">
-                  <li><Link href="/" className="text-amber-700 hover:text-amber-900 transition duration-150">Beranda</Link></li>
-                  <li><Link href="/tentang" className="text-amber-700 hover:text-amber-900 transition duration-150">Tentang Kami</Link></li>
-                  <li><Link href="/program" className="text-amber-700 hover:text-amber-900 transition duration-150">Program</Link></li>
-                  <li><Link href="/galeri" className="text-amber-700 hover:text-amber-900 transition duration-150">Galeri</Link></li>
-                  <li><Link href="/kontak" className="text-amber-700 hover:text-amber-900 transition duration-150">Kontak</Link></li>
+                  <li><Link href="/" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Beranda</Link></li>
+                  <li><Link href="/tentang" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Tentang Kami</Link></li>
+                  <li><Link href="/program" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Program</Link></li>
+                  <li><Link href="/galeri" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Galeri</Link></li>
+                  <li><Link href="/kontak" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Kontak</Link></li>
                 </ul>
               </div>
               {/* Footer Column 4: Contact */}
               <div>
-                <h3 className="text-lg font-semibold text-amber-800 mb-3">Hubungi Kami</h3>
-                <ul className="space-y-2 text-sm text-amber-700">
+                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-3">Hubungi Kami</h3>
+                <ul className="space-y-2 text-sm text-amber-700 dark:text-amber-300">
                   <li className="flex items-start gap-2">
                     {/* Icon: map-pin */}
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-1 flex-shrink-0"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -415,7 +440,7 @@ export default function Home() {
               </div>
             </div>
             {/* Copyright */}
-            <div className="border-t border-amber-200 pt-6 text-center text-sm text-amber-700">
+            <div className="border-t border-amber-200 dark:border-gray-700 pt-6 text-center text-sm text-amber-700 dark:text-amber-300">
               <p>&copy; {new Date().getFullYear()} Asrama Chosyi'ah. Hak Cipta Dilindungi.</p>
             </div>
           </div>
