@@ -424,3 +424,63 @@ export const testCors = functions.https.onRequest((request, response) => {
     });
   });
 });
+
+// Public API endpoint for registering new santri
+export const registerSantri = functions.https.onCall(async (data, context) => {
+  try {
+    // Prepare Santri data with all required fields
+    const santriData = {
+      email: data.email,
+      nama: data.nama,
+      tempatLahir: data.tempatLahir,
+      tanggalLahir: data.tanggalLahir,
+      namaOrangTua: data.namaOrangTua,
+      alamatRumah: data.alamatRumah,
+      nomorTelpon: data.nomorTelpon,
+      nomorWalisantri: data.nomorWalisantri,
+      programStudi: data.programStudi,
+      sekolahAsal: data.sekolahAsal,
+      
+      // Automatic fields
+      kodeAsrama: data.kodeAsrama,
+      statusTanggungan: 'Menunggu Verifikasi',
+      kamar: '-',
+      statusAktif: 'Pending',
+      
+      // Other required fields from Santri interface
+      kelas: data.programStudi,
+      tahunMasuk: new Date().getFullYear().toString(),
+      jenjangPendidikan: 'PT',
+      semester: '1',
+      jumlahTunggakan: 0,
+      
+      // Payment related fields
+      paymentOption: data.paymentOption,
+      paymentProofUrl: data.paymentProofUrl,
+      
+      // Timestamp fields
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    
+    // Add to SantriCollection
+    const docRef = await admin.firestore().collection('SantriCollection').add(santriData);
+    
+    // Note: Counters are not updated here because statusAktif is 'Pending'
+    // It will be updated when admin approves and changes status to 'Aktif'
+    
+    console.log(`New santri registration: ${docRef.id}`, santriData);
+    
+    return {
+      success: true,
+      id: docRef.id,
+      message: 'Pendaftaran berhasil! Silakan menunggu konfirmasi dari admin.'
+    };
+  } catch (error) {
+    console.error('Error registering santri:', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      'Terjadi kesalahan saat mendaftar. Silakan coba lagi nanti.'
+    );
+  }
+});
