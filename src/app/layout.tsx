@@ -15,6 +15,15 @@ const nunito = Nunito({
 export const metadata = {
   title: "Asrama Chosyi'ah",
   description: "Website Resmi Asrama Chosyi'ah Darul Ulum",
+  icons: {
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/favicon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    shortcut: '/favicon.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
