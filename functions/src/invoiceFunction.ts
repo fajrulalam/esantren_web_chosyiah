@@ -214,7 +214,35 @@ export const createPaymentStatusesOnInvoiceCreation = async (
     // Execute all status updates in parallel
     await Promise.all(updateStatusPromises);
 
-    // 6. Create payment status documents in batches
+    // 6. Get updated santri data to ensure we have correct semester and kelas fields
+    // We need to do this separately because batch operations don't work with async operations inside loops
+    const updatedSantriData = new Map();
+    
+    functions.logger.info(
+      `Fetching updated santri data for ${santriList.length} santris`,
+      { structuredData: true }
+    );
+    
+    // Fetch all santri documents in parallel to get the correct semester fields
+    const santriPromises = santriList.map(async (santri) => {
+      const santriDoc = await db.collection("SantriCollection").doc(santri.id).get();
+      if (santriDoc.exists) {
+        const data = santriDoc.data();
+        updatedSantriData.set(santri.id, {
+          semester: data.semester || '',
+          kelas: data.kelas || '',
+        });
+        
+        functions.logger.info(
+          `Santri data for ${santri.id}: kelas=${data.kelas || 'N/A'}, semester=${data.semester || 'N/A'}`,
+          { structuredData: true }
+        );
+      }
+    });
+    
+    await Promise.all(santriPromises);
+    
+    // Create payment status documents in batches
     // This ensures we don't exceed Firestore's write limits
     for (let i = 0; i < santriList.length; i += BATCH_SIZE) {
       const batch = db.batch();
@@ -225,12 +253,23 @@ export const createPaymentStatusesOnInvoiceCreation = async (
         const paymentStatusRef = db
           .collection("PaymentStatuses")
           .doc(paymentStatusId);
-
+        
+        // Get the updated santri data or fall back to original data
+        const updatedData = updatedSantriData.get(santri.id) || { semester: '', kelas: '' };
+        
+        // Determine educationGrade with priority: updatedData.semester, then updatedData.kelas, then empty string
+        const educationGrade = updatedData.semester || updatedData.kelas || '';
+        
+        functions.logger.info(
+          `Setting educationGrade for ${santri.id} to: ${educationGrade}`,
+          { structuredData: true }
+        );
+        
         batch.set(paymentStatusRef, {
           invoiceId: invoiceId,
           santriId: santri.id,
           santriName: santri.nama,
-          educationGrade: santri.kelas || santri.semester || '',
+          educationGrade: educationGrade,
           educationLevel: santri.jenjangPendidikan,
           programStudi: santri.programStudi || '',
           kamar: santri.kamar,
@@ -459,7 +498,34 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
     // Execute all status updates in parallel
     await Promise.all(updateStatusPromises);
     
-    // 4. Create payment status documents for each new santri
+    // 4. Get updated santri data to ensure we have correct semester and kelas fields
+    const updatedSantriData = new Map();
+    
+    functions.logger.info(
+      `Fetching updated santri data for ${santriList.length} santris`,
+      { structuredData: true }
+    );
+    
+    // Fetch all santri documents in parallel to get the correct semester fields
+    const santriPromises = santriList.map(async (santri) => {
+      const santriDoc = await db.collection("SantriCollection").doc(santri.id).get();
+      if (santriDoc.exists) {
+        const data = santriDoc.data();
+        updatedSantriData.set(santri.id, {
+          semester: data.semester || '',
+          kelas: data.kelas || '',
+        });
+        
+        functions.logger.info(
+          `Santri data for ${santri.id}: kelas=${data.kelas || 'N/A'}, semester=${data.semester || 'N/A'}`,
+          { structuredData: true }
+        );
+      }
+    });
+    
+    await Promise.all(santriPromises);
+    
+    // Create payment status documents for each new santri
     const batch = db.batch();
     
     for (const santri of santriList) {
@@ -468,12 +534,23 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
         .collection("PaymentStatuses")
         .doc(paymentStatusId);
 
+      // Get the updated santri data or fall back to original data
+      const updatedData = updatedSantriData.get(santri.id) || { semester: '', kelas: '' };
+      
+      // Determine educationGrade with priority: updatedData.semester, then updatedData.kelas, then empty string
+      const educationGrade = updatedData.semester || updatedData.kelas || '';
+      
+      functions.logger.info(
+        `Setting educationGrade for ${santri.id} to: ${educationGrade}`,
+        { structuredData: true }
+      );
+      
       batch.set(paymentStatusRef, {
         invoiceId: invoiceId,
         santriId: santri.id,
         santriName: santri.nama,
         nama: santri.nama,
-        educationGrade: santri.kelas || santri.semester || '',
+        educationGrade: educationGrade,
         educationLevel: santri.jenjangPendidikan,
         programStudi: santri.programStudi || '',
         kamar: santri.kamar,
