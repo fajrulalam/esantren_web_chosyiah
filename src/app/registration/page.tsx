@@ -7,6 +7,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { storage, db } from '@/firebase/config';
 import { KODE_ASRAMA } from '@/constants';
+import { formatName, formatNameForId } from '@/utils/nameFormatter';
 
 // Placeholder image for success page
 const PLACEHOLDER_IMAGE = '/join us.png';
@@ -113,15 +114,18 @@ export default function Registration() {
       // Generate timestamp for ID
       const timestamp = Date.now();
       
+      // Properly format name with correct capitalization
+      const formattedName = formatName(formData.namaLengkap);
+      
       // Generate document ID following convention: [nama]_[timestampInMillis]
-      const sanitizedName = formData.namaLengkap.replace(/\s+/g, '_').toLowerCase();
+      const sanitizedName = formatNameForId(formattedName);
       const docId = `${sanitizedName}_${timestamp}`;
       
       // Prepare Santri data
       const santriData = {
         // Required fields from formData
         email: formData.email,
-        nama: formData.namaLengkap,
+        nama: formattedName, // Use properly formatted name
         tempatLahir: formData.tempatLahir,
         tanggalLahir: formatDate(formData.tanggalLahir),
         namaOrangTua: formData.namaOrangTua,
@@ -194,55 +198,55 @@ export default function Registration() {
     return `https://wa.me/+628123456789?text=${message}`;
   };
 
-  // Claymorphism styles
+  // Claymorphism styles with dark mode support
   const containerStyle = `
-    bg-amber-50 rounded-3xl p-8 md:p-10
-    border-2 border-amber-200
-    shadow-[8px_8px_16px_#d6d0c4,-8px_-8px_16px_#fffef4]
+    bg-amber-50 dark:bg-gray-800 rounded-3xl p-8 md:p-10
+    border-2 border-amber-200 dark:border-gray-700
+    shadow-[8px_8px_16px_#d6d0c4,-8px_-8px_16px_#fffef4] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-8px_-8px_16px_rgba(30,30,30,0.1)]
   `;
 
   const inputStyle = `
     w-full p-4 rounded-xl
-    bg-amber-50 border-2 border-amber-200
-    focus:outline-none focus:border-amber-400
-    shadow-[inset_2px_2px_5px_#d6d0c4,inset_-2px_-2px_5px_#fffef4]
-    text-amber-900 placeholder:text-amber-400
+    bg-amber-50 dark:bg-gray-700 border-2 border-amber-200 dark:border-gray-600
+    focus:outline-none focus:border-amber-400 dark:focus:border-gray-500
+    shadow-[inset_2px_2px_5px_#d6d0c4,inset_-2px_-2px_5px_#fffef4] dark:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.3),inset_-2px_-2px_5px_rgba(60,60,60,0.2)]
+    text-amber-900 dark:text-gray-100 placeholder:text-amber-400 dark:placeholder:text-gray-400
     transition-all duration-300
   `;
 
   const buttonStyle = `
-    py-4 px-8 rounded-xl font-bold text-amber-900 
-    bg-amber-200 border-2 border-amber-300
-    hover:bg-amber-300 active:bg-amber-400
+    py-4 px-8 rounded-xl font-bold text-amber-900 dark:text-gray-100
+    bg-amber-200 dark:bg-gray-700 border-2 border-amber-300 dark:border-gray-600
+    hover:bg-amber-300 dark:hover:bg-gray-600 active:bg-amber-400 dark:active:bg-gray-800
     transition-all duration-300
-    shadow-[6px_6px_12px_#d6d0c4,-6px_-6px_12px_#fffef4]
-    active:shadow-[2px_2px_4px_#d6d0c4,-2px_-2px_4px_#fffef4]
+    shadow-[6px_6px_12px_#d6d0c4,-6px_-6px_12px_#fffef4] dark:shadow-[6px_6px_12px_rgba(0,0,0,0.3),-6px_-6px_12px_rgba(30,30,30,0.1)]
+    active:shadow-[2px_2px_4px_#d6d0c4,-2px_-2px_4px_#fffef4] dark:active:shadow-[2px_2px_4px_rgba(0,0,0,0.3)]
     active:translate-x-[2px] active:translate-y-[2px]
     disabled:opacity-70 disabled:cursor-not-allowed
   `;
 
   const fileUploadStyle = `
-    border-2 border-dashed border-amber-300 
-    bg-amber-50 rounded-xl p-6
+    border-2 border-dashed border-amber-300 dark:border-gray-600
+    bg-amber-50 dark:bg-gray-700 rounded-xl p-6
     flex flex-col items-center justify-center
     cursor-pointer
     transition-all duration-300
-    hover:border-amber-400 hover:bg-amber-100
+    hover:border-amber-400 dark:hover:border-gray-500 hover:bg-amber-100 dark:hover:bg-gray-600
   `;
 
   // Success view after registration
   if (registrationComplete) {
     return (
-      <div className="min-h-screen bg-amber-50 pt-24 px-4">
+      <div className="min-h-screen bg-amber-50 dark:bg-gray-900 pt-24 px-4 transition-colors">
         <div className="max-w-4xl mx-auto mt-10 mb-20">
           <div className={containerStyle}>
             <div className="text-center py-10">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-3xl font-bold text-amber-900 mb-4">Selamat bergabung!</h2>
+              <h2 className="text-3xl font-bold text-amber-900 dark:text-amber-300 mb-4">Selamat bergabung!</h2>
               <div className="my-6">
                 <Image 
                   src={PLACEHOLDER_IMAGE} 
@@ -252,7 +256,7 @@ export default function Registration() {
                   className="mx-auto rounded-lg"
                 />
               </div>
-              <p className="text-amber-800 mb-8">
+              <p className="text-amber-800 dark:text-amber-200 mb-8">
                 InshaAllah pembayaran sudah kami terima. Tunggu dihubungi ustadzah untuk verifikasi dan 
                 informasi kamu mendapat kamar mana. Atau, hubungi mereka langsung saja!
               </p>
@@ -261,7 +265,7 @@ export default function Registration() {
                   href={getWhatsAppLink()} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className={`${buttonStyle} bg-green-500 border-green-600 text-white hover:bg-green-600`}
+                  className={`bg-green-500 dark:bg-green-600 border-green-600 dark:border-green-700 text-white hover:bg-green-600 dark:hover:bg-green-700 py-4 px-8 rounded-xl font-bold shadow-md transition-all duration-300`}
                 >
                   <span className="flex items-center justify-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
@@ -282,11 +286,11 @@ export default function Registration() {
   }
 
   return (
-    <div className="min-h-screen bg-amber-50 pt-24 px-4">
+    <div className="min-h-screen bg-amber-50 dark:bg-gray-900 pt-24 px-4 transition-colors">
       <div className="max-w-4xl mx-auto mt-10 mb-20">
         <div className={containerStyle}>
-          <h1 className="text-3xl font-bold text-amber-900 mb-2 text-center">Pendaftaran Santri Baru</h1>
-          <p className="text-amber-700 mb-8 text-center">Tahun Ajaran {new Date().getFullYear()}/{new Date().getFullYear() + 1}</p>
+          <h1 className="text-3xl font-bold text-amber-900 dark:text-amber-300 mb-2 text-center">Pendaftaran Santri Baru</h1>
+          <p className="text-amber-700 dark:text-amber-400 mb-8 text-center">Tahun Ajaran {new Date().getFullYear()}/{new Date().getFullYear() + 1}</p>
           
           <div className="flex justify-between mb-8">
             <div className={`w-full h-2 ${step >= 1 ? 'bg-amber-500' : 'bg-amber-200'} rounded-full`}></div>

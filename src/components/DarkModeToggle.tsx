@@ -8,13 +8,31 @@ const DarkModeToggle = () => {
   useEffect(() => {
     // Check if user has a preferred color scheme
     if (typeof window !== 'undefined') {
-      const isDarkMode = localStorage.getItem('darkMode') === 'true';
-      setDarkMode(isDarkMode);
-      
-      if (isDarkMode) {
-        document.documentElement.classList.add('dark');
+      // First check local storage
+      const storedPreference = localStorage.getItem('darkMode');
+
+      // If no stored preference, check system preference
+      if (storedPreference === null) {
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setDarkMode(systemPrefersDark);
+        
+        if (systemPrefersDark) {
+          document.documentElement.classList.add('dark');
+          localStorage.setItem('darkMode', 'true');
+        } else {
+          document.documentElement.classList.remove('dark');
+          localStorage.setItem('darkMode', 'false');
+        }
       } else {
-        document.documentElement.classList.remove('dark');
+        // Use stored preference
+        const isDarkMode = storedPreference === 'true';
+        setDarkMode(isDarkMode);
+        
+        if (isDarkMode) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
       }
     }
   }, []);

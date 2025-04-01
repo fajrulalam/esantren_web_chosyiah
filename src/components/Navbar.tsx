@@ -40,34 +40,34 @@ export default function Navbar() {
                (targetPath !== '/' && currentPath?.startsWith(targetPath));
     };
 
-    // Claymorphism styling for the navbar
+    // Claymorphism styling for the navbar with dark mode support
     const navbarClasses = `
         fixed top-0 left-0 right-0 z-30 transition-all duration-300
         ${isScrolled 
-            ? 'bg-amber-50/90 backdrop-blur-md py-3 shadow-lg' 
-            : 'bg-amber-50 py-5'}
+            ? 'bg-amber-50/90 dark:bg-gray-900/90 backdrop-blur-md py-3 shadow-lg' 
+            : 'bg-amber-50 dark:bg-gray-900 py-5'}
     `;
 
-    // Claymorphism button styling
+    // Claymorphism button styling with dark mode support
     const buttonClasses = `
-        relative px-5 py-2 font-medium text-amber-900 rounded-xl
-        ${isScrolled ? 'bg-amber-100' : 'bg-amber-200'} 
-        border-2 border-amber-200
-        hover:bg-amber-300 active:bg-amber-400
+        relative px-5 py-2 font-medium text-amber-900 dark:text-gray-100 rounded-xl
+        ${isScrolled ? 'bg-amber-100 dark:bg-gray-800' : 'bg-amber-200 dark:bg-gray-700'} 
+        border-2 border-amber-200 dark:border-gray-600
+        hover:bg-amber-300 dark:hover:bg-gray-600 active:bg-amber-400 dark:active:bg-gray-700
         transition-all duration-300
-        shadow-[4px_4px_10px_#d6d0c4,-4px_-4px_10px_#fffef4]
-        active:shadow-[2px_2px_5px_#d6d0c4,-2px_-2px_5px_#fffef4]
+        shadow-[4px_4px_10px_#d6d0c4,-4px_-4px_10px_#fffef4] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.3),-4px_-4px_10px_rgba(0,0,0,0.1)]
+        active:shadow-[2px_2px_5px_#d6d0c4,-2px_-2px_5px_#fffef4] dark:active:shadow-[2px_2px_5px_rgba(0,0,0,0.3)]
         active:translate-x-[1px] active:translate-y-[1px]
     `;
     
-    // Claymorphism active link styling
+    // Claymorphism active link styling with dark mode support
     const activeClass = `
-        bg-amber-200 text-amber-900 rounded-xl px-4 py-2
-        shadow-[inset_2px_2px_5px_#d6d0c4,inset_-2px_-2px_5px_#fffef4]
+        bg-amber-200 dark:bg-gray-700 text-amber-900 dark:text-gray-100 rounded-xl px-4 py-2
+        shadow-[inset_2px_2px_5px_#d6d0c4,inset_-2px_-2px_5px_#fffef4] dark:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.3)]
     `;
     
     const inactiveClass = `
-        text-amber-900 hover:bg-amber-100 rounded-xl px-4 py-2
+        text-amber-900 dark:text-gray-300 hover:bg-amber-100 dark:hover:bg-gray-800 rounded-xl px-4 py-2
         transition-all duration-200
     `;
 
@@ -76,7 +76,7 @@ export default function Navbar() {
             <div className="container mx-auto px-4">
                 <div className="flex justify-between h-16 items-center">
                     <div className="flex-shrink-0">
-                        <Link href="/" className="text-2xl font-bold text-amber-800">
+                        <Link href="/" className="text-2xl font-bold text-amber-800 dark:text-amber-300">
                             Asrama Chosyi'ah
                         </Link>
                     </div>
@@ -141,7 +141,7 @@ export default function Navbar() {
                         <DarkModeToggle />
                         <button
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className="ml-2 inline-flex items-center justify-center p-2 rounded-xl text-amber-800 hover:bg-amber-100 transition-colors duration-200"
+                            className="ml-2 inline-flex items-center justify-center p-2 rounded-xl text-amber-800 dark:text-gray-200 hover:bg-amber-100 dark:hover:bg-gray-700 transition-colors duration-200"
                             aria-controls="mobile-menu"
                             aria-expanded={isMenuOpen}
                         >
@@ -163,7 +163,7 @@ export default function Navbar() {
             {/* Mobile menu */}
             {isMenuOpen && (
                 <div className="md:hidden" id="mobile-menu">
-                    <div className="px-4 pt-2 pb-3 space-y-2 bg-amber-50 shadow-inner">
+                    <div className="px-4 pt-2 pb-3 space-y-2 bg-amber-50 dark:bg-gray-800 shadow-inner">
                         {user ? (
                             <>
                                 {user.role !== 'waliSantri' ? (
