@@ -205,6 +205,7 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
                 nama: data.nama || 'Unknown',
                 kamar: data.kamar || '',
                 kelas: data.kelas || '',
+                semester: data.semester || '',
                 jenjangPendidikan: data.jenjangPendidikan || '',
                 programStudi: data.programStudi || '',
                 nomorWalisantri: data.nomorWalisantri || '',
@@ -255,21 +256,52 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
         // Execute all status updates in parallel
         await Promise.all(updateStatusPromises);
 
-        // 4. Create payment status documents for each new santri
+        // 4. First fetch all santri documents to ensure we have the latest data
+        console.log(`Fetching updated santri data for ${santriList.length} santris`);
+        
+        // Create a map to store the updated santri data
+        const updatedSantriData = new Map();
+        
+        // Fetch all santri documents in parallel
+        const fetchPromises = santriList.map(async (santri) => {
+          const santriDoc = await admin.firestore().collection('SantriCollection').doc(santri.id).get();
+          if (santriDoc.exists) {
+            const data = santriDoc.data();
+            updatedSantriData.set(santri.id, {
+              semester: data.semester || '',
+              kelas: data.kelas || ''
+            });
+            
+            console.log(`Santri data for ${santri.id}: semester=${data.semester || 'N/A'}, kelas=${data.kelas || 'N/A'}`);
+          }
+        });
+        
+        // Wait for all fetches to complete
+        await Promise.all(fetchPromises);
+        
+        // 5. Now create payment status documents in a batch
         const batch = admin.firestore().batch();
-
+        
         for (const santri of santriList) {
           const paymentStatusId = `${invoiceId}_${santri.id}`;
           const paymentStatusRef = admin.firestore()
               .collection("PaymentStatuses")
               .doc(paymentStatusId);
-
+          
+          // Get the updated data if available
+          const updatedData = updatedSantriData.get(santri.id) || { semester: '', kelas: '' };
+          
+          // Use semester with fallback to kelas - prioritize the latest data from Firestore
+          const educationGrade = updatedData.semester || santri.semester || updatedData.kelas || santri.kelas || '';
+          
+          console.log(`Setting educationGrade for ${santri.id} to: ${educationGrade}`);
+          
           batch.set(paymentStatusRef, {
             invoiceId: invoiceId,
             santriId: santri.id,
             santriName: santri.nama,
             nama: santri.nama,
-            educationGrade: santri.kelas,
+            educationGrade: educationGrade,
             educationLevel: santri.jenjangPendidikan,
             programStudi: santri.programStudi || '',
             kamar: santri.kamar,
@@ -281,7 +313,7 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           });
         }
-
+        
         // Commit all the new payment statuses
         await batch.commit();
 
@@ -423,6 +455,53 @@ export const testCors = functions.https.onRequest((request, response) => {
       origin: request.headers.origin || 'No origin header found'
     });
   });
+});
+
+// Debug function to check santri document structure
+export const debugSantriStructure = functions.region('us-central1').https.onCall(async (data, context) => {
+  try {
+    const { santriId } = data;
+    
+    if (!santriId) {
+      throw new functions.https.HttpsError(
+        'invalid-argument', 
+        'The function must be called with a santriId parameter.'
+      );
+    }
+    
+    // Get the santri document
+    const santriDoc = await admin.firestore().collection('SantriCollection').doc(santriId).get();
+    
+    if (!santriDoc.exists) {
+      throw new functions.https.HttpsError(
+        'not-found',
+        `Santri with ID ${santriId} not found.`
+      );
+    }
+    
+    // Get the data and log all fields for debugging
+    const santriData = santriDoc.data();
+    console.log('Complete santri document structure:', JSON.stringify(santriData, null, 2));
+    
+    // Return the full document for analysis
+    return {
+      id: santriId,
+      data: santriData,
+      fieldNames: Object.keys(santriData || {}),
+      hasJenjangPendidikan: santriData?.hasOwnProperty('jenjangPendidikan'),
+      hasSemester: santriData?.hasOwnProperty('semester'),
+      hasKelas: santriData?.hasOwnProperty('kelas'),
+      jenjangPendidikanValue: santriData?.jenjangPendidikan || 'N/A',
+      semesterValue: santriData?.semester || 'N/A',
+      kelasValue: santriData?.kelas || 'N/A'
+    };
+  } catch (error) {
+    console.error('Error in debugSantriStructure:', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      `Error debugging santri structure: ${error}`
+    );
+  }
 });
 
 // Shared function for santri registration
