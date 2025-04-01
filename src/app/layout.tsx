@@ -17,12 +17,12 @@ export const metadata = {
   description: "Website Resmi Asrama Chosyi'ah Darul Ulum",
   icons: {
     icon: [
-      { url: '/favicon.png', type: 'image/png' },
+      { url: '/favicon.ico', type: 'image/x-icon' },
     ],
     apple: [
-      { url: '/favicon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/favicon.ico', sizes: '180x180', type: 'image/x-icon' },
     ],
-    shortcut: '/favicon.png',
+    shortcut: '/favicon.ico',
   },
 };
 
