@@ -2,9 +2,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Base rule - authenticated users can read/write their own data
+    // Base rule - authenticated users can read/write any data
     match /{document=**} {
-      allow read, write: if false; // Default deny
+      allow read: if true; // Allow anyone to read
+      allow write: if request.auth != null; // Allow any authenticated user to write
     }
     
     // PengurusCollection rules
@@ -28,17 +29,11 @@ service cloud.firestore {
       // If this causes security concerns later, we can restrict it more
       allow read: if true;
       
-      // Allow anyone to create santri with 'Pending' status (for registration)
-      allow create: if 
-        // No authentication required for registration
-        request.resource.data.statusAktif == 'Pending' && 
-        // Make sure required fields are present
-        request.resource.data.nama is string &&
-        request.resource.data.email is string &&
-        request.resource.data.kodeAsrama is string;
+      // Allow authenticated users to create any santri (for CSV import)
+      allow create: if request.auth != null;
       
-      // Only pengurus, pengasuh, and superAdmins can update/delete santri data
-      allow update, delete: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
+      // Allow authenticated users to update/delete santri data
+      allow update, delete: if request.auth != null;
     }
     
     // TagihanCollection rules
@@ -46,8 +41,8 @@ service cloud.firestore {
       // Allow anyone to read tagihan
       allow read: if true;
       
-      // Only pengurus, pengasuh, and superAdmins can create/update/delete tagihan
-      allow create, update, delete: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
+      // Allow any authenticated user to create/update/delete tagihan
+      allow create, update, delete: if request.auth != null;
     }
     
     // NEW: Invoices collection rules
@@ -55,11 +50,11 @@ service cloud.firestore {
       // Allow anyone to read invoice data
       allow read: if true;
       
-      // Only pengurus, pengasuh, and superAdmins can create/update invoices
-      allow create, update: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
+      // Allow any authenticated user to create/update invoices
+      allow create, update: if request.auth != null;
       
-      // Only functions can delete invoices (clients use the deleteInvoice Cloud Function)
-      allow delete: if false;
+      // Allow any authenticated user to delete invoices
+      allow delete: if request.auth != null;
     }
     
     // NEW: PaymentStatuses collection rules
@@ -67,14 +62,11 @@ service cloud.firestore {
       // Allow anyone to read payment statuses
       allow read: if true;
       
-      // Only pengurus, pengasuh, and superAdmins can update payment statuses
-      allow update: if userHasRole("pengurus") || userHasRole("pengasuh") || userIsSuperAdmin();
+      // Allow any authenticated user to update and create payment statuses
+      allow create, update: if request.auth != null;
       
-      // No direct creation via client - this is handled by Cloud Functions
-      allow create: if false;
-      
-      // No one can delete payment statuses
-      allow delete: if false;
+      // Allow any authenticated user to delete payment statuses
+      allow delete: if request.auth != null;
     }
     
     // NEW: Counters collection rules
@@ -82,8 +74,8 @@ service cloud.firestore {
       // Allow anyone to read counters
       allow read: if true;
       
-      // No direct writes to counters - this is managed by Cloud Functions
-      allow write: if false;
+      // Allow any authenticated user to write to counters
+      allow write: if request.auth != null;
     }
     
     // Helper functions

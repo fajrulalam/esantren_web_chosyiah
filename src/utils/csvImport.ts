@@ -144,7 +144,7 @@ export const processCSVFile = async (file: File): Promise<CSVValidationResult> =
             jenjangPendidikan: 
               ['SD', 'SLTP', 'SLTA','Perguruan Tinggi'].includes(row.jenjangPendidikan)
                 ? row.jenjangPendidikan
-                : 'SLTP',
+                : 'Perguruan Tinggi',
             statusAktif: 
               ['Aktif', 'Boyong', 'Lulus', 'Dikeluarkan', 'Alumni'].includes(row.statusAktif)
                 ? row.statusAktif

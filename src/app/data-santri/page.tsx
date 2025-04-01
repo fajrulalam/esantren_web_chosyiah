@@ -115,7 +115,7 @@ export default function DataSantriPage() {
     }
     
     if (programStudiFilter !== 'all') {
-      filtered = filtered.filter(santri => santri.programStudi === programStudiFilter);
+      filtered = filtered.filter(santri => santri.programStudi?.toLowerCase() === programStudiFilter.toLowerCase());
     }
     
     if (semesterFilter !== 'all') {
@@ -745,7 +745,7 @@ export default function DataSantriPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                       {santri.semester || "-"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors uppercase">
                       {santri.programStudi || "-"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">

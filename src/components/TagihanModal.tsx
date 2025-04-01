@@ -178,7 +178,7 @@ export default function TagihanModal({
     }
     
     if (currentFilters.programStudi) {
-      filtered = filtered.filter(santri => santri.programStudi === currentFilters.programStudi);
+      filtered = filtered.filter(santri => santri.programStudi?.toLowerCase() === currentFilters.programStudi.toLowerCase());
     }
     
     if (currentFilters.semester) {
@@ -801,7 +801,7 @@ export default function TagihanModal({
                                     <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                                       {santri.semester || "-"}
                                     </td>
-                                    <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                    <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400 uppercase">
                                       {santri.programStudi || "-"}
                                     </td>
                                     <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
