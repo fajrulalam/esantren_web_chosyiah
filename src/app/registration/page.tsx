@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { storage, db } from '@/firebase/config';
 import { KODE_ASRAMA } from '@/constants';
 
@@ -68,17 +68,66 @@ export default function Registration() {
         paymentProofUrl = await getDownloadURL(storageRef);
       }
       
+      // Format phone numbers to include +62 prefix
+      const formatPhoneNumber = (phone: string): string => {
+        if (!phone) return '';
+        
+        // Remove any non-digit characters
+        const digits = phone.replace(/\D/g, '');
+        
+        // If phone starts with country code (62), add + symbol
+        if (digits.startsWith('62')) {
+          return '+' + digits;
+        }
+        
+        // If phone starts with 0, replace it with +62
+        if (digits.startsWith('0')) {
+          return '+62' + digits.substring(1);
+        }
+        
+        // For Indonesian numbers that start with 8 (no leading 0), add +62
+        if (digits.startsWith('8') && digits.length >= 9) {
+          return '+62' + digits;
+        }
+        
+        // Otherwise, add +62 prefix as fallback
+        return '+62' + digits;
+      };
+      
+      // Format date to DD/MM/YYYY
+      const formatDate = (dateString: string): string => {
+        if (!dateString) return '';
+        
+        try {
+          const date = new Date(dateString);
+          const day = date.getDate().toString().padStart(2, '0');
+          const month = (date.getMonth() + 1).toString().padStart(2, '0');
+          const year = date.getFullYear();
+          return `${day}/${month}/${year}`;
+        } catch (error) {
+          console.error("Error formatting date:", error);
+          return dateString;
+        }
+      };
+      
+      // Generate timestamp for ID
+      const timestamp = Date.now();
+      
+      // Generate document ID following convention: [nama]_[timestampInMillis]
+      const sanitizedName = formData.namaLengkap.replace(/\s+/g, '_').toLowerCase();
+      const docId = `${sanitizedName}_${timestamp}`;
+      
       // Prepare Santri data
       const santriData = {
         // Required fields from formData
         email: formData.email,
         nama: formData.namaLengkap,
         tempatLahir: formData.tempatLahir,
-        tanggalLahir: formData.tanggalLahir,
+        tanggalLahir: formatDate(formData.tanggalLahir),
         namaOrangTua: formData.namaOrangTua,
         alamatRumah: formData.alamatRumah,
-        nomorTelpon: formData.nomorTelpon,
-        nomorWalisantri: formData.nomorWalisantri,
+        nomorTelpon: formatPhoneNumber(formData.nomorTelpon),
+        nomorWalisantri: formatPhoneNumber(formData.nomorWalisantri),
         programStudi: formData.programStudi,
         sekolahAsal: formData.sekolahAsal,
         
@@ -91,7 +140,7 @@ export default function Registration() {
         // Other required fields from Santri interface
         kelas: formData.programStudi, // Can be updated later by admin
         tahunMasuk: new Date().getFullYear().toString(),
-        jenjangPendidikan: 'PT', // Assuming higher education
+        jenjangPendidikan: 'Perguruan Tinggi', // Spelled out as per convention
         semester: '1', // Default to 1 as requested
         jumlahTunggakan: 0,
         
@@ -106,8 +155,11 @@ export default function Registration() {
       
       console.log("Registration data:", santriData);
       
-      // Directly add to Firestore collection (now allowed by security rules)
-      const docRef = await addDoc(collection(db, 'SantriCollection'), santriData);
+      // Create a document reference with the custom ID
+      const docRef = doc(db, 'SantriCollection', docId);
+      
+      // Set the document with the data
+      await setDoc(docRef, santriData);
       
       console.log("Document written with ID: ", docRef.id);
       
