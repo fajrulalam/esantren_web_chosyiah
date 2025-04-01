@@ -260,7 +260,7 @@ export default function Home() {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-semibold text-amber-800">Biaya Pendaftaran:</span>
-                    <span className="text-amber-900">Rp 500.000</span>
+                    <span className="text-amber-900">Rp 2.225.000</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="font-semibold text-amber-800">Status:</span>
@@ -308,7 +308,7 @@ export default function Home() {
                 {/* Image */}
                 <div className="relative h-64 w-full rounded-xl overflow-hidden shadow-lg border border-amber-200">
                   <Image
-                      src="/join us.png" // Replace with your actual image path
+                      src="/join us real.png" // Replace with your actual image path
                       alt="Santri belajar di Asrama Chosyi'ah"
                       fill
                       style={{ objectFit: 'cover' }} // Changed to cover for better fit
