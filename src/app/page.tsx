@@ -20,7 +20,7 @@ export default function Home() {
       if (user.role === 'waliSantri') {
         router.push('/payment-history');
       } else {
-        router.push('/dashboard'); // Default dashboard or relevant page
+        router.push('/rekapitulasi'); // Default dashboard or relevant page
       }
     }
   }, [user, loading, router]);
@@ -48,7 +48,7 @@ export default function Home() {
             Selamat Datang di Asrama Chosyi'ah
           </h1>
           <h2 className="text-xl md:text-2xl text-amber-700 dark:text-amber-300 mb-8 max-w-3xl mx-auto">
-            Membentuk Generasi Islami yang Berakhlak Mulia, Cerdas, dan Mandiri di Lingkungan yang Mendukung.
+            Membentuk Generasi yang Berakhlak Mulia, Cerdas, dan Mandiri di Lingkungan yang Mendukung.
           </h2>
 
           {/* Call to Action Button Area */}
@@ -182,7 +182,7 @@ export default function Home() {
             {/* Location Image with Map Link */}
             <div className="md:w-1/2 w-full">
               <a 
-                href="https://www.google.com/maps/dir//PP.+Darul+Ulum,+Rejoso,+Jl.+KH.+Moh.+As'ad+Umar,+Wonokerto+Selatan,+Peterongan,+Kec.+Peterongan,+Kabupaten+Jombang,+Jawa+Timur+61481/@-7.5454306,112.1957389,12z/data=!4m8!4m7!1m0!1m5!1m1!1s0x2e786ada431d1f53:0x15df885880cd6a3b!2m2!1d112.278137!2d-7.5454451?entry=ttu&g_ep=EgoyMDI1MDMyNS4xIKXMDSoASAFQAw%3D%3D"
+                href="https://www.google.com/maps/place/Asrama+XI+-+Muzamzamah+Qhosyi'ah+Putri/@-7.5449877,112.2782183,19.69z/data=!4m6!3m5!1s0x2e786ada431d1f53:0x15df885880cd6a3b!8m2!3d-7.5454383!4d112.2781408!16s%2Fg%2F11bzsy9hbg?entry=ttu&g_ep=EgoyMDI1MDMzMC4wIKXMDSoASAFQAw%3D%3D"
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="block cursor-pointer transition-transform hover:scale-[1.02] duration-300"
@@ -399,7 +399,7 @@ export default function Home() {
               <div>
                 <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-3">Asrama Mahasiswi Chosyi'ah</h3>
                 <p className="text-sm text-amber-700 dark:text-amber-300 mb-4">
-                  Membentuk generasi Islami yang berakhlak mulia, cerdas, dan mandiri.
+                  Membentuk generasi yang berakhlak mulia, cerdas, dan mandiri.
                 </p>
                 {/* Optional: Add social media icons here */}
               </div>
@@ -448,7 +448,7 @@ export default function Home() {
             </div>
             {/* Copyright */}
             <div className="border-t border-amber-200 dark:border-gray-700 pt-6 text-center text-sm text-amber-700 dark:text-amber-300">
-              <p>&copy; {new Date().getFullYear()} Asrama Chosyi'ah. Hak Cipta Dilindungi.</p>
+              <p>&copy; {new Date().getFullYear()} puskomNet Unipdu. Hak Cipta Dilindungi.</p>
             </div>
           </div>
         </footer>

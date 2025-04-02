@@ -77,15 +77,22 @@ export default function Navbar() {
                 <div className="container mx-auto px-4">
                     <div className="flex justify-between h-16 items-center">
                         <div className="flex-shrink-0">
-                            <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-amber-800 dark:text-amber-300">
-                                <Image 
-                                    src="/favicon.png" 
-                                    alt="Logo" 
-                                    width={48} 
-                                    height={48} 
-                                    className="w-12 h-12" 
+                            <Link href="/" className="flex items-center gap-2">
+                                <Image
+                                    src="/favicon.png"
+                                    alt="Logo"
+                                    width={48}
+                                    height={48}
+                                    className="w-12 h-12"
                                 />
-                                Asrama Chosyi'ah
+                                <div className="flex flex-col w-48 text-center">
+      <span className="text-2xl font-bold text-amber-800 dark:text-amber-300 tracking-widest">
+        Chosyi'ah
+      </span>
+                                    <span className="text-sm font-bold text-amber-800 dark:text-amber-300">
+        Asrama Mahasiswi
+      </span>
+                                </div>
                             </Link>
                         </div>
 
