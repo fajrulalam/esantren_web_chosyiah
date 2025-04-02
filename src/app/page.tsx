@@ -213,7 +213,7 @@ export default function Home() {
                   <span className="font-semibold">Cuma 1 menit dari Kampus Utama Unipdu,</span> dengan jembatan khusus yang menghubungkan langsung asrama ke kampus!
                 </p>
                 <p className="text-amber-800 dark:text-amber-300 mb-6">
-                  Asrama Chosyi’ah juga berdampingan dengan Canteen 375 (kantin sehat) dan Koperasi Unipdu. Mau makan atau jajan? Tinggal selangkah dari gerbang!
+                  Asrama Mahasiswi Chosyi’ah juga berdampingan dengan Canteen 375 (kantin sehat) dan Koperasi Unipdu. Mau makan atau jajan? Tinggal selangkah dari gerbang!
                 </p>
                 {/* Contact Info List */}
                 <div className="space-y-3">
@@ -356,7 +356,14 @@ export default function Home() {
                         {/* Lucide Icon Placeholder: smartphone */}
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700 dark:text-amber-400"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
                       </div>
-                      <p className="text-amber-900 dark:text-amber-300 font-medium">0852-3247-9151 (Ustadzah)</p>
+                      <p className="text-amber-900 dark:text-amber-300 font-medium">0852-3247-9151 (Ustadzah Rani)</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-full flex-shrink-0">
+                        {/* Lucide Icon Placeholder: smartphone */}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700 dark:text-amber-400"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                      </div>
+                      <p className="text-amber-900 dark:text-amber-300 font-medium">0812-3396-8261 (Ustadzah Nuril)</p>
                     </div>
                     {/* Email Contact */}
                     {/*<div className="flex items-center gap-2">*/}
@@ -390,7 +397,7 @@ export default function Home() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-8">
               {/* Footer Column 1: About */}
               <div>
-                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-3">Asrama Chosyi'ah</h3>
+                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-3">Asrama Mahasiswi Chosyi'ah</h3>
                 <p className="text-sm text-amber-700 dark:text-amber-300 mb-4">
                   Membentuk generasi Islami yang berakhlak mulia, cerdas, dan mandiri.
                 </p>
@@ -411,10 +418,10 @@ export default function Home() {
                 <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-3">Tautan Cepat</h3>
                 <ul className="space-y-2 text-sm">
                   <li><Link href="/" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Beranda</Link></li>
-                  <li><Link href="/tentang" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Tentang Kami</Link></li>
-                  <li><Link href="/program" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Program</Link></li>
-                  <li><Link href="/galeri" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Galeri</Link></li>
-                  <li><Link href="/kontak" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Kontak</Link></li>
+                  <li><Link href="/" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Tentang Kami</Link></li>
+                  <li><Link href="/" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Program</Link></li>
+                  <li><Link href="/" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Galeri</Link></li>
+                  <li><Link href="/" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Kontak</Link></li>
                 </ul>
               </div>
               {/* Footer Column 4: Contact */}

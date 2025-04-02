@@ -85,7 +85,7 @@ export default function Navbar() {
                                     height={48} 
                                     className="w-12 h-12" 
                                 />
-                                Asrama Chosyi'ah
+                                Asrama Mahasiswi Chosyi'ah
                             </Link>
                         </div>
 
