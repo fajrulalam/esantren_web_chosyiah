@@ -195,7 +195,7 @@ export default function Registration() {
       `Assalamu'alaikum Ustadzah, saya ${registeredData.nama} ingin mengonfirmasi ${paymentType} yang sudah saya lakukan. Mohon untuk diverifikasi. Terima kasih.`
     );
     
-    return `https://wa.me/+628123456789?text=${message}`;
+    return `https://wa.me/+6281233968271?text=${message}`;
   };
 
   // Claymorphism styles with dark mode support

@@ -278,7 +278,7 @@ export default function Home() {
                     <span className="text-amber-900 dark:text-amber-300">2025/2026</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="font-semibold text-amber-800 dark:text-amber-400">Biaya Pendaftaran:</span>
+                    <span className="font-semibold text-amber-800 dark:text-amber-400">Uang Pangkal:</span>
                     <span className="text-amber-900 dark:text-amber-300">Rp 2.250.000</span>
                   </div>
                   <div className="flex justify-between items-center">
