@@ -212,6 +212,7 @@ export default function SantriForm({
       nomorWalisantri: formattedPhoneNumber,
       nomorTelpon: formattedTelponNumber,
       kelas: formData.kelas ? String(parseInt(formData.kelas, 10)) : '', // Save as integer string
+      semester: formData.kelas ? String(formData.kelas) : '',
       kodeAsrama: KODE_ASRAMA, // Ensure kodeAsrama is included
     };
     
@@ -281,7 +282,7 @@ export default function SantriForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="jenjangPendidikan" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-            Semester
+            Jenjang Pendidikan
           </label>
           <select
             id="jenjangPendidikan"
@@ -324,8 +325,8 @@ export default function SantriForm({
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           >
-            <option value="">Pilih Kelas</option>
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(kelas => (
+            <option value="">Pilih Semester</option>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(kelas => (
                 <option key={kelas} value={kelas.toString()}>{kelas}</option>
             ))}
           </select>
