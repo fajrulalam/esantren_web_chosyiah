@@ -81,7 +81,8 @@ export default function SantriForm({
       setFormData({
         nama: santri.nama,
         kamar: santri.kamar,
-        kelas: santri.kelas,
+        kelas: santri.semester,
+        semester: santri.semester,
         tahunMasuk: santri.tahunMasuk,
         nomorWalisantri: santri.nomorWalisantri,
         jenjangPendidikan: santri.jenjangPendidikan,
