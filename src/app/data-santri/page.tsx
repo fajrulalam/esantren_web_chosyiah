@@ -28,13 +28,14 @@ export default function DataSantriPage() {
   const [isLoading, setIsLoading] = useState(true);
   
   // Filters state
-  const [statusAktifFilter, setStatusAktifFilter] = useState<string>('all');
+  const [statusAktifFilter, setStatusAktifFilter] = useState<string>('Aktif');
   const [jenjangFilter, setJenjangFilter] = useState<string>('all');
   const [programStudiFilter, setProgramStudiFilter] = useState<string>('all');
   const [semesterFilter, setSemesterFilter] = useState<string>('all'); 
   const [tahunMasukFilter, setTahunMasukFilter] = useState<string>('all');
   const [statusTanggunganFilter, setStatusTanggunganFilter] = useState<string>('all');
   const [kamarFilter, setKamarFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -144,12 +145,20 @@ export default function DataSantriPage() {
       filtered = filtered.filter(santri => santri.kamar === kamarFilter);
     }
     
+    // Apply search query filter
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(santri => 
+        santri.nama.toLowerCase().includes(query)
+      );
+    }
+    
     setFilteredSantris(filtered);
     
     // Reset selection when filters change
     setSelectedSantriIds(new Set());
     setIsSelectAll(false);
-  }, [santris, statusAktifFilter, jenjangFilter, programStudiFilter, semesterFilter, tahunMasukFilter, statusTanggunganFilter, kamarFilter]);
+  }, [santris, statusAktifFilter, jenjangFilter, programStudiFilter, semesterFilter, tahunMasukFilter, statusTanggunganFilter, kamarFilter, searchQuery]);
   
   // Reset filters
   const resetFilters = () => {
@@ -160,6 +169,7 @@ export default function DataSantriPage() {
     setTahunMasukFilter('all');
     setStatusTanggunganFilter('all');
     setKamarFilter('all');
+    setSearchQuery('');
   };
   
   // Handle adding a new santri
@@ -248,12 +258,57 @@ export default function DataSantriPage() {
     }
   };
   
-  // Handle delete santri
+  // Handle delete santri with associated payment statuses and invoice updates
   const handleDeleteSantri = async (santri: Santri) => {
     try {
       setIsSubmitting(true);
       
-      // Delete santri document
+      // Find all payment statuses associated with this santri
+      const paymentStatusesRef = collection(db, "PaymentStatuses");
+      const paymentStatusQuery = query(paymentStatusesRef, where("santriId", "==", santri.id));
+      const paymentStatusesSnapshot = await getDocs(paymentStatusQuery);
+      
+      // Collect invoice IDs that need updates
+      const affectedInvoiceIds: string[] = [];
+      
+      // Delete each payment status and collect affected invoice IDs
+      const deletePromises = paymentStatusesSnapshot.docs.map(async (statusDoc) => {
+        const statusData = statusDoc.data();
+        if (statusData.invoiceId) {
+          affectedInvoiceIds.push(statusData.invoiceId);
+        }
+        await deleteDoc(doc(db, "PaymentStatuses", statusDoc.id));
+      });
+      
+      // Wait for all payment status deletions to complete
+      await Promise.all(deletePromises);
+      
+      // Update affected invoices to remove this santri from selectedSantriIds
+      const uniqueInvoiceIds = [...new Set(affectedInvoiceIds)];
+      const invoiceUpdatePromises = uniqueInvoiceIds.map(async (invoiceId) => {
+        const invoiceRef = doc(db, "Invoices", invoiceId);
+        const invoiceSnap = await getDoc(invoiceRef);
+        
+        if (invoiceSnap.exists()) {
+          const invoiceData = invoiceSnap.data();
+          // Remove santri ID from the selected santris list
+          if (invoiceData.selectedSantriIds && Array.isArray(invoiceData.selectedSantriIds)) {
+            const updatedSantriIds = invoiceData.selectedSantriIds.filter(
+              (id: string) => id !== santri.id
+            );
+            
+            // Update the invoice with the santri removed
+            await updateDoc(invoiceRef, {
+              selectedSantriIds: updatedSantriIds
+            });
+          }
+        }
+      });
+      
+      // Wait for all invoice updates to complete
+      await Promise.all(invoiceUpdatePromises);
+      
+      // Finally, delete the santri document
       const santriRef = doc(db, "SantriCollection", santri.id);
       await deleteDoc(santriRef);
       
@@ -361,7 +416,7 @@ export default function DataSantriPage() {
     }
   };
   
-  // Handle bulk delete
+  // Handle bulk delete with cleanup of related records
   const handleBulkDelete = async () => {
     if (selectedSantriIds.size === 0) return;
     
@@ -383,10 +438,9 @@ export default function DataSantriPage() {
       // Get selected santris
       const selectedSantriList = santris.filter(s => selectedSantriIds.has(s.id));
       
-      // Use batched writes for better performance, but process in smaller batches
-      const BATCH_SIZE = 20;
+      // Process santris in smaller batches for better performance
+      const BATCH_SIZE = 10;
       for (let i = 0; i < selectedSantriList.length; i += BATCH_SIZE) {
-        const batch = writeBatch(db);
         const currentBatch = selectedSantriList.slice(i, i + BATCH_SIZE);
         
         for (let j = 0; j < currentBatch.length; j++) {
@@ -401,17 +455,54 @@ export default function DataSantriPage() {
           }));
           
           try {
-            // Add delete operation to batch
-            const santriRef = doc(db, "SantriCollection", santri.id);
-            batch.delete(santriRef);
+            // 1. Find payment statuses for this santri
+            const paymentStatusesRef = collection(db, "PaymentStatuses");
+            const paymentStatusQuery = query(paymentStatusesRef, where("santriId", "==", santri.id));
+            const paymentStatusesSnapshot = await getDocs(paymentStatusQuery);
             
-            // Update success count (anticipating success)
+            // 2. Collect invoice IDs that need updates
+            const affectedInvoiceIds: string[] = [];
+            
+            // 3. Delete payment statuses and collect invoice IDs
+            for (const statusDoc of paymentStatusesSnapshot.docs) {
+              const statusData = statusDoc.data();
+              if (statusData.invoiceId) {
+                affectedInvoiceIds.push(statusData.invoiceId);
+              }
+              await deleteDoc(doc(db, "PaymentStatuses", statusDoc.id));
+            }
+            
+            // 4. Update affected invoices to remove this santri
+            const uniqueInvoiceIds = [...new Set(affectedInvoiceIds)];
+            for (const invoiceId of uniqueInvoiceIds) {
+              const invoiceRef = doc(db, "Invoices", invoiceId);
+              const invoiceSnap = await getDoc(invoiceRef);
+              
+              if (invoiceSnap.exists()) {
+                const invoiceData = invoiceSnap.data();
+                if (invoiceData.selectedSantriIds && Array.isArray(invoiceData.selectedSantriIds)) {
+                  const updatedSantriIds = invoiceData.selectedSantriIds.filter(
+                    (id: string) => id !== santri.id
+                  );
+                  
+                  await updateDoc(invoiceRef, {
+                    selectedSantriIds: updatedSantriIds
+                  });
+                }
+              }
+            }
+            
+            // 5. Finally delete the santri
+            const santriRef = doc(db, "SantriCollection", santri.id);
+            await deleteDoc(santriRef);
+            
+            // Update success count
             setImportProgress(prev => ({
               ...prev,
               successCount: prev.successCount + 1
             }));
           } catch (error) {
-            console.error(`Error preparing deletion for ${santri.nama}:`, error);
+            console.error(`Error deleting santri ${santri.nama}:`, error);
             
             // Update error count
             setImportProgress(prev => ({
@@ -421,21 +512,7 @@ export default function DataSantriPage() {
           }
         }
         
-        // Commit the batch
-        try {
-          await batch.commit();
-        } catch (error) {
-          console.error(`Error committing batch:`, error);
-          
-          // Update error count for the batch - this is a simplified approach
-          setImportProgress(prev => ({
-            ...prev,
-            successCount: Math.max(0, prev.successCount - currentBatch.length),
-            errorCount: prev.errorCount + currentBatch.length
-          }));
-        }
-        
-        // Small delay between batches
+        // Small delay between batches to avoid overwhelming Firestore
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
@@ -542,6 +619,40 @@ export default function DataSantriPage() {
       
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 transition-colors">
+        {/* Search input */}
+        <div className="mb-4">
+          <label htmlFor="searchQuery" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
+            Cari Santri
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              id="searchQuery"
+              placeholder="Cari berdasarkan nama santri..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
+            />
+            {searchQuery && (
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
@@ -673,8 +784,8 @@ export default function DataSantriPage() {
       {/* Table */}
 
       <div className="p-4">
-        <StickyHorizontalScroll>
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-colors">
+        <StickyHorizontalScroll className="mb-4">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-colors w-full">
             {isLoading ? (
                 <div className="flex justify-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -684,7 +795,7 @@ export default function DataSantriPage() {
                   Tidak ada data santri yang ditemukan
                 </p>
             ) : (
-                <div className="overflow-x-auto">
+                <div>
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
                     <thead className="bg-gray-50 dark:bg-gray-900 transition-colors">
                     <tr>

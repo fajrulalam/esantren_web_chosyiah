@@ -185,23 +185,15 @@ export default function SantriForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
+    // Only validate format-related errors, not required fields
     const newErrors: Record<string, string> = {};
     
     if (formData.kelas && !/^\d+$/.test(formData.kelas)) {
       newErrors.kelas = 'Kelas harus berupa angka';
     }
     
-    if (!phoneNumber) {
-      newErrors.phone = 'Nomor telepon wajib diisi';
-    }
-    
-    if (!telponNumber) {
-      newErrors.telpon = 'Nomor telepon santri wajib diisi';
-    }
-    
-    // Validate name format
-    if (!validateName(formData.nama)) {
+    // Validate name format only if name is provided
+    if (formData.nama && !validateName(formData.nama)) {
       newErrors.nama = 'Nama harus dimulai dengan huruf, dan hanya boleh mengandung huruf, spasi, dan titik';
     }
     
@@ -210,13 +202,13 @@ export default function SantriForm({
       return;
     }
     
-    // Format phone numbers and update formData
-    const formattedPhoneNumber = formatPhoneNumber(phoneCountryCode, phoneNumber);
-    const formattedTelponNumber = formatPhoneNumber(telponCountryCode, telponNumber);
+    // Format phone numbers and update formData (only if they are provided)
+    const formattedPhoneNumber = phoneNumber ? formatPhoneNumber(phoneCountryCode, phoneNumber) : '';
+    const formattedTelponNumber = telponNumber ? formatPhoneNumber(telponCountryCode, telponNumber) : '';
     
     const formDataToSubmit = {
       ...formData,
-      nama: formatName(formData.nama), // Use centralized formatName utility
+      nama: formData.nama ? formatName(formData.nama) : '', // Use centralized formatName utility
       nomorWalisantri: formattedPhoneNumber,
       nomorTelpon: formattedTelponNumber,
       kelas: formData.kelas ? String(parseInt(formData.kelas, 10)) : '', // Save as integer string
@@ -242,7 +234,6 @@ export default function SantriForm({
           name="nama"
           value={formData.nama}
           onChange={handleChange}
-          required
           placeholder=""
           className={`mt-1 block w-full rounded-md ${errors.nama ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white`}
         />
@@ -261,7 +252,6 @@ export default function SantriForm({
               name="tahunMasuk"
               value={formData.tahunMasuk}
               onChange={handleChange}
-              required
               className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           >
             {years.map(year => (
@@ -280,7 +270,6 @@ export default function SantriForm({
             name="kamar"
             value={formData.kamar}
             onChange={handleChange}
-            required
             placeholder=""
             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           />
@@ -299,17 +288,11 @@ export default function SantriForm({
             name="jenjangPendidikan"
             value={formData.jenjangPendidikan}
             onChange={handleChange}
-            required
             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           >
-            <option value="Semester 1">Semester 1</option>
-            <option value="Semester 2">Semester 2</option>
-            <option value="Semester 3">Semester 3</option>
-            <option value="Semester 4">Semester 4</option>
-            <option value="Semester 5">Semester 5</option>
-            <option value="Semester 6">Semester 6</option>
-            <option value="Semester 7">Semester 7</option>
-            <option value="Semester 8">Semester 8</option>
+            <option value="Perguruan Tinggi">Perguruan Tinggi</option>
+            <option value="SLTA">SLTA</option>
+            <option value="SLTP">SLTP</option>
           </select>
         </div>
 
@@ -332,14 +315,13 @@ export default function SantriForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="kelas" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-            Kelas
+            Semester
           </label>
           <select
               id="kelas"
               name="kelas"
               value={formData.kelas}
               onChange={handleChange}
-              required
               className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           >
             <option value="">Pilih Kelas</option>
@@ -349,19 +331,7 @@ export default function SantriForm({
           </select>
         </div>
 
-        <div>
-          <label htmlFor="tanggalLahir" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-            Tanggal Lahir
-          </label>
-          <input
-            type="date"
-            id="tanggalLahir"
-            name="tanggalLahir"
-            value={dateInputValue}
-            onChange={handleDateChange}
-            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
-          />
-        </div>
+
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -384,7 +354,6 @@ export default function SantriForm({
               id="nomorWalisantri"
               value={phoneNumber}
               onChange={handlePhoneChange}
-              required
               placeholder="81234567890"
               className={`block w-full rounded-r-md ${errors.phone ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400`}
             />
@@ -411,7 +380,6 @@ export default function SantriForm({
               id="nomorTelpon"
               value={telponNumber}
               onChange={handleTelponChange}
-              required
               placeholder="81234567890"
               className={`block w-full rounded-r-md ${errors.telpon ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400`}
             />
@@ -432,7 +400,6 @@ export default function SantriForm({
             name="tanggalLahir"
             value={dateInputValue}
             onChange={handleDateChange}
-            required
             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           />
         </div>
@@ -446,7 +413,6 @@ export default function SantriForm({
             name="statusAktif"
             value={formData.statusAktif}
             onChange={handleChange}
-            required
             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           >
             <option value="Aktif">Aktif</option>

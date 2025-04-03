@@ -8,6 +8,7 @@ import { collection, getDocs, query, where, getDoc, doc, updateDoc, arrayUnion, 
 import { db, functions } from '@/firebase/config';
 import { httpsCallable } from 'firebase/functions';
 import TagihanModal from '@/components/TagihanModal';
+import StickyHorizontalScroll from '@/components/StickyHorizontalScroll';
 
 interface SantriPaymentStatus {
   id: string;
@@ -58,7 +59,8 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
   const [filters, setFilters] = useState({
     kamar: '',
     educationGrade: '',
-    status: ''
+    status: '',
+    nama: ''
   });
   
   // State for payment verification/detail view
@@ -321,6 +323,13 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
       result = result.filter(payment => payment.status === filters.status);
     }
 
+    if (filters.nama) {
+      const searchTerm = filters.nama.toLowerCase();
+      result = result.filter(payment => 
+        payment.nama.toLowerCase().includes(searchTerm)
+      );
+    }
+
     setFilteredPayments(result);
   }, [filters, santriPayments]);
 
@@ -329,6 +338,14 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     setFilters(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+  
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      nama: value
     }));
   };
 
@@ -867,6 +884,44 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
           </div>
 
           <div className="relative bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 transition-colors">
+            {/* Search */}
+            <div className="mb-6">
+              <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
+                Cari Nama Santri
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  id="search"
+                  name="nama"
+                  placeholder="Cari berdasarkan nama santri..."
+                  value={filters.nama}
+                  onChange={handleSearchChange}
+                  className="pl-10 w-full rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 
+                    text-gray-700 dark:text-gray-200 shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
+                    focus:shadow-neumorphic-button-pressed focus:dark:shadow-neumorphic-button-pressed-dark
+                    focus:border-blue-500 focus:ring-blue-500 transition-all"
+                />
+                {filters.nama && (
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, nama: '' }))}
+                      className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"
+                    >
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            
             {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div>
@@ -932,7 +987,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
             </div>
             
             {/* Active Filters */}
-            {(filters.status || filters.kamar || filters.educationLevel) && (
+            {(filters.status || filters.kamar || filters.educationLevel || filters.nama) && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {filters.status && (
                   <button
@@ -1015,11 +1070,32 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                 </button>
+                
+                {filters.nama && (
+                  <button
+                    onClick={() => setFilters({ ...filters, nama: '' })}
+                    className="relative inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+                      transition-all duration-200
+                      bg-white dark:bg-gray-700
+                      border border-purple-200 dark:border-purple-700
+                      before:absolute before:inset-0 before:rounded-full
+                      before:bg-gradient-to-r before:from-purple-100/80 before:to-purple-50/90
+                      dark:before:bg-gradient-to-r dark:before:from-purple-900/30 dark:before:to-purple-800/10 
+                      before:z-[-1] before:overflow-hidden
+                      text-purple-700 dark:text-purple-300
+                      hover:translate-y-[-1px] active:translate-y-0"
+                  >
+                    Nama: {filters.nama}
+                    <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             )}
 
             {/* Table */}
-            <div className="overflow-x-auto" style={{ maxWidth: '100%' }}>
+            <StickyHorizontalScroll className="mb-2">
               <div className="relative rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden transition-all" style={{ minWidth: '1000px' }}>
                 {pageLoading ? (
                   <div className="flex justify-center py-8">
@@ -1139,12 +1215,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                   </table>
                 )}
               </div>
-              {filteredPayments.length > 0 && (
-                <div className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400 transition-colors">
-                  <p>Scroll horizontally untuk melihat lebih banyak data</p>
-                </div>
-              )}
-            </div>
+            </StickyHorizontalScroll>
           </div>
           
           {/* Payment Proof Verification Modal */}
