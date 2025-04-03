@@ -174,12 +174,12 @@ export default function SantriForm({
     if (!/^[A-Za-z]/.test(name)) {
       return false;
     }
-    
-    // Only allow letters, spaces, and periods
-    if (!/^[A-Za-z\s.]+$/.test(name)) {
+
+    // Only allow letters, spaces, periods, and apostrophes
+    if (!/^[A-Za-z\s.'’]+$/.test(name)) {
       return false;
     }
-    
+
     return true;
   };
 
