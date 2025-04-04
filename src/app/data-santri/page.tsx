@@ -217,7 +217,7 @@ export default function DataSantriPage() {
         setHighlightedSantriId(selectedSantri.id);
         setTimeout(() => {
           setHighlightedSantriId(null);
-        }, 5000);
+        }, 1000);
 
 
       } else {
@@ -860,8 +860,9 @@ export default function DataSantriPage() {
                       const isSelected = selectedSantriIds.has(santri.id);
                       const isHighlighted = highlightedSantriId === santri.id;
                       const rowClasses = `
+                          transition-colors duration-200
                           ${isSelected ? "bg-blue-50 dark:bg-blue-900/30" : ""}
-                          ${isHighlighted ? "bg-yellow-200 dark:bg-yellow-700" : ""}`;
+                          ${isHighlighted ? "bg-yellow-100 dark:bg-yellow-100" : ""}`;
                           return (
                               <tr
                                   key={santri.id}
