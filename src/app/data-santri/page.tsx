@@ -217,7 +217,7 @@ export default function DataSantriPage() {
         setHighlightedSantriId(selectedSantri.id);
         setTimeout(() => {
           setHighlightedSantriId(null);
-        }, 1000);
+        }, 500);
 
 
       } else {
@@ -793,7 +793,7 @@ export default function DataSantriPage() {
 
       <div className="p-4">
         <StickyHorizontalScroll className="mb-4">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-colors w-full">
+          <div className="bg-white dark:bg-gray-800 py-6 rounded-lg shadow-md transition-colors min-w-max">
             {isLoading ? (
                 <div className="flex justify-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -850,7 +850,10 @@ export default function DataSantriPage() {
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                         Status Aktif
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
+                      <th
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors sticky right-0 bg-gray-50 dark:bg-gray-900 z-10"
+                      >
                         Aksi
                       </th>
                     </tr>
@@ -860,9 +863,16 @@ export default function DataSantriPage() {
                       const isSelected = selectedSantriIds.has(santri.id);
                       const isHighlighted = highlightedSantriId === santri.id;
                       const rowClasses = `
-                          transition-colors duration-200
+                          transition-colors duration-150
                           ${isSelected ? "bg-blue-50 dark:bg-blue-900/30" : ""}
-                          ${isHighlighted ? "bg-yellow-100 dark:bg-yellow-100" : ""}`;
+                          ${isHighlighted ? "bg-yellow-100 dark:bg-blue-200" : ""}`;
+
+                      const textClasses = `transition-colors duration-150 
+                        px-6 py-4 whitespace-nowrap text-sm font-medium 
+                        sticky left-10 
+                        ${isHighlighted ? "dark:text-gray-300 dark:text-gray-500" : "text-gray-500 dark:text-gray-300"}
+                        `;
+
                           return (
                               <tr
                                   key={santri.id}
@@ -878,28 +888,28 @@ export default function DataSantriPage() {
                                     />
                                   </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white transition-colors sticky left-10 bg-white dark:bg-gray-800 z-10">
+                                <td className={`${textClasses} bg-white dark:bg-gray-800 z-10`}>
                                   {santri.nama}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                                <td className={textClasses}>
                                   {santri.kamar}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                                <td className={textClasses}>
                                   {santri.jenjangPendidikan || "-"}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                                <td className={textClasses}>
                                   {santri.semester || "-"}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors uppercase">
+                                <td className={textClasses}>
                                   {santri.programStudi || "-"}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                                <td className={textClasses}>
                                   {santri.tahunMasuk}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                                <td className={textClasses}>
                                   {santri.nomorWalisantri}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                                <td className={textClasses}>
                                   {santri.nomorTelpon || "-"}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -924,7 +934,7 @@ export default function DataSantriPage() {
                         {santri.statusAktif}
                       </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors sticky right-0 bg-white dark:bg-gray-800 z-10">
                                   {santri.statusAktif === 'Pending' ? (
                                       <button
                                           onClick={() => handleVerifySantri(santri.id)}
