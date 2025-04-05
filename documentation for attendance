@@ -1,0 +1,1089 @@
+# Boarding School Attendance System: Complete Implementation Specification
+
+## Core Application Overview
+
+This document provides complete specifications for a mobile-first boarding school attendance system built with Next.js (frontend) and Firebase Firestore (backend). Teachers (pengurus) will use this application to mark attendance for approximately 70+ santri (students) per dormitory, with real-time collaboration capabilities, offline support, and complex status management. The system handles attendance tracking across multiple dormitories (asrama) with role-based access controls.
+
+### Primary Requirements
+
+1. **Mobile-First Design**: Optimized for smartphones and tablets, with desktop support as secondary.
+2. **Real-Time Collaboration**: Multiple teachers can mark attendance simultaneously with instant synchronization.
+3. **Offline Support**: Teachers can mark attendance without internet connectivity; changes sync automatically upon reconnection.
+4. **Status Management**: Handle complex student statuses including present ("Ada"), sick ("Sakit"), and away from dormitory ("Pulang").
+5. **Multiple Dormitories**: Each teacher has access to one or more specific dormitories (asrama).
+6. **Flexible Session Types**: Support both regular attendance (Subuh, Maghrib/Isya) and special sessions (Ro'an, etc.).
+7. **Reporting**: Generate attendance summaries with breakdowns by status type and date ranges.
+
+### Visual & UX Requirements
+
+1. **Claymorphic Design**: Soft, 3D-like card interfaces with subtle shadows for a modern feel.
+2. **Dark Mode Compatible**: Full support for light and dark themes.
+3. **Responsive Layout**: Grid-based card system that adapts from mobile to desktop.
+4. **Micro-Interactions**: Subtle animations for status changes, providing immediate feedback.
+5. **Status Indicators**: Clear visual cues for different student statuses (color-coding, icons).
+
+---
+
+## Technical Architecture
+
+### Technology Stack
+
+- **Frontend**: Next.js (React)
+- **UI Library**: Tailwind CSS with custom claymorphic styling, shadcn/UI optional
+- **Animations**: Framer Motion for micro-interactions
+- **Backend**: Firebase Firestore
+- **Authentication**: Firebase Authentication
+- **State Management**: Zustand or React Context API
+- **Offline Support**: Firestore persistence with IndexedDB
+
+### Authentication & Security Flow
+
+1. **User Authentication**:
+   - Firebase Authentication with email/password.
+   - User records contain `role: "pengurus"` and an array of `allowedAsramaCodes`.
+   - On login, retrieve teacher profile from Firestore to get dormitory assignments.
+
+2. **Security Rules**:
+   allow user with roles: pengasuh, pengurus, and superAdmin to make modifications here
+
+3. **Data Access Control**:
+   - Teachers can only view and edit data for dormitories in their `allowedAsramaCodes` array.
+   - All queries must include a filter on `kodeAsrama` to enforce segregation.
+
+---
+
+## Database Schema
+
+### Teachers Collection
+
+**Collection**: `Teachers`
+
+**Document Fields**:
+- `id`: Matches Firebase Auth UID
+- `displayName`: Teacher's name
+- `email`: Teacher's email address
+- `role`: "pengurus"
+- `allowedAsramaCodes`: Array of dormitory codes (e.g., ["AsramaA", "AsramaB"])
+- `createdAt`: Timestamp
+- `updatedAt`: Timestamp
+
+### Santri Collection
+
+**Collection**: `SantriCollection`
+
+**Document Fields**:
+- `id`: Unique identifier
+- `nama`: Student's full name
+- `kodeAsrama`: Dormitory code (e.g., "AsramaA")
+- `statusKehadiran`: One of ["Ada", "Sakit", "Pulang"]
+- `statusKepulangan`: Map (only present if statusKehadiran = "Pulang")
+  - `alasan`: Reason for leaving
+  - `idPemberiIzin`: ID of permission grantor
+  - `pemberiIzin`: Name of permission grantor
+  - `rencanaTanggalKembali`: Timestamp for planned return
+  - `sudahKembali`: Boolean flag
+  - `kembaliSesuaiRencana`: Boolean flag
+  - `sudahSowan`: Boolean flag for return procedure
+  - `tglPulang`: Timestamp for departure date
+- `createdAt`: Timestamp
+- `updatedAt`: Timestamp
+
+### AttendanceTypes Collection
+
+**Collection**: `AttendanceTypes`
+
+**Document Fields**:
+- `id`: Auto-generated or custom identifier
+- `name`: Type name (e.g., "Subuh", "Maghrib")
+- `description`: Optional description
+- `isFrequent`: Boolean flag for commonly used types
+- `kodeAsrama`: Optional dormitory code if type is specific to a dormitory
+- `createdBy`: Teacher's ID who created this type
+- `createdAt`: Timestamp
+- `updatedAt`: Timestamp
+
+### AttendanceRecords Collection
+
+**Collection**: `AttendanceRecords`
+
+**Document Fields**:
+- `id`: Auto-generated or formatted as `${attendanceType}-${YYYY-MM-DD}-${kodeAsrama}`
+- `attendanceType`: Name or reference to AttendanceTypes
+- `kodeAsrama`: Dormitory code this record applies to
+- `timestamp`: When the attendance session started
+- `createdBy`: Teacher ID who initiated the session
+- `studentStatuses`: Map of santri statuses, structured as:
+  ```javascript
+  {
+    "santriId1": {
+      "status": "present" | "absent" | "excusedSick" | "excusedPulang" | "overridePresent",
+      "updatedAt": timestamp,
+      "updatedBy": "teacherId"
+    },
+    "santriId2": { ... }
+  }
+  ```
+- `isActive`: Boolean flag if the session is ongoing
+- `closedAt`: Optional timestamp when the session was closed
+- `closedBy`: Optional ID of teacher who closed the session
+
+---
+
+## Core Functionality Implementation
+
+### 1. Attendance Session Management
+
+#### Creating a New Session:
+
+```javascript
+// Function to create a new attendance session
+async function createAttendanceSession(attendanceType, kodeAsrama, teacherId) {
+  const sessionId = `${attendanceType}-${format(new Date(), 'yyyy-MM-dd')}-${kodeAsrama}`;
+
+  const sessionDoc = {
+    id: sessionId,
+    attendanceType,
+    kodeAsrama,
+    timestamp: serverTimestamp(),
+    createdBy: teacherId,
+    studentStatuses: {},
+    isActive: true
+  };
+
+  await setDoc(doc(db, "AttendanceRecords", sessionId), sessionDoc);
+  return sessionId;
+}
+```
+
+#### Finding Active Sessions:
+
+```javascript
+// Function to find active sessions for a dormitory
+async function getActiveSessions(kodeAsrama) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const q = query(
+    collection(db, "AttendanceRecords"),
+    where("kodeAsrama", "==", kodeAsrama),
+    where("timestamp", ">=", today),
+    where("isActive", "==", true)
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => doc.data());
+}
+```
+
+### 2. Student Status Management
+
+#### Loading Students by Dormitory:
+
+```javascript
+// Function to get all students for a dormitory
+async function loadStudentsForDormitory(kodeAsrama) {
+  const q = query(
+    collection(db, "SantriCollection"),
+    where("kodeAsrama", "==", kodeAsrama)
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+}
+```
+
+#### Marking Attendance:
+
+```javascript
+// Function to mark a student's attendance in a session
+async function markAttendance(sessionId, santriId, status, teacherId) {
+  const sessionRef = doc(db, "AttendanceRecords", sessionId);
+
+  // Using dot notation for nested updates
+  await updateDoc(sessionRef, {
+    [`studentStatuses.${santriId}`]: {
+      status,
+      updatedAt: serverTimestamp(),
+      updatedBy: teacherId
+    }
+  });
+}
+```
+
+#### Handling Status Overrides:
+
+```javascript
+// Function to handle overriding "Sakit" status
+async function overrideSickStatus(santriId, isStillSick, teacherId) {
+  if (!isStillSick) {
+    await updateDoc(doc(db, "SantriCollection", santriId), {
+      statusKehadiran: "Ada",
+      updatedAt: serverTimestamp(),
+      updatedBy: teacherId
+    });
+    return true;
+  }
+  return false;
+}
+
+// Function to handle overriding "Pulang" status
+async function overrideReturnStatus(santriId, hasReturned, teacherId) {
+  if (hasReturned) {
+    await updateDoc(doc(db, "SantriCollection", santriId), {
+      statusKehadiran: "Ada",
+      statusKepulangan: deleteField(), // Remove the entire map
+      updatedAt: serverTimestamp(),
+      updatedBy: teacherId
+    });
+    return true;
+  }
+  return false;
+}
+```
+
+---
+
+## Frontend Implementation
+
+### 1. Application State Management
+
+```javascript
+// Using Zustand for state management
+import create from 'zustand';
+
+const useAttendanceStore = create((set) => ({
+  currentSession: null,
+  students: [],
+  loading: false,
+  error: null,
+
+  setCurrentSession: (session) => set({ currentSession: session }),
+  setStudents: (students) => set({ students }),
+  setLoading: (loading) => set({ loading }),
+  setError: (error) => set({ error }),
+
+  // Reset state when switching sessions
+  resetSessionData: () => set({
+    currentSession: null,
+    students: [],
+    loading: false,
+    error: null
+  }),
+}));
+```
+
+### 2. Real-Time Synchronization
+
+```javascript
+// Hook to subscribe to real-time updates for a session
+function useSessionRealtime(sessionId) {
+  const { setCurrentSession } = useAttendanceStore();
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const sessionRef = doc(db, "AttendanceRecords", sessionId);
+    const unsubscribe = onSnapshot(sessionRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setCurrentSession(snapshot.data());
+      }
+    });
+
+    return () => unsubscribe();
+  }, [sessionId]);
+}
+
+// Hook to subscribe to real-time updates for students
+function useStudentsRealtime(kodeAsrama) {
+  const { setStudents } = useAttendanceStore();
+
+  useEffect(() => {
+    if (!kodeAsrama) return;
+
+    const q = query(
+      collection(db, "SantriCollection"),
+      where("kodeAsrama", "==", kodeAsrama)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const studentData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setStudents(studentData);
+    });
+
+    return () => unsubscribe();
+  }, [kodeAsrama]);
+}
+```
+
+### 3. UI Components
+
+#### Student Card Component:
+
+```jsx
+const StudentCard = memo(({ student, sessionId, teacherId }) => {
+  const { currentSession } = useAttendanceStore();
+  const studentStatus = currentSession?.studentStatuses?.[student.id]?.status || 'absent';
+
+  // Get status information for visual indicators
+  const isLateReturning = student.statusKehadiran === "Pulang" &&
+    student.statusKepulangan?.rencanaTanggalKembali?.toDate() < new Date() &&
+    !student.statusKepulangan?.sudahKembali;
+
+  // Handle quick tap for present/absent toggle
+  const handleStatusToggle = async () => {
+    const newStatus = studentStatus === 'present' ? 'absent' : 'present';
+    await markAttendance(sessionId, student.id, newStatus, teacherId);
+  };
+
+  // Handle long press for status override
+  const handleLongPress = () => {
+    if (student.statusKehadiran === "Sakit") {
+      // Show confirmation dialog for sick status
+      showConfirmationDialog(
+        `Is ${student.nama} still sick?`,
+        async (isStillSick) => {
+          if (!isStillSick) {
+            await overrideSickStatus(student.id, false, teacherId);
+          }
+        }
+      );
+    } else if (student.statusKehadiran === "Pulang") {
+      // Show confirmation dialog for return status
+      showConfirmationDialog(
+        `Has ${student.nama} returned to the dormitory?`,
+        async (hasReturned) => {
+          if (hasReturned) {
+            await overrideReturnStatus(student.id, true, teacherId);
+          }
+        }
+      );
+    }
+  };
+
+  return (
+    <motion.div
+      className={`student-card ${getStatusClass(student.statusKehadiran, studentStatus)}`}
+      whileTap={{ scale: 0.95 }}
+      onClick={handleStatusToggle}
+      onLongPress={handleLongPress}
+    >
+      <h3>{student.nama}</h3>
+      <div className="status-indicator">
+        {student.statusKehadiran !== "Ada" && (
+          <span className="base-status">{student.statusKehadiran}</span>
+        )}
+        {isLateReturning && (
+          <span className="late-indicator">Late Return</span>
+        )}
+        <span className="session-status">{studentStatus}</span>
+      </div>
+    </motion.div>
+  );
+});
+```
+
+#### Session Selection Component:
+
+```jsx
+function SessionSelector({ kodeAsrama, teacherId }) {
+  const [sessions, setSessions] = useState([]);
+  const [newSessionType, setNewSessionType] = useState('');
+  const [attendanceTypes, setAttendanceTypes] = useState([]);
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+
+  // Load attendance types
+  useEffect(() => {
+    const loadAttendanceTypes = async () => {
+      const q = query(collection(db, "AttendanceTypes"), where("isFrequent", "==", true));
+      const snapshot = await getDocs(q);
+      setAttendanceTypes(snapshot.docs.map(doc => doc.data()));
+    };
+
+    loadAttendanceTypes();
+  }, []);
+
+  // Load active sessions
+  useEffect(() => {
+    const loadSessions = async () => {
+      const activeSessions = await getActiveSessions(kodeAsrama);
+      setSessions(activeSessions);
+    };
+
+    loadSessions();
+  }, [kodeAsrama]);
+
+  // Handle creating a new session
+  const handleCreateSession = async () => {
+    if (!newSessionType.trim()) return;
+
+    const sessionId = await createAttendanceSession(newSessionType, kodeAsrama, teacherId);
+    setNewSessionType('');
+    setIsCreatingNew(false);
+
+    // Navigate to the new session
+    router.push(`/attendance/${sessionId}`);
+  };
+
+  return (
+    <div className="session-selector">
+      <h2>Select Attendance Session</h2>
+
+      {/* Active sessions */}
+      {sessions.length > 0 && (
+        <div className="active-sessions">
+          <h3>Active Sessions</h3>
+          {sessions.map(session => (
+            <button
+              key={session.id}
+              onClick={() => router.push(`/attendance/${session.id}`)}
+              className="session-button"
+            >
+              {session.attendanceType} - {formatTime(session.timestamp.toDate())}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Create new session */}
+      {isCreatingNew ? (
+        <div className="new-session-form">
+          <input
+            type="text"
+            value={newSessionType}
+            onChange={(e) => setNewSessionType(e.target.value)}
+            placeholder="Session name (e.g., Subuh, Ro'an)"
+            list="attendance-types"
+          />
+          <datalist id="attendance-types">
+            {attendanceTypes.map(type => (
+              <option key={type.id} value={type.name} />
+            ))}
+          </datalist>
+          <div className="form-actions">
+            <button onClick={handleCreateSession}>Create</button>
+            <button onClick={() => setIsCreatingNew(false)}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <button
+          className="create-session-button"
+          onClick={() => setIsCreatingNew(true)}
+        >
+          Create New Session
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+#### Attendance Marking Screen:
+
+```jsx
+function AttendanceScreen() {
+  const { sessionId } = useParams();
+  const { currentSession, students, loading } = useAttendanceStore();
+  const [teacherId, setTeacherId] = useState(null);
+  const [kodeAsrama, setKodeAsrama] = useState(null);
+
+  // Load teacher info on mount
+  useEffect(() => {
+    const loadTeacherInfo = async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (user) {
+        setTeacherId(user.uid);
+
+        // Get teacher's asrama code
+        const teacherDoc = await getDoc(doc(db, "Teachers", user.uid));
+        if (teacherDoc.exists()) {
+          // Use first asrama code if teacher has multiple
+          setKodeAsrama(teacherDoc.data().allowedAsramaCodes[0]);
+        }
+      }
+    };
+
+    loadTeacherInfo();
+  }, []);
+
+  // Subscribe to real-time updates
+  useSessionRealtime(sessionId);
+  useStudentsRealtime(kodeAsrama);
+
+  // Loading state
+  if (loading || !currentSession || students.length === 0) {
+    return <div className="loading">Loading attendance data...</div>;
+  }
+
+  return (
+    <div className="attendance-screen">
+      <header>
+        <h1>{currentSession.attendanceType} Attendance</h1>
+        <p>Asrama: {kodeAsrama}</p>
+        <p>Date: {formatDate(currentSession.timestamp.toDate())}</p>
+      </header>
+
+      <div className="students-grid">
+        {students.map(student => (
+          <StudentCard
+            key={student.id}
+            student={student}
+            sessionId={sessionId}
+            teacherId={teacherId}
+          />
+        ))}
+      </div>
+
+      <footer>
+        <button onClick={() => router.back()}>Back</button>
+        <button onClick={() => window.print()}>Print Report</button>
+      </footer>
+    </div>
+  );
+}
+```
+
+### 4. Offline Support Implementation
+
+```javascript
+// Initialize Firestore with offline persistence
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+enableIndexedDbPersistence(db)
+  .catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.error('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+    } else if (err.code === 'unimplemented') {
+      console.error('The current browser does not support all of the features required to enable persistence');
+    }
+  });
+
+// Network status monitoring
+function NetworkStatusIndicator() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  return (
+    <div className={`network-status ${isOnline ? 'online' : 'offline'}`}>
+      {isOnline ? 'Online' : 'Offline - Changes will sync when reconnected'}
+    </div>
+  );
+}
+```
+
+---
+
+## Reporting & Analytics
+
+### 1. Generating Attendance Reports
+
+```javascript
+// Function to generate attendance report for a date range
+async function generateAttendanceReport(kodeAsrama, startDate, endDate) {
+  // Get all attendance records for the date range
+  const q = query(
+    collection(db, "AttendanceRecords"),
+    where("kodeAsrama", "==", kodeAsrama),
+    where("timestamp", ">=", startDate),
+    where("timestamp", "<=", endDate)
+  );
+
+  const recordsSnapshot = await getDocs(q);
+  const records = recordsSnapshot.docs.map(doc => doc.data());
+
+  // Get all students for this dormitory
+  const studentsSnapshot = await getDocs(
+    query(collection(db, "SantriCollection"), where("kodeAsrama", "==", kodeAsrama))
+  );
+  const students = studentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+  // Initialize report data
+  const reportData = students.map(student => ({
+    id: student.id,
+    nama: student.nama,
+    presentCount: 0,
+    absentCount: 0,
+    sickCount: 0,
+    pulangCount: 0,
+    unknownCount: 0,
+    attendanceRate: 0
+  }));
+
+  // Process each record
+  records.forEach(record => {
+    Object.entries(record.studentStatuses || {}).forEach(([studentId, statusData]) => {
+      const studentReport = reportData.find(r => r.id === studentId);
+      if (!studentReport) return;
+
+      switch (statusData.status) {
+        case 'present':
+        case 'overridePresent':
+          studentReport.presentCount++;
+          break;
+        case 'excusedSick':
+          studentReport.sickCount++;
+          studentReport.absentCount++;
+          break;
+        case 'excusedPulang':
+          studentReport.pulangCount++;
+          studentReport.absentCount++;
+          break;
+        case 'absent':
+          studentReport.unknownCount++;
+          studentReport.absentCount++;
+          break;
+      }
+    });
+  });
+
+  // Calculate attendance rates
+  const totalSessions = records.length;
+  reportData.forEach(report => {
+    report.attendanceRate = totalSessions > 0
+      ? ((report.presentCount / totalSessions) * 100).toFixed(1) + '%'
+      : 'N/A';
+  });
+
+  return {
+    startDate,
+    endDate,
+    kodeAsrama,
+    totalSessions,
+    studentReports: reportData
+  };
+}
+```
+
+### 2. Report UI Component
+
+```jsx
+function AttendanceReportScreen() {
+  const [kodeAsrama, setKodeAsrama] = useState('');
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+  const [reportData, setReportData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // Load teacher's asrama on mount
+  useEffect(() => {
+    const loadTeacherInfo = async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (user) {
+        const teacherDoc = await getDoc(doc(db, "Teachers", user.uid));
+        if (teacherDoc.exists()) {
+          setKodeAsrama(teacherDoc.data().allowedAsramaCodes[0]);
+        }
+      }
+    };
+
+    loadTeacherInfo();
+  }, []);
+
+  const handleGenerateReport = async () => {
+    setLoading(true);
+    try {
+      const report = await generateAttendanceReport(kodeAsrama, startDate, endDate);
+      setReportData(report);
+    } catch (error) {
+      console.error("Error generating report:", error);
+      alert("Failed to generate report. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (!reportData) return;
+
+    // Generate CSV content
+    const headers = "Name,Present,Absent,Sick,Pulang,Unknown,Attendance Rate\n";
+    const rows = reportData.studentReports.map(student =>
+      `${student.nama},${student.presentCount},${student.absentCount},${student.sickCount},${student.pulangCount},${student.unknownCount},${student.attendanceRate}`
+    ).join("\n");
+
+    // Create and download CSV file
+    const csvContent = headers + rows;
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `attendance-report-${kodeAsrama}-${format(startDate, 'yyyy-MM-dd')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  return (
+    <div className="report-screen">
+      <h1>Attendance Report</h1>
+
+      <div className="report-controls">
+        <div className="form-group">
+          <label>Dormitory</label>
+          <select
+            value={kodeAsrama}
+            onChange={(e) => setKodeAsrama(e.target.value)}
+          >
+            {/* Dormitory options would be populated from teacher's allowed asramas */}
+            <option value="AsramaA">Asrama A</option>
+            <option value="AsramaB">Asrama B</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Start Date</label>
+          <input
+            type="date"
+            value={format(startDate, 'yyyy-MM-dd')}
+            onChange={(e) => setStartDate(new Date(e.target.value))}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>End Date</label>
+          <input
+            type="date"
+            value={format(endDate, 'yyyy-MM-dd')}
+            onChange={(e) => setEndDate(new Date(e.target.value))}
+          />
+        </div>
+
+        <button
+          onClick={handleGenerateReport}
+          disabled={loading || !kodeAsrama}
+        >
+          {loading ? 'Generating...' : 'Generate Report'}
+        </button>
+      </div>
+
+      {reportData && (
+        <>
+          <div className="report-summary">
+            <h2>Summary</h2>
+            <p>Dormitory: {reportData.kodeAsrama}</p>
+            <p>Period: {format(reportData.startDate, 'MMM d, yyyy')} to {format(reportData.endDate, 'MMM d, yyyy')}</p>
+            <p>Total Sessions: {reportData.totalSessions}</p>
+          </div>
+
+          <div className="report-actions">
+            <button onClick={handleExportCsv}>Export as CSV</button>
+            <button onClick={() => window.print()}>Print Report</button>
+          </div>
+
+          <table className="report-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Present</th>
+                <th>Absent</th>
+                <th>Sick</th>
+                <th>Home</th>
+                <th>Unknown</th>
+                <th>Attendance Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reportData.studentReports.map(student => (
+                <tr key={student.id}>
+                  <td>{student.nama}</td>
+                  <td>{student.presentCount}</td>
+                  <td>{student.absentCount}</td>
+                  <td>{student.sickCount}</td>
+                  <td>{student.pulangCount}</td>
+                  <td>{student.unknownCount}</td>
+                  <td>{student.attendanceRate}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## Advanced Functionality & Edge Cases
+
+### 1. Managing Late Returns
+
+```javascript
+// Function to identify students who are late returning
+function findLateReturnStudents(students) {
+  const now = new Date();
+
+  return students.filter(student =>
+    student.statusKehadiran === "Pulang" &&
+    student.statusKepulangan?.rencanaTanggalKembali?.toDate() < now &&
+    !student.statusKepulangan?.sudahKembali
+  );
+}
+
+// Component to display late return alerts
+// Component to display late return alerts
+function LateReturnAlerts({ kodeAsrama }) {
+  const [lateStudents, setLateStudents] = useState([]);
+
+  useEffect(() => {
+    if (!kodeAsrama) return;
+
+    const q = query(
+      collection(db, "SantriCollection"),
+      where("kodeAsrama", "==", kodeAsrama),
+      where("statusKehadiran", "==", "Pulang") // Pre-filter in Firestore if possible
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const allStudents = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Further filtering in client-side as Firestore cannot compare timestamp fields directly with current time effectively for this logic
+      setLateStudents(findLateReturnStudents(allStudents));
+    });
+
+    return () => unsubscribe();
+  }, [kodeAsrama]);
+
+  if (lateStudents.length === 0) return null;
+
+  return (
+    <div className="late-return-alerts">
+      <h3>Students Late Returning</h3>
+      <ul>
+        {lateStudents.map(student => {
+          const plannedReturn = student.statusKepulangan?.rencanaTanggalKembali?.toDate();
+          const daysLate = plannedReturn ? Math.max(0, Math.floor((new Date() - plannedReturn) / (1000 * 60 * 60 * 24))) : 'N/A';
+
+          return (
+            <li key={student.id} className="late-student">
+              <span className="name">{student.nama}</span>
+              <span className="due-date">
+                Due: {plannedReturn ? format(plannedReturn, 'MMM d, yyyy') : 'Unknown'}
+              </span>
+              <span className="days-late">
+                {daysLate === 0 ? 'Due today' : `${daysLate} day${daysLate !== 1 ? 's' : ''} late`}
+              </span>
+              {/* Add button to quickly mark as returned */}
+              <button
+                onClick={() => overrideReturnStatus(student.id, true, /* Pass teacherId here */)}
+                className="mark-returned-button"
+              >
+                Mark Returned
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+2. Handling Real-Time Conflicts
+Firestore handles concurrent writes to the same document using a "last write wins" approach. For nested map fields like studentStatuses, updating a specific student's status (studentStatuses.santriId1) will generally not conflict with another teacher updating a different student's status (studentStatuses.santriId2).
+
+However, if two teachers update the same student's status simultaneously (especially offline, syncing later), the last write received by the Firestore server will overwrite the previous one.
+
+Mitigation Strategies:
+
+Timestamp & User Tracking: The updatedAt and updatedBy fields within each studentStatus entry provide an audit trail. While not preventing overwrites, it shows who made the last change.
+Visual Feedback: The UI updates in real-time. If a teacher sees a status change unexpectedly, they know another teacher is also working on the session.
+Conflict Resolution UI (Optional): For critical conflicts, a more complex system could detect simultaneous writes (e.g., using Firestore Transactions with read-modify-write) and prompt the user to resolve the conflict, but this adds significant complexity. Given the nature of attendance, "last write wins" is often acceptable.
+Offline Behavior: When offline, Firestore queues writes. Upon reconnection, these writes are sent. If the document was modified on the server while the user was offline, Firestore's client SDK attempts to merge changes intelligently for map fields. If the exact same field was modified both locally and on the server, the server version usually wins upon sync, but the local change might re-apply depending on the exact timing and SDK behavior. Teachers should be aware that their offline changes might be overwritten if another teacher updated the same student online.
+Implementation Note: Rely on Firestore's built-in handling and the updatedAt/updatedBy fields for transparency. Clearly indicate the last update time/person in the UI if needed.
+
+3. Closing Attendance Sessions
+Marking a session as inactive prevents further modifications and signifies completion.
+
+JavaScript
+
+// Function to close an active attendance session
+async function closeAttendanceSession(sessionId, teacherId) {
+  const sessionRef = doc(db, "AttendanceRecords", sessionId);
+
+  try {
+    await updateDoc(sessionRef, {
+      isActive: false,
+      closedAt: serverTimestamp(),
+      closedBy: teacherId
+    });
+    console.log(`Session ${sessionId} closed successfully.`);
+    return true;
+  } catch (error) {
+    console.error(`Error closing session ${sessionId}:`, error);
+    return false;
+  }
+}
+
+// UI Button Example (within AttendanceScreen component)
+function AttendanceScreen() {
+  // ... existing code ...
+  const { currentSession, students, loading } = useAttendanceStore();
+  const [teacherId, setTeacherId] = useState(null);
+  // ... load teacherId ...
+
+  const handleCloseSession = async () => {
+    if (!currentSession || !currentSession.isActive) return;
+
+    const confirmation = window.confirm("Are you sure you want to close this attendance session? No further changes can be made.");
+    if (confirmation) {
+      const success = await closeAttendanceSession(sessionId, teacherId);
+      if (success) {
+        // Optionally navigate back or show a success message
+        router.back();
+      } else {
+        alert("Failed to close the session. Please check your connection and try again.");
+      }
+    }
+  };
+
+  return (
+    <div className="attendance-screen">
+      {/* ... existing header and grid ... */}
+
+      <footer>
+        <button onClick={() => router.back()}>Back</button>
+        {currentSession?.isActive && (
+          <button
+            onClick={handleCloseSession}
+            className="close-session-button"
+          >
+            Close Session
+          </button>
+        )}
+        <button onClick={() => window.print()}>Print Report</button>
+      </footer>
+    </div>
+  );
+}
+Security Rule Consideration: Ensure that only authenticated users (pengurus, pengasuh, superAdmin) can close sessions and that isActive cannot be set back to true once closed.
+
+JavaScript
+
+// Firestore Security Rules Snippet for AttendanceRecords
+match /AttendanceRecords/{sessionId} {
+  allow read: if request.auth != null; // Allow reads for authenticated users
+
+  // Allow create if user is authenticated and has access to the asrama
+  allow create: if request.auth != null &&
+                   request.resource.data.kodeAsrama in get(/databases/$(database)/documents/Teachers/$(request.auth.uid)).data.allowedAsramaCodes &&
+                   request.resource.data.createdBy == request.auth.uid &&
+                   request.resource.data.isActive == true;
+
+  // Allow update (marking attendance, closing session)
+  allow update: if request.auth != null &&
+                   // User must have access to the asrama
+                   resource.data.kodeAsrama in get(/databases/$(database)/documents/Teachers/$(request.auth.uid)).data.allowedAsramaCodes &&
+                   // Can only update if the session is active OR if only closing the session
+                   (resource.data.isActive == true ||
+                    (request.resource.data.isActive == false && resource.data.isActive == true)) &&
+                   // Ensure closedAt/closedBy are only set when closing
+                   (request.resource.data.isActive == false
+                       ? request.resource.data.closedAt == request.time && request.resource.data.closedBy == request.auth.uid
+                       : true) &&
+                   // Prevent re-opening a closed session
+                   !(resource.data.isActive == false && request.resource.data.isActive == true) &&
+                   // Ensure critical fields are not changed after creation
+                   request.resource.data.id == resource.data.id &&
+                   request.resource.data.attendanceType == resource.data.attendanceType &&
+                   request.resource.data.kodeAsrama == resource.data.kodeAsrama &&
+                   request.resource.data.timestamp == resource.data.timestamp &&
+                   request.resource.data.createdBy == resource.data.createdBy;
+
+  // Prevent deletion
+  allow delete: if false;
+}
+User Roles and Permissions
+Define distinct roles to manage access control.
+
+pengurus (Teacher/Staff):
+
+Permissions:
+Log in to the application.
+View students (SantriCollection) only for their assigned allowedAsramaCodes.
+Create new attendance sessions (AttendanceRecords) for their assigned dormitories.
+View active and past attendance sessions for their assigned dormitories.
+Mark/update student attendance statuses (AttendanceRecords.studentStatuses) within active sessions for their assigned dormitories.
+Close active attendance sessions they created or for their assigned dormitories.
+Generate reports (AttendanceReportScreen) for their assigned dormitories.
+Override "Sakit" and "Pulang" statuses for students in their assigned dormitories.
+Limitations: Cannot access data for dormitories not in allowedAsramaCodes. Cannot manage users or system settings.
+pengasuh (Head of Dormitory/Supervisor):
+
+Permissions:
+All permissions of pengurus.
+Potentially assigned to multiple allowedAsramaCodes or a specific set covering their supervisory area.
+May have access to aggregated reports across multiple dormitories (requires specific implementation).
+May have permission to manage AttendanceTypes.
+May have permission to edit student base details (SantriCollection) like status changes for "Sakit" or "Pulang" outside of an active attendance session.
+Limitations: Cannot manage system-wide settings or superAdmin users.
+superAdmin (System Administrator):
+
+Permissions:
+Full access to all data across all dormitories.
+Manage Teachers collection (add, edit roles, assign allowedAsramaCodes, remove users).
+Manage SantriCollection (add, edit, remove students, assign kodeAsrama).
+Manage AttendanceTypes (create, edit, delete).
+View and potentially modify any AttendanceRecords (e.g., correct errors in closed sessions - use with caution).
+Access system logs and analytics (if implemented).
+Limitations: None within the application scope.
+Implementation:
+
+Firebase Authentication Custom Claims or Firestore Teachers collection role field.
+Firestore Security Rules enforce these permissions based on the user's role and allowedAsramaCodes.
+Frontend UI elements are conditionally rendered based on the user's role.
+Data Management (Admin Interface)
+A separate administrative interface (or section within the app accessible only to pengasuh / superAdmin) is required for managing core data.
+
+Required Features:
+Teacher Management (superAdmin):
+List all teachers.
+Add new teachers (create Firebase Auth user, create Teachers document).
+Edit teacher details (display name, email).
+Assign/modify roles (pengurus, pengasuh).
+Assign/modify allowedAsramaCodes.
+Deactivate/delete teachers.
+Student Management (superAdmin, potentially pengasuh for their dorms):
+List all students, filterable by dormitory (kodeAsrama).
+Add new students (name, assign kodeAsrama).
+Edit student details (name, transfer kodeAsrama).
+Manually update base statusKehadiran and statusKepulangan (e.g., for long-term sickness or extended leave permission granted outside the app).
+Remove students (handle data retention policy).
+Dormitory Management (superAdmin):
+List existing dormitory codes (kodeAsrama) used in SantriCollection and Teachers.
+(Optional) A dedicated Asrama collection if more metadata per dormitory is needed (e.g., name, capacity).
+Attendance Type Management (superAdmin, potentially pengasuh):
+List all AttendanceTypes.
+Add new types (name, description, isFrequent).
+Edit existing types.
+Delete types (consider implications for existing AttendanceRecords referencing the type).
+Implementation:
+
+Could be a separate Next.js application or protected routes within the main application.
+Utilize standard CRUD operations with Firebase Firestore.
+Implement robust forms with validation.

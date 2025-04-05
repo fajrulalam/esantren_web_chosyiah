@@ -114,6 +114,12 @@ export default function Navbar() {
                                             >
                                                 Data Santri
                                             </Link>
+                                            <Link
+                                                href="/attendance"
+                                                className={isActive('/attendance') ? activeClass : inactiveClass}
+                                            >
+                                                Presensi
+                                            </Link>
                                             {user.role === 'superAdmin' && (
                                                 <Link
                                                     href="/user-management"
@@ -194,6 +200,13 @@ export default function Navbar() {
                                                 onClick={() => setIsMenuOpen(false)}
                                             >
                                                 Data Santri
+                                            </Link>
+                                            <Link
+                                                href="/attendance"
+                                                className={`block ${isActive('/attendance') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Presensi
                                             </Link>
                                             {user.role === 'superAdmin' && (
                                                 <Link

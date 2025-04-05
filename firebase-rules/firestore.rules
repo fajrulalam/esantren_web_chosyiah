@@ -78,6 +78,37 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
     
+    // NEW: Attendance collections rules
+    match /AttendanceTypes/{typeId} {
+      // Allow authenticated users to read attendance types
+      allow read: if request.auth != null;
+      
+      // Allow authenticated users to create and update attendance types
+      allow create, update: if request.auth != null;
+      
+      // Only admins can delete attendance types
+      allow delete: if userIsSuperAdmin();
+    }
+    
+    match /AttendanceRecords/{sessionId} {
+      // Allow authenticated users to read attendance records
+      allow read: if request.auth != null;
+      
+      // Allow authenticated users to create attendance records
+      allow create: if request.auth != null;
+      
+      // Allow authenticated users to update attendance records
+      // Added restriction: can only close a session if they created it or are admin
+      allow update: if request.auth != null && 
+                      // If closing a session (changing isActive from true to false)
+                      (request.resource.data.isActive == false && resource.data.isActive == true
+                        ? (resource.data.createdBy == request.auth.uid || userIsSuperAdmin())
+                        : true);
+      
+      // Only admins can delete attendance records
+      allow delete: if userIsSuperAdmin();
+    }
+    
     // Helper functions
     function userIsSuperAdmin() {
       let userDoc = get(/databases/$(database)/documents/PengurusCollection/$(request.auth.uid)).data;
