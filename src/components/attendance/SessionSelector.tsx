@@ -566,13 +566,13 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
 
   return (
     <div className="session-selector bg-white dark:bg-gray-900 rounded-xl shadow-[5px_5px_15px_rgba(0,0,0,0.1),-5px_-5px_15px_rgba(255,255,255,0.1)] dark:shadow-[5px_5px_15px_rgba(0,0,0,0.3),-5px_-5px_15px_rgba(255,255,255,0.05)] p-6 border border-gray-100 dark:border-gray-800">
-      <h2 className="text-xl font-bold mb-5 text-gray-800 dark:text-gray-100">Pilih Sesi Presensi</h2>
+      <h2 className="text-xl font-bold mb-5 text-gray-800 dark:text-gray-100">Pilih Jadwal Presensi</h2>
 
       {/* Attendance Type Quick Select with Add Button */}
       {!isCreatingNew && (
         <div className="mb-6">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Jenis Presensi</h3>
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Jadwal Presensi</h3>
             <button 
               onClick={() => setShowAddTypeModal(true)}
               className="w-7 h-7 flex items-center justify-center rounded-full bg-gradient-to-br 
@@ -720,7 +720,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                             disabled:opacity-50 disabled:cursor-not-allowed flex-1"
                   disabled={!newSessionType.trim() || isCreatingSession}
                 >
-                  {isCreatingSession ? 'Membuat Sesi...' : 'Buat Sesi'}
+                  {isCreatingSession ? 'Membuat Sesi...' : 'Mulai Sesi'}
                 </button>
                 <button 
                   onClick={() => {
@@ -750,7 +750,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                          transition-all duration-200 hover:translate-y-[1px] active:translate-y-[2px]"
               onClick={() => setIsCreatingNew(true)}
             >
-              Buat Sesi Baru
+              Buat Jadwal Insidental
             </button>
           )}
         </>

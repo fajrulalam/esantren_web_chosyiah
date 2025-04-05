@@ -91,6 +91,7 @@ export interface AttendanceReportData {
   sickCount: number;
   pulangCount: number;
   unknownCount: number;
+  studentSessionCount: number; // Number of sessions this student was part of
   attendanceRate: string;
 }
 

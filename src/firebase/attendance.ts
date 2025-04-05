@@ -317,23 +317,54 @@ export function findLateReturnStudents(students: SantriWithAttendance[]): Santri
 export async function generateAttendanceReport(
   kodeAsrama: string, 
   startDate: Date, 
-  endDate: Date
+  endDate: Date,
+  filters?: {
+    attendanceTypeId?: string;
+    sessionType?: 'scheduled' | 'incidental' | 'all';
+  }
 ): Promise<AttendanceReport> {
-  // Get all attendance records for the date range
-  const q = query(
-    collection(db, "AttendanceRecords"),
+  // Start with basic query conditions
+  let conditions: any[] = [
     where("kodeAsrama", "==", kodeAsrama),
     where("timestamp", ">=", startDate),
-    where("timestamp", "<=", endDate)
-  );
-
+    where("timestamp", "<=", endDate),
+  ];
+  
+  // Build query based on filters
+  const q = query(collection(db, "AttendanceRecords"), ...conditions);
   const recordsSnapshot = await getDocs(q);
-  const records = recordsSnapshot.docs.map(doc => doc.data() as AttendanceRecord);
+  
+  // Get all records first, then filter in memory for more complex conditions
+  let records = recordsSnapshot.docs.map(doc => doc.data() as AttendanceRecord);
+  
+  // Apply additional filters if provided
+  if (filters) {
+    // Filter by specific attendance type if provided
+    if (filters.attendanceTypeId) {
+      records = records.filter(record => record.attendanceTypeId === filters.attendanceTypeId);
+    }
+    
+    // Filter by session type (scheduled vs incidental)
+    if (filters.sessionType && filters.sessionType !== 'all') {
+      if (filters.sessionType === 'scheduled') {
+        // Scheduled sessions have a non-null attendanceTypeId
+        records = records.filter(record => record.attendanceTypeId !== null && record.attendanceTypeId !== undefined);
+      } else if (filters.sessionType === 'incidental') {
+        // Incidental sessions have a null attendanceTypeId
+        records = records.filter(record => record.attendanceTypeId === null || record.attendanceTypeId === undefined);
+      }
+    }
+  }
 
   // Get all students for this dormitory
   const studentsSnapshot = await getDocs(
-    query(collection(db, "SantriCollection"), where("kodeAsrama", "==", kodeAsrama))
+      query(
+          collection(db, "SantriCollection"),
+          where("kodeAsrama", "==", kodeAsrama),
+          where("statusAktif", "==", "Aktif")
+      )
   );
+
   const students = studentsSnapshot.docs.map(doc => ({ 
     id: doc.id, 
     ...doc.data() 
@@ -378,13 +409,27 @@ export async function generateAttendanceReport(
     });
   });
 
-  // Calculate attendance rates
-  const totalSessions = records.length;
+  // Calculate attendance rates - improved calculation based on actual sessions each student was part of
   reportData.forEach(report => {
-    report.attendanceRate = totalSessions > 0
-      ? ((report.presentCount / totalSessions) * 100).toFixed(1) + '%'
+    // Count how many sessions this student was supposed to attend
+    let studentSessionCount = 0;
+    
+    records.forEach(record => {
+      // If student ID exists in this session's studentStatuses, then they were supposed to attend
+      if (record.studentStatuses && record.studentStatuses[report.id]) {
+        studentSessionCount++;
+      }
+    });
+    
+    // Calculate attendance rate based on sessions the student was actually part of
+    report.studentSessionCount = studentSessionCount; // Store the count for reference
+    report.attendanceRate = studentSessionCount > 0
+      ? ((report.presentCount / studentSessionCount) * 100).toFixed(1) + '%'
       : 'N/A';
   });
+
+  // Calculate total number of unique sessions
+  const totalSessions = records.length;
 
   return {
     startDate,
