@@ -6,6 +6,7 @@ import { getAuth } from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { format } from 'date-fns';
+import id from 'date-fns/locale/id';
 import { useSessionRealtime, useStudentsRealtime } from '@/app/attendance/hooks';
 import useAttendanceStore from '@/app/attendance/store';
 import StudentCard from '@/components/attendance/StudentCard';
@@ -289,7 +290,7 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
   
   // Format date/time in specific format for WhatsApp
   const formatDateTimeForWhatsApp = (date: Date) => {
-    return format(date, 'EEEE, dd-MM-yyyy HH:mm', { locale: require('date-fns/locale/id') });
+    return format(date, 'EEEE, dd-MM-yyyy HH:mm', { locale: id });
   };
   
   // Generate session summary for WhatsApp
