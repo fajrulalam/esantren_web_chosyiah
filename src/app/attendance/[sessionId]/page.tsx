@@ -99,7 +99,21 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
       try {
         const success = await closeAttendanceSession(sessionId, teacherId);
         if (success) {
-          router.push('/attendance');
+          // Ask if user wants to share the summary to WhatsApp after closing
+          const shareSummary = window.confirm(
+            "Sesi berhasil ditutup! Apakah Anda ingin membagikan ringkasan kehadiran ke WhatsApp?"
+          );
+          
+          if (shareSummary) {
+            // Generate and share the summary before redirecting
+            shareToWhatsApp();
+            // Short delay to ensure WhatsApp is launched before redirecting
+            setTimeout(() => {
+              router.push('/attendance');
+            }, 1000);
+          } else {
+            router.push('/attendance');
+          }
         } else {
           setError("Gagal menutup sesi. Silakan coba lagi.");
         }
@@ -272,6 +286,77 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
   const formatDate = (date: Date) => {
     return format(date, 'dd MMMM yyyy');
   };
+  
+  // Format date/time in specific format for WhatsApp
+  const formatDateTimeForWhatsApp = (date: Date) => {
+    return format(date, 'EEEE, dd-MM-yyyy HH:mm', { locale: require('date-fns/locale/id') });
+  };
+  
+  // Generate session summary for WhatsApp
+  const generateSessionSummary = () => {
+    if (!currentSession) return '';
+    
+    // Count attendance statuses
+    let presentCount = 0;
+    let absentCount = 0;
+    let sickCount = 0;
+    let pulangCount = 0;
+    const absentStudents: string[] = [];
+    
+    students.forEach(student => {
+      const status = currentSession.studentStatuses[student.id]?.status;
+      
+      switch(status) {
+        case 'present':
+        case 'overridePresent':
+          presentCount++;
+          break;
+        case 'absent':
+          absentCount++;
+          if (student.nama) absentStudents.push(student.nama);
+          break;
+        case 'excusedSick':
+          sickCount++;
+          break;
+        case 'excusedPulang':
+          pulangCount++;
+          break;
+      }
+    });
+    
+    // Get session date
+    const sessionDate = currentSession.timestamp 
+      ? new Date(currentSession.timestamp.seconds * 1000) 
+      : new Date();
+    
+    // Build the summary message
+    let summary = `*LAPORAN KEHADIRAN SANTRI*\n\n`;
+    summary += `*Kegiatan:* ${currentSession.attendanceType}\n`;
+    summary += `*Waktu:* ${formatDateTimeForWhatsApp(sessionDate)}\n\n`;
+    summary += `*Ringkasan:*\n`;
+    summary += `✅ Hadir: ${presentCount} santri\n`;
+    summary += `🤒 Sakit: ${sickCount} santri\n`;
+    summary += `🏠 Pulang: ${pulangCount} santri\n`;
+    summary += `❌ Tidak Hadir: ${absentCount} santri\n\n`;
+    
+    // Add list of absent students if any
+    if (absentStudents.length > 0) {
+      summary += `*Daftar Santri Tidak Hadir:*\n`;
+      absentStudents.forEach((name, index) => {
+        summary += `${index + 1}. ${name}\n`;
+      });
+    }
+    
+    return summary;
+  };
+  
+  // Open WhatsApp with session summary
+  const shareToWhatsApp = () => {
+    const summary = generateSessionSummary();
+    const encodedSummary = encodeURIComponent(summary);
+    const whatsappUrl = `whatsapp://send?text=${encodedSummary}`;
+    window.open(whatsappUrl, '_blank');
+  };
 
   // Loading state
   if (loading || !currentSession || students.length === 0) {
@@ -328,9 +413,19 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
                 <NetworkStatusIndicator />
 
                 {!currentSession.isActive && (
+                  <>
                     <div className="text-center px-4 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50 rounded-full text-sm font-medium text-red-600 dark:text-red-300">
                       Sesi telah ditutup
                     </div>
+                    <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      <button 
+                        onClick={shareToWhatsApp}
+                        className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 underline"
+                      >
+                        Bagikan ringkasan ke WhatsApp
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -351,21 +446,37 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
               </button>
 
               {currentSession.isActive && (
-                  <button
-                      onClick={handleCloseSession}
-                      className="px-5 py-2.5 bg-white dark:bg-gray-800
-                          text-red-600 dark:text-red-400 font-medium rounded-full
-                          shadow-[3px_3px_10px_rgba(0,0,0,0.08),_-3px_-3px_10px_rgba(255,255,255,0.8)]
-                          dark:shadow-[3px_3px_10px_rgba(0,0,0,0.25),_-3px_-3px_10px_rgba(255,255,255,0.04)]
-                          hover:shadow-[1px_1px_5px_rgba(0,0,0,0.08),_-1px_-1px_5px_rgba(255,255,255,0.8)]
-                          dark:hover:shadow-[1px_1px_5px_rgba(0,0,0,0.25),_-1px_-1px_5px_rgba(255,255,255,0.04)]
-                          transition-all duration-200 hover:translate-y-0.5
-                          border border-red-100 dark:border-red-800/30
-                          disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={isClosing}
-                  >
-                    {isClosing ? 'Menutup Sesi...' : 'Tutup Sesi'}
-                  </button>
+                  <>
+                    <button
+                        onClick={shareToWhatsApp}
+                        className="px-5 py-2.5 bg-green-500 
+                            text-white font-medium rounded-full
+                            shadow-[3px_3px_10px_rgba(0,0,0,0.08),_-3px_-3px_10px_rgba(255,255,255,0.8)]
+                            dark:shadow-[3px_3px_10px_rgba(0,0,0,0.25),_-3px_-3px_10px_rgba(255,255,255,0.04)]
+                            hover:shadow-[1px_1px_5px_rgba(0,0,0,0.08),_-1px_-1px_5px_rgba(255,255,255,0.8)]
+                            dark:hover:shadow-[1px_1px_5px_rgba(0,0,0,0.25),_-1px_-1px_5px_rgba(255,255,255,0.04)]
+                            transition-all duration-200 hover:translate-y-0.5
+                            border border-green-400"
+                    >
+                      Share ke WhatsApp
+                    </button>
+                    
+                    <button
+                        onClick={handleCloseSession}
+                        className="px-5 py-2.5 bg-white dark:bg-gray-800
+                            text-red-600 dark:text-red-400 font-medium rounded-full
+                            shadow-[3px_3px_10px_rgba(0,0,0,0.08),_-3px_-3px_10px_rgba(255,255,255,0.8)]
+                            dark:shadow-[3px_3px_10px_rgba(0,0,0,0.25),_-3px_-3px_10px_rgba(255,255,255,0.04)]
+                            hover:shadow-[1px_1px_5px_rgba(0,0,0,0.08),_-1px_-1px_5px_rgba(255,255,255,0.8)]
+                            dark:hover:shadow-[1px_1px_5px_rgba(0,0,0,0.25),_-1px_-1px_5px_rgba(255,255,255,0.04)]
+                            transition-all duration-200 hover:translate-y-0.5
+                            border border-red-100 dark:border-red-800/30
+                            disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isClosing}
+                    >
+                      {isClosing ? 'Menutup Sesi...' : 'Tutup Sesi'}
+                    </button>
+                  </>
               )}
 
 
