@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
 import { KODE_ASRAMA } from '@/constants';
@@ -33,7 +33,8 @@ interface PaymentProof {
   inputtedBy: string;
 }
 
-export default function RekapitulasiViewPage() {
+// Wrapper component for suspense boundary
+function RekapitulasiViewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -1344,5 +1345,18 @@ export default function RekapitulasiViewPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Export the main component with Suspense boundary
+export default function RekapitulasiViewPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    }>
+      <RekapitulasiViewContent />
+    </Suspense>
   );
 }
