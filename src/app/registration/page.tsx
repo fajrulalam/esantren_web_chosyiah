@@ -139,15 +139,14 @@ export default function Registration() {
         kodeAsrama: KODE_ASRAMA,
         statusTanggungan: 'Menunggu Verifikasi',
         kamar: '-',
+        semester: '1',
         statusAktif: 'Pending', // This is required by security rules
+        kelas: '1',
         
         // Other required fields from Santri interface
-        kelas: formData.programStudi, // Can be updated later by admin
-        tahunMasuk: new Date().getFullYear().toString(),
+         // Can be updated later by admin
         jenjangPendidikan: 'Perguruan Tinggi', // Spelled out as per convention
-        semester: '1', // Default to 1 as requested
         jumlahTunggakan: 0,
-        
         // Payment related fields
         paymentOption: formData.paymentOption,
         paymentProofUrl: paymentProofUrl,

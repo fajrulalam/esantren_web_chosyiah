@@ -29,7 +29,7 @@ export interface AttendanceType {
 
 // Student status in an attendance session
 export interface StudentAttendanceStatus {
-  status: 'present' | 'absent' | 'excusedSick' | 'excusedPulang' | 'overridePresent';
+  status: 'present' | 'absent' | 'excusedSick' | 'excusedPulang' | 'overridePresent' | 'dispen';
   updatedAt: Timestamp;
   updatedBy: string;
 }
@@ -90,6 +90,7 @@ export interface AttendanceReportData {
   absentCount: number;
   sickCount: number;
   pulangCount: number;
+  dispenCount: number; // Count of dispensation status
   unknownCount: number;
   studentSessionCount: number; // Number of sessions this student was part of
   attendanceRate: string;

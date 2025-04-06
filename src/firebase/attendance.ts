@@ -21,6 +21,7 @@ import {
   AttendanceReport,
   AttendanceReportData
 } from '@/types/attendance';
+import {IzinStatus} from "@/types/izinSakitPulang";
 
 // Function to create a new attendance session
 export async function createAttendanceSession(
@@ -58,8 +59,20 @@ export async function createAttendanceSession(
         for (const santriId of listOfSantriIds) {
           const santriDoc = await getDoc(doc(db, "SantriCollection", santriId));
           if (santriDoc.exists() && santriDoc.data().kodeAsrama === kodeAsrama) {
+            const santriData = santriDoc.data();
+            let statusToUse = 'absent';
+            
+            // Check if the student has a special status in SantriCollection
+            if (santriData.statusKehadiran === 'Sakit') {
+              statusToUse = 'excusedSick';
+              console.log(`Setting ${santriData.nama || santriId} to 'excusedSick' based on SantriCollection status`);
+            } else if (santriData.statusKehadiran === 'Pulang') {
+              statusToUse = 'excusedPulang';
+              console.log(`Setting ${santriData.nama || santriId} to 'excusedPulang' based on SantriCollection status`);
+            }
+            
             studentStatuses[santriId] = {
-              status: 'absent',
+              status: statusToUse,
               updatedAt: serverTimestamp(),
               updatedBy: teacherId
             };
@@ -93,16 +106,28 @@ export async function createAttendanceSession(
     
     const studentSnapshot = await getDocs(q);
     
-    // Set all students as absent by default
+    // Set students with appropriate statuses based on their SantriCollection status
     studentSnapshot.docs.forEach(doc => {
+      const santriData = doc.data();
+      let statusToUse = 'absent';
+      
+      // Check if the student has a special status in SantriCollection
+      if (santriData.statusKehadiran === 'Sakit') {
+        statusToUse = 'excusedSick';
+        console.log(`Setting ${santriData.nama || doc.id} to 'excusedSick' based on SantriCollection status`);
+      } else if (santriData.statusKehadiran === 'Pulang') {
+        statusToUse = 'excusedPulang';
+        console.log(`Setting ${santriData.nama || doc.id} to 'excusedPulang' based on SantriCollection status`);
+      }
+      
       studentStatuses[doc.id] = {
-        status: 'absent',
+        status: statusToUse,
         updatedAt: serverTimestamp(),
         updatedBy: teacherId
       };
     });
     
-    console.log(`Added ${studentSnapshot.docs.length} active students`);
+    console.log(`Added ${studentSnapshot.docs.length} active students with appropriate statuses`);
   }
 
   const sessionDoc: Partial<AttendanceRecord> = {
@@ -154,10 +179,12 @@ export async function loadStudentsForDormitory(kodeAsrama: string): Promise<Sant
 export async function markAttendance(
   sessionId: string, 
   santriId: string, 
-  status: 'present' | 'absent' | 'excusedSick' | 'excusedPulang' | 'overridePresent', 
+  status: 'present' | 'absent' | 'excusedSick' | 'excusedPulang' | 'overridePresent' | 'dispen', 
   teacherId: string
 ): Promise<void> {
   const sessionRef = doc(db, "AttendanceRecords", sessionId);
+
+  console.log(`Marking student ${santriId} as ${status} in session ${sessionId}`);
 
   // Using dot notation for nested updates
   await updateDoc(sessionRef, {
@@ -211,33 +238,113 @@ export async function addSantrisToSession(
 export async function overrideSickStatus(
   santriId: string, 
   isStillSick: boolean, 
-  teacherId: string
+  teacherId: string,
+  statusSakit: { izinId: string}
 ): Promise<boolean> {
+
+  const returnVerifiedBy = {
+    uid: teacherId,
+    timestamp: serverTimestamp(),
+  };
+
   if (!isStillSick) {
-    await updateDoc(doc(db, "SantriCollection", santriId), {
-      statusKehadiran: "Ada",
-      updatedAt: serverTimestamp(),
-      updatedBy: teacherId
-    });
-    return true;
+    try {
+      await updateDoc(doc(db, "SakitDanPulangCollection", statusSakit.izinId), {
+        status: "Sudah Sembuh" as IzinStatus,
+        recoveryVerifiedBy: returnVerifiedBy
+      });
+
+      await updateDoc(doc(db, "SantriCollection", santriId), {
+        statusKehadiran: "Ada",
+        statusSakit: deleteField(),
+      });
+      return true;
+
+      console.log(`Santri ${santriId} marked as Sudah Sembuh`);
+    } catch (error) {
+      console.error(`Error marking santri ${santriId} as Sembuh:`, error);
+    }
+
+
+
   }
   return false;
+
+  /*
+  if (hasReturned) {
+    try {
+      // First, determine if return is as planned
+      const currentTimeMillis = Date.now();
+      const plannedReturnMillis = statusKepulanganMap.rencanaTanggalKembali.toMillis();
+      const kembaliSesuaiRencana = currentTimeMillis <= plannedReturnMillis;
+
+      // Create return verification metadata
+      const returnVerifiedBy = {
+        uid: teacherId,
+        timestamp: serverTimestamp()
+      };
+
+      // 1. Update SakitDanPulangCollection document
+      await updateDoc(doc(db, "SakitDanPulangCollection", statusKepulanganMap.izinId), {
+        sudahKembali: true,
+        status: "Sudah Kembali",
+        tanggalKembali: serverTimestamp(),
+        kembaliSesuaiRencana: kembaliSesuaiRencana,
+        returnVerifiedBy: returnVerifiedBy
+      });
+
+      // 2. Update SantriCollection document
+      await updateDoc(doc(db, "SantriCollection", santriId), {
+        statusKehadiran: "Ada",
+        statusKepulangan: deleteField(),
+      });
+
+
+  }
+   */
 }
 
 // Function to handle overriding "Pulang" status
 export async function overrideReturnStatus(
-  santriId: string, 
-  hasReturned: boolean, 
-  teacherId: string
+    santriId: string,
+    hasReturned: boolean,
+    teacherId: string,
+    statusKepulanganMap: { izinId: string; rencanaTanggalKembali: Timestamp }
 ): Promise<boolean> {
   if (hasReturned) {
-    await updateDoc(doc(db, "SantriCollection", santriId), {
-      statusKehadiran: "Ada",
-      statusKepulangan: deleteField(), // Remove the entire map
-      updatedAt: serverTimestamp(),
-      updatedBy: teacherId
-    });
-    return true;
+    try {
+      // First, determine if return is as planned
+      const currentTimeMillis = Date.now();
+      const plannedReturnMillis = statusKepulanganMap.rencanaTanggalKembali.toMillis();
+      const kembaliSesuaiRencana = currentTimeMillis <= plannedReturnMillis;
+      
+      // Create return verification metadata
+      const returnVerifiedBy = {
+        uid: teacherId,
+        timestamp: serverTimestamp()
+      };
+
+      // 1. Update SakitDanPulangCollection document
+      await updateDoc(doc(db, "SakitDanPulangCollection", statusKepulanganMap.izinId), {
+        sudahKembali: true,
+        status: "Sudah Kembali",
+        tanggalKembali: serverTimestamp(),
+        kembaliSesuaiRencana: kembaliSesuaiRencana,
+        returnVerifiedBy: returnVerifiedBy
+      });
+
+      // 2. Update SantriCollection document
+      await updateDoc(doc(db, "SantriCollection", santriId), {
+        statusKehadiran: "Ada",
+        statusKepulangan: deleteField(),
+      });
+
+      console.log(`Santri ${santriId} marked as returned ${kembaliSesuaiRencana ? 'on time' : 'late'}`);
+      return true;
+    } catch (error) {
+      console.error(`Error marking santri ${santriId} as returned:`, error);
+      return false;
+    }
   }
   return false;
 }
@@ -378,7 +485,9 @@ export async function generateAttendanceReport(
     absentCount: 0,
     sickCount: 0,
     pulangCount: 0,
+    dispenCount: 0,
     unknownCount: 0,
+    studentSessionCount: 0,
     attendanceRate: '0%'
   }));
 
@@ -400,6 +509,10 @@ export async function generateAttendanceReport(
         case 'excusedPulang':
           studentReport.pulangCount++;
           studentReport.absentCount++;
+          break;
+        case 'dispen':
+          studentReport.dispenCount++;
+          // Don't count dispensation as absent, it's a valid excused absence
           break;
         case 'absent':
           studentReport.unknownCount++;

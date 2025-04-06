@@ -83,11 +83,11 @@ export default function AttendanceReportScreen() {
     if (!reportData) return;
 
     // Generate CSV content - only include students with at least one session
-    const headers = "Nama,Hadir,Tidak Hadir,Sakit,Pulang,Tidak Diketahui,Total Kegiatan,Persentase Kehadiran\n";
+    const headers = "Nama,Hadir,Alfa,Sakit,Pulang,Dispensasi,Total Kegiatan,Persentase Kehadiran\n";
     const rows = reportData.studentReports
       .filter(student => student.studentSessionCount > 0)
       .map(student =>
-        `"${student.nama}",${student.presentCount},${student.absentCount},${student.sickCount},${student.pulangCount},${student.unknownCount},${student.studentSessionCount},${student.attendanceRate}`
+        `"${student.nama}",${student.presentCount},${student.absentCount - student.sickCount},${student.sickCount},${student.pulangCount},${student.dispenCount || 0},${student.studentSessionCount},${student.attendanceRate}`
       ).join("\n");
 
     // Create and download CSV file
@@ -235,10 +235,11 @@ export default function AttendanceReportScreen() {
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-200">Nama</th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Hadir</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Tidak Hadir</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Alfa</th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Sakit</th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Pulang</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Tidak Diketahui</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Dispensasi</th>
+                  {/*<th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Tidak Diketahui</th>*/}
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Total Sesi</th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Persentase Kehadiran</th>
                 </tr>
@@ -250,10 +251,11 @@ export default function AttendanceReportScreen() {
                     <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-4 py-3 text-sm">{student.nama}</td>
                       <td className="px-4 py-3 text-sm text-center">{student.presentCount}</td>
-                      <td className="px-4 py-3 text-sm text-center">{student.absentCount}</td>
+                      <td className="px-4 py-3 text-sm text-center">{student.absentCount - student.sickCount}</td>
                       <td className="px-4 py-3 text-sm text-center">{student.sickCount}</td>
                       <td className="px-4 py-3 text-sm text-center">{student.pulangCount}</td>
-                      <td className="px-4 py-3 text-sm text-center">{student.unknownCount}</td>
+                      <td className="px-4 py-3 text-sm text-center">{student.dispenCount || 0}</td>
+                      {/*<td className="px-4 py-3 text-sm text-center">{student.unknownCount}</td>*/}
                       <td className="px-4 py-3 text-sm text-center">{student.studentSessionCount}</td>
                       <td className="px-4 py-3 text-sm text-center font-medium">
                         {student.attendanceRate}

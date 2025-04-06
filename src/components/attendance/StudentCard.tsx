@@ -7,6 +7,43 @@ import {
   CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, ArrowRightStartOnRectangleIcon, InformationCircleIcon, ClockIcon
 } from '@heroicons/react/24/solid';
 
+// Custom hook for handling long press
+function useLongPress(callback: () => void, ms = 700) {
+  const [startLongPress, setStartLongPress] = useState(false);
+  
+  useEffect(() => {
+    let timerId: NodeJS.Timeout | null = null;
+    
+    if (startLongPress) {
+      timerId = setTimeout(callback, ms);
+    }
+    
+    return () => {
+      if (timerId) {
+        clearTimeout(timerId);
+      }
+    };
+  }, [callback, ms, startLongPress]);
+  
+  const start = useCallback(() => {
+    console.log("Starting long press timer");
+    setStartLongPress(true);
+  }, []);
+  
+  const stop = useCallback(() => {
+    console.log("Stopping long press timer");
+    setStartLongPress(false);
+  }, []);
+  
+  return {
+    onMouseDown: start,
+    onMouseUp: stop,
+    onMouseLeave: stop,
+    onTouchStart: start,
+    onTouchEnd: stop
+  };
+}
+
 interface StudentCardProps {
   student: SantriWithAttendance;
   sessionId: string;
@@ -15,51 +52,121 @@ interface StudentCardProps {
 
 const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) => {
   const { currentSession } = useAttendanceStore();
-  const [isLongPressing, setIsLongPressing] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const [justLongPressed, setJustLongPressed] = useState(false);
 
-  const studentStatus = currentSession?.studentStatuses?.[student.id]?.status || 'absent';
+  // For display, use the current status from session if available, or calculate it
+  const studentStatus = currentSession?.studentStatuses?.[student.id]?.status || 
+                       (student.statusKehadiran === 'Sakit' ? 'excusedSick' : 
+                        student.statusKehadiran === 'Pulang' ? 'excusedPulang' : 'absent');
+  
+  // For debugging - log the status to make sure it's working
+  useEffect(() => {
+    console.log(`Student ${student.nama} (${student.id}): statusKehadiran=${student.statusKehadiran}, studentStatus=${studentStatus}`);
+    
+    if (currentSession?.studentStatuses?.[student.id]) {
+      console.log(`  - Status in session: ${currentSession.studentStatuses[student.id].status}`);
+    } else {
+      console.log(`  - No status in session yet, will display: ${studentStatus}`);
+    }
+  }, [currentSession, student, studentStatus]);
   const isLateReturning =
       student.statusKehadiran === 'Pulang' &&
       student.statusKepulangan?.rencanaTanggalKembali?.toDate() < new Date() &&
       !student.statusKepulangan?.sudahKembali;
 
-  // --- Action Handlers (Keep the optimized handlers from previous version) ---
+  // --- Action Handlers (Simplified to ensure functionality) ---
   const handleStatusToggle = useCallback(async () => {
-    if (isLongPressing) return;
-    let newStatus = studentStatus === 'present' ? 'absent' : 'present';
-    if (student.statusKehadiran === 'Sakit' && newStatus === 'present') newStatus = 'excusedSick';
-    else if (student.statusKehadiran === 'Pulang' && newStatus === 'present') newStatus = 'excusedPulang';
+    if (justLongPressed) {
+      console.log("Ignoring click after long press");
+      setJustLongPressed(false);
+      return;
+    }
+    
+    // For students with special status (Sakit or Pulang), show the modal instead of toggling
+    if (student.statusKehadiran === 'Sakit' || student.statusKehadiran === 'Pulang') {
+      console.log(`Showing status modal for ${student.nama} (${student.statusKehadiran})`);
+      setShowStatusModal(true);
+      return;
+    }
+    
+    let newStatus;
+    
+    // Simple toggle between states for regular students
+    if (studentStatus === 'present') {
+      newStatus = 'excusedSick';
+    } else if (studentStatus === 'absent') {
+      newStatus = 'present';
+    } else if (studentStatus === 'excusedSick') {
+      newStatus = 'absent';
+    } else if (studentStatus === 'dispen') {
+      newStatus = 'present';
+    } else if (studentStatus === 'excusedPulang') {
+      // If pulang but statusKehadiran is not Pulang (the status was changed in SantriCollection)
+      // Then toggle like normal
+      newStatus = 'present';
+    } else {
+      // For other cases
+      newStatus = 'present';
+    }
+    
+    console.log(`Toggling status for ${student.nama} from ${studentStatus} to ${newStatus}`);
+    
     try {
-      await markAttendance(sessionId, student.id, newStatus as any, teacherId);
-    } catch (error) { console.error("Failed to mark attendance:", error); }
-  }, [studentStatus, student.id, student.statusKehadiran, sessionId, teacherId, isLongPressing]);
+      await markAttendance(sessionId, student.id, newStatus, teacherId);
+    } catch (error) { 
+      console.error("Failed to mark attendance:", error); 
+    }
+  }, [studentStatus, student.id, student.nama, student.statusKehadiran, sessionId, teacherId, justLongPressed, setShowStatusModal]);
 
-  const handleLongPressStart = useCallback(() => {
-    if (student.statusKehadiran !== 'Sakit' && student.statusKehadiran !== 'Pulang') return;
-    setIsLongPressing(true);
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    longPressTimer.current = setTimeout(() => { if (isLongPressing) setShowStatusModal(true); }, 700);
-  }, [student.statusKehadiran, isLongPressing]);
+  // Handle long press
+  const handleLongPress = useCallback(() => {
+    console.log("Long press detected for", student.nama);
+    setJustLongPressed(true);
+    
+    if (student.statusKehadiran === 'Sakit' || student.statusKehadiran === 'Pulang') {
+      console.log("Showing status modal for", student.nama);
+      // Show status override modal for sick or returning students
+      setShowStatusModal(true); 
+    } else {
+      console.log("Marking", student.nama, "as dispen");
+      // Mark as dispen on long press for regular students
+      markAttendance(sessionId, student.id, 'dispen', teacherId)
+        .then(() => {
+          console.log("Successfully marked as dispen");
+          // No need to refresh since we're using real-time updates
+        })
+        .catch(error => console.error("Failed to mark dispensation:", error));
+    }
+    
+    // Reset after a delay
+    setTimeout(() => {
+      setJustLongPressed(false);
+    }, 800);
+  }, [student.nama, student.statusKehadiran, student.id, sessionId, teacherId, setShowStatusModal]);
 
-  const handleLongPressEnd = useCallback(() => {
-    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
-    setTimeout(() => setIsLongPressing(false), 50);
-  }, []);
+  // Use our custom hook
+  const longPressEvent = useLongPress(handleLongPress, 700);
 
-  useEffect(() => {
-    return () => { if (longPressTimer.current) clearTimeout(longPressTimer.current); };
-  }, []);
-
-  const handleStatusOverride = async (action: 'recover' | 'returned') => {
+  const handleStatusOverride = async (action: 'recover' | 'returned' | 'present' | 'absent' | 'sick') => {
     try {
       if (action === 'recover' && student.statusKehadiran === 'Sakit') {
-        await overrideSickStatus(student.id, false, teacherId);
+        // Mark as recovered in SantriCollection (changes the base status)
+        await overrideSickStatus(student.id, false, teacherId, student.statusSakit!);
         if (studentStatus === 'excusedSick') await markAttendance(sessionId, student.id, 'present', teacherId);
       } else if (action === 'returned' && student.statusKehadiran === 'Pulang') {
-        await overrideReturnStatus(student.id, true, teacherId);
+        // Mark as returned in SantriCollection (changes the base status)
+        await overrideReturnStatus(student.id, true, teacherId, student.statusKepulangan!);
         if (studentStatus === 'excusedPulang') await markAttendance(sessionId, student.id, 'present', teacherId);
+      } else if (action === 'present') {
+        // Just mark as present in the attendance session without changing SantriCollection status
+        await markAttendance(sessionId, student.id, 'present', teacherId);
+      } else if (action === 'absent') {
+        // Mark as absent in the attendance session
+        await markAttendance(sessionId, student.id, 'absent', teacherId);
+      } else if (action === 'sick') {
+        // Mark as sick in the attendance session
+        await markAttendance(sessionId, student.id, 'excusedSick', teacherId);
       }
     } catch (error) { console.error("Failed to override status:", error); }
     finally { setShowStatusModal(false); }
@@ -114,6 +221,10 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
         bgColor = 'bg-sky-500 dark:bg-sky-600';
         shadow = 'shadow-[inset_3px_3px_6px_#0369a1,inset_-3px_-3px_6px_#38bdf8] dark:shadow-[inset_3px_3px_6px_#045581,inset_-3px_-3px_6px_#0ea5e9]';
         break;
+      case 'dispen':
+        bgColor = 'bg-purple-500 dark:bg-purple-600';
+        shadow = 'shadow-[inset_3px_3px_6px_#7e22ce,inset_-3px_-3px_6px_#a855f7] dark:shadow-[inset_3px_3px_6px_#6b21a8,inset_-3px_-3px_6px_#9333ea]';
+        break;
       default:
         bgColor = 'bg-slate-400 dark:bg-slate-600';
         textColor = 'text-slate-800 dark:text-slate-100';
@@ -124,7 +235,7 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
   };
 
 
-  // --- Icon and Text Helpers (Unchanged) ---
+  // --- Icon and Text Helpers (Updated) ---
   const getStatusIcon = (status: typeof studentStatus): React.ReactNode => {
     const iconClass = "w-6 h-6 mb-0.5";
     // Adjusted icon colors for potentially better contrast on the new indicator backgrounds
@@ -133,12 +244,18 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
       case 'absent': return <XCircleIcon className={iconClass + " text-rose-100 dark:text-rose-100"} />;
       case 'excusedSick': return <InformationCircleIcon className={iconClass + " text-amber-100 dark:text-amber-100"} />;
       case 'excusedPulang': return <ArrowRightStartOnRectangleIcon className={iconClass + " text-sky-100 dark:text-sky-100"} />;
+      case 'dispen': return <ExclamationTriangleIcon className={iconClass + " text-purple-100 dark:text-purple-100"} />;
       default: return null;
     }
   };
   const getStatusText = (status: typeof studentStatus): string => {
     switch (status) {
-      case 'present': return 'Hadir'; case 'absent': return 'Absen'; case 'excusedSick': return 'Sakit'; case 'excusedPulang': return 'Pulang'; default: return 'Unknown';
+      case 'present': return 'Hadir'; 
+      case 'absent': return 'Absen'; 
+      case 'excusedSick': return 'Sakit'; 
+      case 'excusedPulang': return 'Pulang'; 
+      case 'dispen': return 'Dispen';
+      default: return 'Unknown';
     }
   };
 
@@ -178,12 +295,7 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
         <div
             className={cardDynamicClasses} // Use the combined class string
             onClick={handleStatusToggle}
-            onTouchStart={handleLongPressStart}
-            onMouseDown={handleLongPressStart}
-            onTouchEnd={handleLongPressEnd}
-            onMouseUp={handleLongPressEnd}
-            onTouchMove={handleLongPressEnd}
-            onMouseLeave={handleLongPressEnd}
+            {...longPressEvent}
             role="button"
             tabIndex={0}
             aria-label={`Student ${student.nama}, Status: ${getStatusText(studentStatus)}. Tap to toggle, long press for options.`}
@@ -231,24 +343,84 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
                   Update Status: {student.nama}
                 </h3>
                 {student.statusKehadiran === 'Sakit' && (
-                    <div className="mb-4 text-center">
-                      <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">Santri ini ditandai sedang sakit.</p>
-                      <button onClick={() => handleStatusOverride('recover')} className={modalButtonStyle('confirm')}>
-                        <CheckCircleIcon className="w-4 h-4" /> Tandai Sembuh
-                      </button>
+                    <div className="mb-4">
+                      <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 text-center">Santri ini ditandai sedang sakit.</p>
+                      
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Status kehadiran sesi ini:</p>
+                      <div className="grid grid-cols-3 gap-2 mb-4">
+                        <button 
+                          onClick={() => handleStatusOverride('present')} 
+                          className={`px-2 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium ${studentStatus === 'present' ? 'ring-2 ring-emerald-500' : ''}`}
+                        >
+                          Hadir
+                        </button>
+                        <button 
+                          onClick={() => handleStatusOverride('absent')} 
+                          className={`px-2 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium ${studentStatus === 'absent' ? 'ring-2 ring-red-500' : ''}`}
+                        >
+                          Tidak Hadir
+                        </button>
+                        <button 
+                          onClick={() => handleStatusOverride('sick')} 
+                          className={`px-2 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-medium ${studentStatus === 'excusedSick' ? 'ring-2 ring-amber-500' : ''}`}
+                        >
+                          Sakit
+                        </button>
+                      </div>
+                      
+                      <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-4">
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Update status di sistem:</p>
+                        <button 
+                          onClick={() => handleStatusOverride('recover')} 
+                          className={modalButtonStyle('confirm')}
+                        >
+                          <CheckCircleIcon className="w-4 h-4" /> Tandai Sembuh
+                        </button>
+                      </div>
                     </div>
                 )}
                 {student.statusKehadiran === 'Pulang' && (
-                    <div className="mb-4 text-center">
-                      <p className="text-sm text-slate-600 dark:text-slate-300 mb-1">Santri ini ditandai sedang pulang.</p>
-                      {student.statusKepulangan?.rencanaTanggalKembali && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                            Rencana kembali: {format(student.statusKepulangan.rencanaTanggalKembali.toDate(), 'dd MMM yy')}
-                          </p>
-                      )}
-                      <button onClick={() => handleStatusOverride('returned')} className={modalButtonStyle('confirm')}>
-                        <CheckCircleIcon className="w-4 h-4" /> Tandai Kembali
-                      </button>
+                    <div className="mb-4">
+                      <div className="text-center mb-3">
+                        <p className="text-sm text-slate-600 dark:text-slate-300 mb-1">Santri ini ditandai sedang pulang.</p>
+                        {student.statusKepulangan?.rencanaTanggalKembali && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Rencana kembali: {format(student.statusKepulangan.rencanaTanggalKembali.toDate(), 'dd MMM yy')}
+                            </p>
+                        )}
+                      </div>
+                      
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Status kehadiran sesi ini:</p>
+                      <div className="grid grid-cols-3 gap-2 mb-4">
+                        <button 
+                          onClick={() => handleStatusOverride('present')} 
+                          className={`px-2 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium ${studentStatus === 'present' ? 'ring-2 ring-emerald-500' : ''}`}
+                        >
+                          Hadir
+                        </button>
+                        <button 
+                          onClick={() => handleStatusOverride('absent')} 
+                          className={`px-2 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium ${studentStatus === 'absent' ? 'ring-2 ring-red-500' : ''}`}
+                        >
+                          Tidak Hadir
+                        </button>
+                        <button 
+                          onClick={() => handleStatusOverride('sick')} 
+                          className={`px-2 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-medium ${studentStatus === 'excusedPulang' ? 'ring-2 ring-sky-500' : ''}`}
+                        >
+                          Pulang
+                        </button>
+                      </div>
+                      
+                      <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-4">
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Update status di sistem:</p>
+                        <button 
+                          onClick={() => handleStatusOverride('returned')} 
+                          className={modalButtonStyle('confirm')}
+                        >
+                          <CheckCircleIcon className="w-4 h-4" /> Tandai Kembali
+                        </button>
+                      </div>
                     </div>
                 )}
                 <div className="mt-4 flex justify-center">

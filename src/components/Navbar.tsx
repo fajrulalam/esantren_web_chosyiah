@@ -120,6 +120,12 @@ export default function Navbar() {
                                             >
                                                 Presensi
                                             </Link>
+                                            <Link
+                                                href="/izin-admin"
+                                                className={isActive('/izin-admin') ? activeClass : inactiveClass}
+                                            >
+                                                Izin Santri
+                                            </Link>
                                             {user.role === 'superAdmin' && (
                                                 <Link
                                                     href="/user-management"
@@ -130,12 +136,20 @@ export default function Navbar() {
                                             )}
                                         </>
                                     ) : (
-                                        <Link
-                                            href="/payment-history"
-                                            className={isActive('/payment-history') ? activeClass : inactiveClass}
-                                        >
-                                            History Pembayaran
-                                        </Link>
+                                        <>
+                                            <Link
+                                                href="/payment-history"
+                                                className={isActive('/payment-history') ? activeClass : inactiveClass}
+                                            >
+                                                History Pembayaran
+                                            </Link>
+                                            <Link
+                                                href="/izin-santri"
+                                                className={isActive('/izin-santri') ? activeClass : inactiveClass}
+                                            >
+                                                Izin Sakit/Pulang
+                                            </Link>
+                                        </>
                                     )}
                                     <DarkModeToggle />
                                     <button
@@ -208,6 +222,13 @@ export default function Navbar() {
                                             >
                                                 Presensi
                                             </Link>
+                                            <Link
+                                                href="/izin-admin"
+                                                className={`block ${isActive('/izin-admin') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Izin Santri
+                                            </Link>
                                             {user.role === 'superAdmin' && (
                                                 <Link
                                                     href="/user-management"
@@ -219,13 +240,22 @@ export default function Navbar() {
                                             )}
                                         </>
                                     ) : (
-                                        <Link
-                                            href="/payment-history"
-                                            className={`block ${isActive('/payment-history') ? activeClass : inactiveClass}`}
-                                            onClick={() => setIsMenuOpen(false)}
-                                        >
-                                            History Pembayaran
-                                        </Link>
+                                        <>
+                                            <Link
+                                                href="/payment-history"
+                                                className={`block ${isActive('/payment-history') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                History Pembayaran
+                                            </Link>
+                                            <Link
+                                                href="/izin-santri"
+                                                className={`block ${isActive('/izin-santri') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Izin Sakit/Pulang
+                                            </Link>
+                                        </>
                                     )}
                                     <button
                                         onClick={async () => {

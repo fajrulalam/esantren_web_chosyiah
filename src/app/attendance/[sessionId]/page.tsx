@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuth } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { format } from 'date-fns';
 import id from 'date-fns/locale/id';
@@ -98,7 +98,33 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
     if (confirmation) {
       setIsClosing(true);
       try {
+        // First, update santri documents where status is 'excusedSick'
+        const updatePromises = [];
+        
+        // Process all students in the session
+        for (const [santriId, statusData] of Object.entries(currentSession.studentStatuses)) {
+          // If student was marked as sick, update their document in SantriCollection
+          if (statusData.status === 'excusedSick') {
+            const santriDocRef = doc(db, "SantriCollection", santriId);
+            updatePromises.push(
+              updateDoc(santriDocRef, {
+                statusKehadiran: "Sakit",
+                updatedAt: serverTimestamp(),
+                updatedBy: teacherId
+              })
+            );
+          }
+          // Note: Dispen doesn't require any change to SantriCollection status
+        }
+        
+        // Wait for all santri document updates to complete
+        if (updatePromises.length > 0) {
+          await Promise.all(updatePromises);
+        }
+        
+        // Then close the session
         const success = await closeAttendanceSession(sessionId, teacherId);
+        
         if (success) {
           // Ask if user wants to share the summary to WhatsApp after closing
           const shareSummary = window.confirm(
@@ -302,7 +328,10 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
     let absentCount = 0;
     let sickCount = 0;
     let pulangCount = 0;
+    let dispenCount = 0;
     const absentStudents: string[] = [];
+    const sickStudents: string[] = [];
+    const dispenStudents: string[] = [];
     
     students.forEach(student => {
       const status = currentSession.studentStatuses[student.id]?.status;
@@ -318,9 +347,14 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
           break;
         case 'excusedSick':
           sickCount++;
+          if (student.nama) sickStudents.push(student.nama);
           break;
         case 'excusedPulang':
           pulangCount++;
+          break;
+        case 'dispen':
+          dispenCount++;
+          if (student.nama) dispenStudents.push(student.nama);
           break;
       }
     });
@@ -338,12 +372,31 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
     summary += `✅ Hadir: ${presentCount} santri\n`;
     summary += `🤒 Sakit: ${sickCount} santri\n`;
     summary += `🏠 Pulang: ${pulangCount} santri\n`;
-    summary += `❌ Tidak Hadir: ${absentCount} santri\n\n`;
+    summary += `🟣 Dispensasi: ${dispenCount} santri\n`;
+    summary += `❌ Alfa: ${absentCount} santri\n\n`;
     
     // Add list of absent students if any
     if (absentStudents.length > 0) {
       summary += `*Daftar Santri Tidak Hadir:*\n`;
       absentStudents.forEach((name, index) => {
+        summary += `${index + 1}. ${name}\n`;
+      });
+      summary += '\n';
+    }
+    
+    // Add list of sick students if any
+    if (sickStudents.length > 0) {
+      summary += `*Daftar Santri Sakit:*\n`;
+      sickStudents.forEach((name, index) => {
+        summary += `${index + 1}. ${name}\n`;
+      });
+      summary += '\n';
+    }
+    
+    // Add list of dispensation students if any
+    if (dispenStudents.length > 0) {
+      summary += `*Daftar Santri Dispensasi:*\n`;
+      dispenStudents.forEach((name, index) => {
         summary += `${index + 1}. ${name}\n`;
       });
     }
@@ -448,19 +501,19 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
 
               {currentSession.isActive && (
                   <>
-                    <button
-                        onClick={shareToWhatsApp}
-                        className="px-5 py-2.5 bg-green-500 
-                            text-white font-medium rounded-full
-                            shadow-[3px_3px_10px_rgba(0,0,0,0.08),_-3px_-3px_10px_rgba(255,255,255,0.8)]
-                            dark:shadow-[3px_3px_10px_rgba(0,0,0,0.25),_-3px_-3px_10px_rgba(255,255,255,0.04)]
-                            hover:shadow-[1px_1px_5px_rgba(0,0,0,0.08),_-1px_-1px_5px_rgba(255,255,255,0.8)]
-                            dark:hover:shadow-[1px_1px_5px_rgba(0,0,0,0.25),_-1px_-1px_5px_rgba(255,255,255,0.04)]
-                            transition-all duration-200 hover:translate-y-0.5
-                            border border-green-400"
-                    >
-                      Share ke WhatsApp
-                    </button>
+                    {/*<button*/}
+                    {/*    onClick={shareToWhatsApp}*/}
+                    {/*    className="px-5 py-2.5 bg-green-500 */}
+                    {/*        text-white font-medium rounded-full*/}
+                    {/*        shadow-[3px_3px_10px_rgba(0,0,0,0.08),_-3px_-3px_10px_rgba(255,255,255,0.8)]*/}
+                    {/*        dark:shadow-[3px_3px_10px_rgba(0,0,0,0.25),_-3px_-3px_10px_rgba(255,255,255,0.04)]*/}
+                    {/*        hover:shadow-[1px_1px_5px_rgba(0,0,0,0.08),_-1px_-1px_5px_rgba(255,255,255,0.8)]*/}
+                    {/*        dark:hover:shadow-[1px_1px_5px_rgba(0,0,0,0.25),_-1px_-1px_5px_rgba(255,255,255,0.04)]*/}
+                    {/*        transition-all duration-200 hover:translate-y-0.5*/}
+                    {/*        border border-green-400"*/}
+                    {/*>*/}
+                    {/*  Share ke WhatsApp*/}
+                    {/*</button>*/}
                     
                     <button
                         onClick={handleCloseSession}

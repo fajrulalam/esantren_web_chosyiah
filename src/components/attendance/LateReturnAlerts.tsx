@@ -77,7 +77,7 @@ export default function LateReturnAlerts({ kodeAsrama, teacherId }: LateReturnAl
               </div>
               
               <button
-                onClick={() => overrideReturnStatus(student.id, true, teacherId)}
+                onClick={() => overrideReturnStatus(student.id, true, teacherId, student)}
                 className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
               >
                 Tandai Sudah Kembali
