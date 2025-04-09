@@ -374,7 +374,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
           ? payment.nomorTelpon.substring(1)
           : payment.nomorTelpon;
 
-        const message = `[PENGINGAT PEMBAYARAN SANTRI]\n\nAssalamu'alaikum Wr. Wb. Wali Santri dari Ananda ${payment.nama},\n\nKami mohon izin mengingatkan kembali mengenai pembayaran *${paymentName}* sebesar *${formatCurrency(payment.total - payment.paid)}* yang masih belum terselesaikan. Kami sangat menghargai perhatian serta kerja sama Bapak/Ibu.\n\nJazakumullah khairan katsiran.`
+        const message = `[PESAN OTOMATIS DARI Esantren Chosyi'ah]\n\nAssalamu'alaikum Wr. Wb. Santri Ananda ${payment.nama},\n\nmengingatkan kembali mengenai pembayaran *${paymentName}* sebesar *${formatCurrency(payment.total - payment.paid)}* yang masih belum terselesaikan. Segeralah melakukan pembayaran untuk mendapatkan kode gerbang yang telah diperbarui (kode lama akan hangus pada tanggal 1* April 2025).\n\nUnggah bukti pembayaran ke website Esantren Chosyi'ah: https://esantren-chosyiah.vercel.app/\n\nJazakumullah khairan katsiran.`
         window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
       } else {
         alert('Nomor WhatsApp Wali Santri tidak tersedia');
