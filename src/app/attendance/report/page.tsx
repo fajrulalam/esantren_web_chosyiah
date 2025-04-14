@@ -231,36 +231,36 @@ export default function AttendanceReportScreen() {
 
           <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow-md">
             <table className="report-table w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-200">Nama</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Hadir</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Alfa</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Sakit</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Pulang</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Dispensasi</th>
-                  {/*<th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Tidak Diketahui</th>*/}
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Total Sesi</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Persentase Kehadiran</th>
-                </tr>
+              <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-200">Nama</th>
+                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Hadir</th>
+                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Alfa</th>
+                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Sakit</th>
+                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Pulang</th>
+                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Dispensasi</th>
+                {/*<th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Tidak Diketahui</th>*/}
+                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Total Sesi</th>
+                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Persentase Kehadiran</th>
+              </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {reportData.studentReports
-                  .filter(student => student.studentSessionCount > 0) // Only show students with at least one session
+              {reportData.studentReports
+                  .filter(student => student.studentSessionCount > 0)
                   .map(student => (
-                    <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-4 py-3 text-sm">{student.nama}</td>
-                      <td className="px-4 py-3 text-sm text-center">{student.presentCount}</td>
-                      <td className="px-4 py-3 text-sm text-center">{student.absentCount - student.sickCount}</td>
-                      <td className="px-4 py-3 text-sm text-center">{student.sickCount}</td>
-                      <td className="px-4 py-3 text-sm text-center">{student.pulangCount}</td>
-                      <td className="px-4 py-3 text-sm text-center">{student.dispenCount || 0}</td>
-                      {/*<td className="px-4 py-3 text-sm text-center">{student.unknownCount}</td>*/}
-                      <td className="px-4 py-3 text-sm text-center">{student.studentSessionCount}</td>
-                      <td className="px-4 py-3 text-sm text-center font-medium">
-                        {student.attendanceRate}
-                      </td>
-                    </tr>
+                      <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="px-4 py-3 text-sm">{student.nama}</td>
+                        <td className="px-4 py-3 text-sm text-center">{student.presentCount}</td>
+                        <td className="px-4 py-3 text-sm text-center">{student.absentCount - student.sickCount}</td>
+                        <td className="px-4 py-3 text-sm text-center">{student.sickCount}</td>
+                        <td className="px-4 py-3 text-sm text-center">{student.pulangCount}</td>
+                        <td className="px-4 py-3 text-sm text-center">{student.dispenCount || 0}</td>
+                        {/*<td className="px-4 py-3 text-sm text-center">{student.unknownCount}</td>*/}
+                        <td className="px-4 py-3 text-sm text-center">{student.studentSessionCount}</td>
+                        <td className="px-4 py-3 text-sm text-center font-medium">
+                          {student.attendanceRate}
+                        </td>
+                      </tr>
                   ))}
               </tbody>
             </table>
