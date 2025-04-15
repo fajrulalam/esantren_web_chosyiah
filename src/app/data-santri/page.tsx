@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
 import { 
@@ -63,9 +63,53 @@ export default function DataSantriPage() {
   
   // Get unique values for filter dropdowns
   const uniqueTahunMasuk = [...new Set(santris.map(santri => santri.tahunMasuk))].sort((a, b) => parseInt(b) - parseInt(a));
-  const uniqueKamar = [...new Set(santris.map(santri => santri.kamar))].sort();
   const uniqueJenjang = [...new Set(santris.map(santri => santri.jenjangPendidikan))].sort();
   const uniqueSemester = [...new Set(santris.map(santri => santri.semester).filter(Boolean))].sort((a, b) => parseInt(a) - parseInt(b));
+  
+  // Get unique kamar values and organize them into room groups
+  const uniqueKamar = [...new Set(santris.map(santri => santri.kamar))].sort();
+  const roomGroups = new Map();
+  
+  // Extract room groups from individual room names
+  uniqueKamar.forEach(room => {
+    if (!room) return; // Skip empty values
+    
+    // Extract the room group (e.g., "101" from "101 A")
+    // This handles cases like "101 A", "101-A", "101A", etc.
+    const roomGroupMatch = room.match(/^(\d+)[\s-]?[A-Za-z]?/);
+    
+    if (roomGroupMatch && roomGroupMatch[1]) {
+      const groupNumber = roomGroupMatch[1];
+      
+      if (!roomGroups.has(groupNumber)) {
+        roomGroups.set(groupNumber, []);
+      }
+      
+      roomGroups.get(groupNumber).push(room);
+    } else {
+      // If no pattern match, treat the whole room name as its own group
+      if (!roomGroups.has(room)) {
+        roomGroups.set(room, [room]);
+      }
+    }
+  });
+  
+  // Convert to array of objects for easier rendering
+  const roomGroupsArray = Array.from(roomGroups.entries()).map(([groupName, rooms]) => ({
+    groupName,
+    rooms: rooms.sort()
+  })).sort((a, b) => {
+    // Try to sort numerically if possible
+    const numA = parseInt(a.groupName, 10);
+    const numB = parseInt(b.groupName, 10);
+    
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return numA - numB;
+    }
+    
+    // Fall back to string comparison
+    return a.groupName.localeCompare(b.groupName);
+  });
   // Normalize program studi capitalization for the filter dropdown
   const uniqueProgramStudi = [...new Set(
     santris.map(santri => santri.programStudi?.toUpperCase()).filter(Boolean)
@@ -143,7 +187,19 @@ export default function DataSantriPage() {
     }
     
     if (kamarFilter !== 'all') {
-      filtered = filtered.filter(santri => santri.kamar === kamarFilter);
+      // Check if this is a room group filter (e.g., "group:101") or a specific room
+      if (kamarFilter.startsWith('group:')) {
+        const groupNumber = kamarFilter.replace('group:', '');
+        // Filter for any rooms that start with this group number
+        filtered = filtered.filter(santri => {
+          if (!santri.kamar) return false;
+          const roomGroupMatch = santri.kamar.match(/^(\d+)[\s-]?[A-Za-z]?/);
+          return roomGroupMatch && roomGroupMatch[1] === groupNumber;
+        });
+      } else {
+        // Regular filter for exact room match
+        filtered = filtered.filter(santri => santri.kamar === kamarFilter);
+      }
     }
     
     // Apply search query filter
@@ -772,8 +828,31 @@ export default function DataSantriPage() {
               className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
             >
               <option value="all">Semua Kamar</option>
-              {uniqueKamar.map((kamar) => (
-                <option key={kamar} value={kamar}>{kamar}</option>
+              
+              {/* Hierarchical Room Selection */}
+              {roomGroupsArray.map(group => (
+                <React.Fragment key={`group-section-${group.groupName}`}>
+                  {/* Room Group */}
+                  <option 
+                    key={`group-${group.groupName}`} 
+                    value={`group:${group.groupName}`}
+                    className="font-semibold"
+                    style={{ backgroundColor: '#f0f4f8' }}
+                  >
+                    {group.groupName}
+                  </option>
+                  
+                  {/* Individual Rooms in this Group */}
+                  {group.rooms.map(room => (
+                    <option 
+                      key={room} 
+                      value={room}
+                      style={{ paddingLeft: '20px' }}
+                    >
+                      ┗ {room}
+                    </option>
+                  ))}
+                </React.Fragment>
               ))}
             </select>
           </div>

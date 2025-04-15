@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
 import { KODE_ASRAMA } from '@/constants';
@@ -302,6 +302,98 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     }
   };
 
+  // Function to resync santri data (kamar and educationGrade) for payment statuses
+  const resyncSantriData = async () => {
+    if (!paymentId) return;
+    
+    if (!confirm('Apakah Anda yakin ingin menyinkronkan data santri (kamar dan tingkat pendidikan) dengan data terbaru?')) {
+      return;
+    }
+    
+    setPageLoading(true);
+    try {
+      console.log("Starting data resync for invoice:", paymentId);
+      
+      // First get all payment statuses for this invoice
+      const paymentStatusesQuery = query(
+        collection(db, 'PaymentStatuses'),
+        where('invoiceId', '==', paymentId)
+      );
+      
+      const querySnapshot = await getDocs(paymentStatusesQuery);
+      
+      if (querySnapshot.empty) {
+        console.log("No payment statuses found to resync");
+        alert('Tidak ada data pembayaran yang ditemukan untuk disinkronkan');
+        return;
+      }
+      
+      console.log(`Found ${querySnapshot.size} payment records to resync`);
+      
+      // For tracking progress
+      let updatedCount = 0;
+      let errors = 0;
+      
+      // Process each payment status
+      for (const docSnapshot of querySnapshot.docs) {
+        try {
+          const paymentData = docSnapshot.data();
+          const santriId = paymentData.santriId;
+          
+          if (!santriId) {
+            console.warn(`Payment record ${docSnapshot.id} has no santriId, skipping`);
+            continue;
+          }
+          
+          // Get the latest santri data
+          console.log(`Fetching latest data for santri: ${santriId}`);
+          const santriRef = doc(db, 'SantriCollection', santriId);
+          const santriDoc = await getDoc(santriRef);
+          
+          if (!santriDoc.exists()) {
+            console.warn(`Santri ${santriId} not found, skipping`);
+            continue;
+          }
+          
+          const santriData = santriDoc.data();
+          
+          // Extract the data we want to sync
+          const kamar = santriData.kamar || '';
+          // Prioritize semester over kelas for education grade
+          const educationGrade = santriData.semester || santriData.kelas || '';
+          
+          console.log(`Updating payment record for santri ${santriId}:`, { kamar, educationGrade });
+          
+          // Update only if data is different
+          if (paymentData.kamar !== kamar || paymentData.educationGrade !== educationGrade) {
+            await updateDoc(docSnapshot.ref, {
+              kamar: kamar,
+              educationGrade: educationGrade
+            });
+            updatedCount++;
+          }
+        } catch (error) {
+          console.error(`Error updating payment record: ${docSnapshot.id}`, error);
+          errors++;
+        }
+      }
+      
+      if (updatedCount > 0) {
+        alert(`Berhasil menyinkronkan ${updatedCount} data santri dari total ${querySnapshot.size} data.${errors > 0 ? ` (${errors} error)` : ''}`);
+        // Refresh the data
+        await fetchSantriPaymentStatus();
+      } else {
+        alert(`Tidak ada data yang perlu diperbarui dari ${querySnapshot.size} data.${errors > 0 ? ` (${errors} error)` : ''}`);
+      }
+      
+    } catch (error) {
+      console.error("Error resyncing santri data:", error);
+      alert('Gagal menyinkronkan data santri. Silakan coba lagi.');
+    } finally {
+      setPageLoading(false);
+    }
+  };
+
   // Call fetchSantriPaymentStatus when component mounts
   useEffect(() => {
     fetchSantriPaymentStatus();
@@ -312,7 +404,19 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     let result = santriPayments;
 
     if (filters.kamar) {
-      result = result.filter(payment => payment.kamar === filters.kamar);
+      // Check if this is a room group filter (e.g., "group:101") or a specific room
+      if (filters.kamar.startsWith('group:')) {
+        const groupNumber = filters.kamar.replace('group:', '');
+        // Filter for any rooms that start with this group number
+        result = result.filter(payment => {
+          if (!payment.kamar) return false;
+          const roomGroupMatch = payment.kamar.match(/^(\d+)[\s-]?[A-Za-z]?/);
+          return roomGroupMatch && roomGroupMatch[1] === groupNumber;
+        });
+      } else {
+        // Regular filter for exact room match
+        result = result.filter(payment => payment.kamar === filters.kamar);
+      }
     }
 
     if (filters.educationLevel) {
@@ -350,9 +454,53 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
   };
 
   // Get unique values for filters
-  const uniqueKamar = [...new Set(santriPayments.map(payment => payment.kamar))];
   const uniqueEducationLevels = [...new Set(santriPayments.map(payment => payment.educationLevel))];
   const uniqueStatuses = [...new Set(santriPayments.map(payment => payment.status))];
+  
+  // Get unique kamar values and organize them into room groups
+  const uniqueKamar = [...new Set(santriPayments.map(payment => payment.kamar))].sort();
+  const roomGroups = new Map();
+  
+  // Extract room groups from individual room names
+  uniqueKamar.forEach(room => {
+    if (!room) return; // Skip empty values
+    
+    // Extract the room group (e.g., "101" from "101 A")
+    // This handles cases like "101 A", "101-A", "101A", etc.
+    const roomGroupMatch = room.match(/^(\d+)[\s-]?[A-Za-z]?/);
+    
+    if (roomGroupMatch && roomGroupMatch[1]) {
+      const groupNumber = roomGroupMatch[1];
+      
+      if (!roomGroups.has(groupNumber)) {
+        roomGroups.set(groupNumber, []);
+      }
+      
+      roomGroups.get(groupNumber).push(room);
+    } else {
+      // If no pattern match, treat the whole room name as its own group
+      if (!roomGroups.has(room)) {
+        roomGroups.set(room, [room]);
+      }
+    }
+  });
+  
+  // Convert to array of objects for easier rendering
+  const roomGroupsArray = Array.from(roomGroups.entries()).map(([groupName, rooms]) => ({
+    groupName,
+    rooms: rooms.sort()
+  })).sort((a, b) => {
+    // Try to sort numerically if possible
+    const numA = parseInt(a.groupName, 10);
+    const numB = parseInt(b.groupName, 10);
+    
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return numA - numB;
+    }
+    
+    // Fall back to string comparison
+    return a.groupName.localeCompare(b.groupName);
+  });
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -732,6 +880,14 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
 
   return (
     <div className="fixed inset-0 z-50 overflow-auto bg-opacity-75 bg-gray-800">
+      {pageLoading && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-gray-900 bg-opacity-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-700 dark:text-gray-300">Memproses data...</p>
+          </div>
+        </div>
+      )}
       <div className="bg-white dark:bg-gray-900 min-h-screen transition-colors">
         <div className="container mx-auto py-6 px-4">
           <div className="flex justify-between items-center mb-6">
@@ -749,6 +905,21 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
             </div>
             
             <div className="flex gap-3">
+              <button
+                onClick={resyncSantriData}
+                className="relative px-5 py-2.5 rounded-xl text-white font-medium transition-all duration-200
+                  bg-blue-600 dark:bg-blue-700
+                  border border-blue-500/20 dark:border-blue-600/20
+                  before:absolute before:inset-0 before:rounded-xl
+                  before:bg-gradient-to-br before:from-blue-400/80 before:to-blue-600/90
+                  dark:before:bg-gradient-to-br dark:before:from-blue-600/50 dark:before:to-blue-800/90
+                  before:z-[-1] before:overflow-hidden
+                  hover:translate-y-[-2px] active:translate-y-0
+                  hover:before:from-blue-500/80 hover:before:to-blue-700/90
+                  focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-400/50"
+              >
+                Resync Data
+              </button>
               <button
                 onClick={deleteInvoice}
                 className="relative px-5 py-2.5 rounded-xl text-white font-medium transition-all duration-200
@@ -939,8 +1110,31 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                     focus:border-blue-500 focus:ring-blue-500 transition-all"
                 >
                   <option value="">Semua Kamar</option>
-                  {uniqueKamar.map((kamar) => (
-                    <option key={kamar} value={kamar}>{kamar}</option>
+                  
+                  {/* Hierarchical Room Selection */}
+                  {roomGroupsArray.map(group => (
+                    <React.Fragment key={`group-section-${group.groupName}`}>
+                      {/* Room Group */}
+                      <option 
+                        key={`group-${group.groupName}`} 
+                        value={`group:${group.groupName}`}
+                        className="font-semibold"
+                        style={{ backgroundColor: '#f0f4f8' }}
+                      >
+                        {group.groupName}
+                      </option>
+                      
+                      {/* Individual Rooms in this Group */}
+                      {group.rooms.map(room => (
+                        <option 
+                          key={room} 
+                          value={room}
+                          style={{ paddingLeft: '20px' }}
+                        >
+                          ┗ {room}
+                        </option>
+                      ))}
+                    </React.Fragment>
                   ))}
                 </select>
               </div>
@@ -1024,7 +1218,11 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                       text-indigo-700 dark:text-indigo-300
                       hover:translate-y-[-1px] active:translate-y-0"
                   >
-                    Kamar: {filters.kamar}
+                    {filters.kamar.startsWith('group:') ? (
+                      <>Kamar: Kelompok {filters.kamar.replace('group:', '')}</>
+                    ) : (
+                      <>Kamar: {filters.kamar}</>
+                    )}
                     <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>

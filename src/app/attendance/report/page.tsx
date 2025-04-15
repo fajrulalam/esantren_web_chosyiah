@@ -9,6 +9,10 @@ import { format } from 'date-fns';
 import { generateAttendanceReport, getAttendanceTypes } from '@/firebase/attendance';
 import { AttendanceReport, AttendanceType } from '@/types/attendance';
 import { KODE_ASRAMA } from '@/constants';
+import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
+
+type SortField = 'nama' | 'presentCount' | 'absentCount' | 'sickCount' | 'pulangCount' | 'dispenCount' | 'studentSessionCount' | 'attendanceRate';
+type SortDirection = 'asc' | 'desc';
 
 export default function AttendanceReportScreen() {
   const router = useRouter();
@@ -20,6 +24,8 @@ export default function AttendanceReportScreen() {
   const [selectedAttendanceTypeId, setSelectedAttendanceTypeId] = useState<string>('');
   const [sessionType, setSessionType] = useState<'all' | 'scheduled' | 'incidental'>('all');
   const [isLoadingTypes, setIsLoadingTypes] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('nama');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   // Fetch attendance types on component mount
   useEffect(() => {
@@ -84,10 +90,9 @@ export default function AttendanceReportScreen() {
 
     // Generate CSV content - only include students with at least one session
     const headers = "Nama,Hadir,Alfa,Sakit,Pulang,Dispensasi,Total Kegiatan,Persentase Kehadiran\n";
-    const rows = reportData.studentReports
-      .filter(student => student.studentSessionCount > 0)
+    const rows = getSortedStudentReports()
       .map(student =>
-        `"${student.nama}",${student.presentCount},${student.absentCount - student.sickCount},${student.sickCount},${student.pulangCount},${student.dispenCount || 0},${student.studentSessionCount},${student.attendanceRate}`
+        `"${student.nama}",${student.presentCount},${student.absentCount - student.sickCount - student.pulangCount - student.dispenCount},${student.sickCount},${student.pulangCount},${student.dispenCount || 0},${student.studentSessionCount},${student.attendanceRate}`
       ).join("\n");
 
     // Create and download CSV file
@@ -100,6 +105,52 @@ export default function AttendanceReportScreen() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+  
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+  
+  const getSortedStudentReports = () => {
+    if (!reportData) return [];
+    
+    const filteredStudents = reportData.studentReports
+      .filter(student => student.studentSessionCount > 0);
+      
+    return [...filteredStudents].sort((a, b) => {
+      // Special handling for attendance rate which is a string percentage
+      if (sortField === 'attendanceRate') {
+        const rateA = parseFloat(a.attendanceRate.replace('%', ''));
+        const rateB = parseFloat(b.attendanceRate.replace('%', ''));
+        return sortDirection === 'asc' ? rateA - rateB : rateB - rateA;
+      }
+      
+      // For absentCount, we need to calculate actual alfa (absent excluding sick, pulang, dispen)
+      if (sortField === 'absentCount') {
+        let alfaA = a.absentCount - a.sickCount - a.pulangCount - (a.dispenCount || 0);
+        let alfaB = b.absentCount - b.sickCount - b.pulangCount - (b.dispenCount || 0);
+        return sortDirection === 'asc' ? alfaA - alfaB : alfaB - alfaA;
+      }
+      
+      // For other numeric fields
+      if (sortField !== 'nama') {
+        const valA = a[sortField] || 0;
+        const valB = b[sortField] || 0;
+        return sortDirection === 'asc' ? valA - valB : valB - valA;
+      }
+      
+      // For name (string comparison)
+      return sortDirection === 'asc' 
+        ? a.nama.localeCompare(b.nama) 
+        : b.nama.localeCompare(a.nama);
+    });
   };
 
   return (
@@ -184,35 +235,7 @@ export default function AttendanceReportScreen() {
 
       {reportData && (
         <>
-          {/*<div className="report-summary bg-white dark:bg-gray-800 p-5 rounded-lg shadow-md mb-6">*/}
-          {/*  <h2 className="text-xl font-semibold mb-4">Ringkasan Laporan</h2>*/}
-          {/*  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">*/}
-          {/*    <div>*/}
-          {/*      <p className="text-gray-600 dark:text-gray-400 mb-1">Asrama</p>*/}
-          {/*      <p className="font-medium">{reportData.kodeAsrama}</p>*/}
-          {/*    </div>*/}
-          {/*    <div>*/}
-          {/*      <p className="text-gray-600 dark:text-gray-400 mb-1">Periode</p>*/}
-          {/*      <p className="font-medium">*/}
-          {/*        {format(reportData.startDate, 'dd MMM yyyy')} hingga {format(reportData.endDate, 'dd MMM yyyy')}*/}
-          {/*      </p>*/}
-          {/*    </div>*/}
-          {/*    <div>*/}
-          {/*      <p className="text-gray-600 dark:text-gray-400 mb-1">Total Kegiatan</p>*/}
-          {/*      <p className="font-medium">{reportData.totalSessions}</p>*/}
-          {/*    </div>*/}
-          {/*    <div>*/}
-          {/*      <p className="text-gray-600 dark:text-gray-400 mb-1">Filter Aktif</p>*/}
-          {/*      <p className="font-medium">*/}
-          {/*        {selectedAttendanceTypeId ? */}
-          {/*          attendanceTypes.find(t => t.id === selectedAttendanceTypeId)?.name || 'Tipe Absensi Tertentu' : */}
-          {/*          'Semua Tipe'} | */}
-          {/*        {sessionType === 'all' ? 'Semua Jenis' : */}
-          {/*         sessionType === 'scheduled' ? 'Terjadwal' : 'Insidental'}*/}
-          {/*      </p>*/}
-          {/*    </div>*/}
-          {/*  </div>*/}
-          {/*</div>*/}
+
 
           <div className="report-actions flex gap-3 mb-6">
             <button 
@@ -229,35 +252,123 @@ export default function AttendanceReportScreen() {
             </button>
           </div>
 
-          <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <table className="report-table w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+          <div className="overflow-x-auto overflow-y-auto max-h-[70vh] bg-white dark:bg-gray-800 rounded-lg shadow-md">
+            <table className="report-table w-full border-collapse"> {/* Added border-collapse */}
+              <thead className="sticky top-0 z-30">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-200">Nama</th>
-                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Hadir</th>
-                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Alfa</th>
-                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Sakit</th>
-                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Pulang</th>
-                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Dispensasi</th>
-                {/*<th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Tidak Diketahui</th>*/}
-                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Total Sesi</th>
-                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-200">Persentase Kehadiran</th>
+                {/* Explicitly add background to TH cells to prevent transparency */}
+                <th 
+                  className={`px-4 py-3 text-left text-sm font-medium bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 cursor-pointer group ${sortField === 'nama' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-200'}`}
+                  onClick={() => handleSort('nama')}
+                >
+                  <div className="flex items-center">
+                    <span>Nama</span>
+                    <div className="flex flex-col ml-1">
+                      <ChevronUpIcon className={`h-3 w-3 ${sortField === 'nama' && sortDirection === 'asc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                      <ChevronDownIcon className={`h-3 w-3 ${sortField === 'nama' && sortDirection === 'desc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                    </div>
+                  </div>
+                </th>
+                <th 
+                  className={`px-4 py-3 text-center text-sm font-medium bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 cursor-pointer group ${sortField === 'presentCount' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-200'}`}
+                  onClick={() => handleSort('presentCount')}
+                >
+                  <div className="flex items-center justify-center">
+                    <span>Hadir</span>
+                    <div className="flex flex-col ml-1">
+                      <ChevronUpIcon className={`h-3 w-3 ${sortField === 'presentCount' && sortDirection === 'asc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                      <ChevronDownIcon className={`h-3 w-3 ${sortField === 'presentCount' && sortDirection === 'desc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                    </div>
+                  </div>
+                </th>
+                <th 
+                  className={`px-4 py-3 text-center text-sm font-medium bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 cursor-pointer group ${sortField === 'absentCount' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-200'}`}
+                  onClick={() => handleSort('absentCount')}
+                >
+                  <div className="flex items-center justify-center">
+                    <span>Alfa</span>
+                    <div className="flex flex-col ml-1">
+                      <ChevronUpIcon className={`h-3 w-3 ${sortField === 'absentCount' && sortDirection === 'asc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                      <ChevronDownIcon className={`h-3 w-3 ${sortField === 'absentCount' && sortDirection === 'desc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                    </div>
+                  </div>
+                </th>
+                <th 
+                  className={`px-4 py-3 text-center text-sm font-medium bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 cursor-pointer group ${sortField === 'sickCount' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-200'}`}
+                  onClick={() => handleSort('sickCount')}
+                >
+                  <div className="flex items-center justify-center">
+                    <span>Sakit</span>
+                    <div className="flex flex-col ml-1">
+                      <ChevronUpIcon className={`h-3 w-3 ${sortField === 'sickCount' && sortDirection === 'asc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                      <ChevronDownIcon className={`h-3 w-3 ${sortField === 'sickCount' && sortDirection === 'desc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                    </div>
+                  </div>
+                </th>
+                <th 
+                  className={`px-4 py-3 text-center text-sm font-medium bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 cursor-pointer group ${sortField === 'pulangCount' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-200'}`}
+                  onClick={() => handleSort('pulangCount')}
+                >
+                  <div className="flex items-center justify-center">
+                    <span>Pulang</span>
+                    <div className="flex flex-col ml-1">
+                      <ChevronUpIcon className={`h-3 w-3 ${sortField === 'pulangCount' && sortDirection === 'asc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                      <ChevronDownIcon className={`h-3 w-3 ${sortField === 'pulangCount' && sortDirection === 'desc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                    </div>
+                  </div>
+                </th>
+                <th 
+                  className={`px-4 py-3 text-center text-sm font-medium bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 cursor-pointer group ${sortField === 'dispenCount' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-200'}`}
+                  onClick={() => handleSort('dispenCount')}
+                >
+                  <div className="flex items-center justify-center">
+                    <span>Dispensasi</span>
+                    <div className="flex flex-col ml-1">
+                      <ChevronUpIcon className={`h-3 w-3 ${sortField === 'dispenCount' && sortDirection === 'asc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                      <ChevronDownIcon className={`h-3 w-3 ${sortField === 'dispenCount' && sortDirection === 'desc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                    </div>
+                  </div>
+                </th>
+                <th 
+                  className={`px-4 py-3 text-center text-sm font-medium bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 cursor-pointer group ${sortField === 'studentSessionCount' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-200'}`}
+                  onClick={() => handleSort('studentSessionCount')}
+                >
+                  <div className="flex items-center justify-center">
+                    <span>Total Sesi</span>
+                    <div className="flex flex-col ml-1">
+                      <ChevronUpIcon className={`h-3 w-3 ${sortField === 'studentSessionCount' && sortDirection === 'asc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                      <ChevronDownIcon className={`h-3 w-3 ${sortField === 'studentSessionCount' && sortDirection === 'desc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                    </div>
+                  </div>
+                </th>
+                <th 
+                  className={`px-4 py-3 text-center text-sm font-medium bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 cursor-pointer group ${sortField === 'attendanceRate' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-200'}`}
+                  onClick={() => handleSort('attendanceRate')}
+                >
+                  <div className="flex items-center justify-center">
+                    <span>Persentase Kehadiran</span>
+                    <div className="flex flex-col ml-1">
+                      <ChevronUpIcon className={`h-3 w-3 ${sortField === 'attendanceRate' && sortDirection === 'asc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                      <ChevronDownIcon className={`h-3 w-3 ${sortField === 'attendanceRate' && sortDirection === 'desc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                    </div>
+                  </div>
+                </th>
               </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {reportData.studentReports
-                  .filter(student => student.studentSessionCount > 0)
-                  .map(student => (
+              {/* Use the sorted student reports */}
+              {getSortedStudentReports().map(student => (
                       <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <td className="px-4 py-3 text-sm">{student.nama}</td>
-                        <td className="px-4 py-3 text-sm text-center">{student.presentCount}</td>
-                        <td className="px-4 py-3 text-sm text-center">{student.absentCount - student.sickCount}</td>
-                        <td className="px-4 py-3 text-sm text-center">{student.sickCount}</td>
-                        <td className="px-4 py-3 text-sm text-center">{student.pulangCount}</td>
-                        <td className="px-4 py-3 text-sm text-center">{student.dispenCount || 0}</td>
-                        {/*<td className="px-4 py-3 text-sm text-center">{student.unknownCount}</td>*/}
-                        <td className="px-4 py-3 text-sm text-center">{student.studentSessionCount}</td>
-                        <td className="px-4 py-3 text-sm text-center font-medium">
+                        {/* Use text-gray-900 dark:text-white for better contrast */}
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{student.nama}</td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-900 dark:text-white">{student.presentCount}</td>
+                        {/* Calculate Alfa correctly */}
+                        <td className="px-4 py-3 text-sm text-center text-gray-900 dark:text-white">{student.absentCount}</td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-900 dark:text-white">{student.sickCount}</td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-900 dark:text-white">{student.pulangCount}</td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-900 dark:text-white">{student.dispenCount || 0}</td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-900 dark:text-white">{student.studentSessionCount}</td>
+                        <td className="px-4 py-3 text-sm text-center font-medium text-gray-900 dark:text-white">
                           {student.attendanceRate}
                         </td>
                       </tr>
