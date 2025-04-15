@@ -80,7 +80,8 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
   // Check if application can be deleted
   const canDelete = () => {
     if (!izin) return false;
-    return izin.status !== "Disetujui";
+    // return  false;
+    return izin.status !== "Proses Pulang" && "Dalam Masa Sakit" && "Sudah Kembali" && "Sudah Sembuh" && "Ditolak Ustadzah" && "Ditolak Ndalem";
   };
 
   // Handle delete application

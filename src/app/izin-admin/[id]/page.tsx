@@ -152,7 +152,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
     if (!application) return false;
     
     // Must be pengasuh or superAdmin
-    if (user?.role !== "pengasuh" && user?.role !== "superAdmin") {
+    if (user?.role !== "pengasuh" && user?.role !== "superAdmin" && user?.role !== "pengurus") {
       return false;
     }
     
@@ -176,8 +176,8 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
   const canVerifySantriRecovery = () => {
     if (!application) return false;
     
-    // Must be pengasuh or superAdmin
-    if (user?.role !== "pengasuh" && user?.role !== "superAdmin") {
+    // Must be pengurus, pengasuh or superAdmin
+    if (user?.role !== "pengasuh" && user?.role !== "superAdmin" && user?.role !== "pengurus") {
       return false;
     }
     
@@ -374,7 +374,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CheckIcon className="-ml-1 mr-2 h-5 w-5" />
-            Verifikasi Kepulangan Santri
+            Verifikasi Santri Sudah Kembali
           </button>
         </div>
       );
@@ -387,7 +387,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CheckIcon className="-ml-1 mr-2 h-5 w-5" />
-            Verifikasi Kesembuhan Santri
+            Verifikasi Santri Sudah Sembuh
           </button>
         </div>
       );

@@ -249,24 +249,30 @@ export async function overrideSickStatus(
 
   if (!isStillSick) {
     try {
-      await updateDoc(doc(db, "SakitDanPulangCollection", statusSakit.izinId), {
-        status: "Sudah Sembuh" as IzinStatus,
-        recoveryVerifiedBy: returnVerifiedBy
-      });
+      // Check SantriCollection document first
+      const santriDocRef = doc(db, "SantriCollection", santriId);
 
-      await updateDoc(doc(db, "SantriCollection", santriId), {
-        statusKehadiran: "Ada",
-        statusSakit: deleteField(),
-      });
-      return true;
+        await updateDoc(santriDocRef, {
+          statusKehadiran: "Ada",
+          statusSakit: deleteField(),
+        });
+
+      // Check SakitDanPulangCollection document
+      const izinDocRef = doc(db, "SakitDanPulangCollection", statusSakit.izinId);
+      const izinDocSnap = await getDoc(izinDocRef);
+
+      if (izinDocSnap.exists()) {
+        await updateDoc(izinDocRef, {
+          status: "Sudah Sembuh" as IzinStatus,
+          recoveryVerifiedBy: returnVerifiedBy,
+        });
+      }
 
       console.log(`Santri ${santriId} marked as Sudah Sembuh`);
+      return true;
     } catch (error) {
-      console.error(`Error marking santri ${santriId} as Sembuh:`, error);
+      console.error(`Error marking santrisss ${santriId} as Sembuh:`, error);
     }
-
-
-
   }
   return false;
 

@@ -9,6 +9,7 @@ import {
 import { db } from '@/firebase/config';
 import { Santri, SantriFormData } from '@/types/santri';
 import { KODE_ASRAMA } from '@/constants';
+import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
 import SantriModal from '@/components/SantriModal';
 import SantriVerificationModal from '@/components/SantriVerificationModal';
 import CSVImportModal from '@/components/CSVImportModal';
@@ -27,6 +28,12 @@ export default function DataSantriPage() {
   const [filteredSantris, setFilteredSantris] = useState<Santri[]>([]);
   const [highlightedSantriId, setHighlightedSantriId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Sorting state
+  type SortField = 'nama' | 'kamar' | 'jenjangPendidikan' | 'semester' | 'programStudi' | 'tahunMasuk' | 'statusTanggungan' | 'statusAktif';
+  type SortDirection = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('nama');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   
   // Filters state
   const [statusAktifFilter, setStatusAktifFilter] = useState<string>('Aktif');
@@ -158,6 +165,71 @@ export default function DataSantriPage() {
     }
   };
   
+  // Handle sort column click
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Function to sort the santris
+  const getSortedSantris = (santris: Santri[]) => {
+    return [...santris].sort((a, b) => {
+      // For numeric fields like semester and tahunMasuk
+      if (sortField === 'semester' || sortField === 'tahunMasuk') {
+        const valA = a[sortField] ? parseInt(a[sortField].toString()) : 0;
+        const valB = b[sortField] ? parseInt(b[sortField].toString()) : 0;
+        return sortDirection === 'asc' ? valA - valB : valB - valA;
+      }
+      
+      // For status fields (special ordering)
+      if (sortField === 'statusAktif') {
+        // Define a priority order for statuses
+        const statusOrder = {
+          'Aktif': 1,
+          'Pending': 2,
+          'Lulus': 3,
+          'Boyong': 4,
+          'Dikeluarkan': 5,
+          'Ditolak': 6
+        };
+        
+        const orderA = statusOrder[a.statusAktif as keyof typeof statusOrder] || 999;
+        const orderB = statusOrder[b.statusAktif as keyof typeof statusOrder] || 999;
+        
+        return sortDirection === 'asc' ? orderA - orderB : orderB - orderA;
+      }
+
+      if (sortField === 'statusTanggungan') {
+        // Define a priority order for statuses
+        const statusOrder = {
+          'Lunas': 1,
+          'Belum Ada Tagihan': 2,
+          'Menunggu Verifikasi': 3,
+          'Ada Tunggakan': 4
+        };
+        
+        const orderA = statusOrder[a.statusTanggungan as keyof typeof statusOrder] || 999;
+        const orderB = statusOrder[b.statusTanggungan as keyof typeof statusOrder] || 999;
+        
+        return sortDirection === 'asc' ? orderA - orderB : orderB - orderA;
+      }
+      
+      // For string fields (name, kamar, jenjangPendidikan, programStudi)
+      const valueA = String(a[sortField] || '').toLowerCase();
+      const valueB = String(b[sortField] || '').toLowerCase();
+      
+      return sortDirection === 'asc' 
+        ? valueA.localeCompare(valueB)
+        : valueB.localeCompare(valueA);
+    });
+  };
+  
   // Apply filters to santri data
   useEffect(() => {
     let filtered = [...santris];
@@ -210,12 +282,15 @@ export default function DataSantriPage() {
       );
     }
     
+    // Apply sorting
+    filtered = getSortedSantris(filtered);
+    
     setFilteredSantris(filtered);
     
     // Reset selection when filters change
     setSelectedSantriIds(new Set());
     setIsSelectAll(false);
-  }, [santris, statusAktifFilter, jenjangFilter, programStudiFilter, semesterFilter, tahunMasukFilter, statusTanggunganFilter, kamarFilter, searchQuery]);
+  }, [santris, statusAktifFilter, jenjangFilter, programStudiFilter, semesterFilter, tahunMasukFilter, statusTanggunganFilter, kamarFilter, searchQuery, sortField, sortDirection]);
   
   // Reset filters
   const resetFilters = () => {
@@ -899,23 +974,95 @@ export default function DataSantriPage() {
                           />
                         </div>
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors sticky left-10 bg-gray-50 dark:bg-gray-900 z-10">
-                        Nama Santri
+                      <th 
+                        scope="col" 
+                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer sticky left-10 bg-gray-50 dark:bg-gray-900 z-10 ${
+                          sortField === 'nama' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                        onClick={() => handleSort('nama')}
+                      >
+                        <div className="flex items-center">
+                          <span>Nama Santri</span>
+                          <div className="flex flex-col ml-1">
+                            <ChevronUpIcon className={`h-3 w-3 ${sortField === 'nama' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            <ChevronDownIcon className={`h-3 w-3 ${sortField === 'nama' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                          </div>
+                        </div>
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
-                        Kamar
+                      <th 
+                        scope="col" 
+                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                          sortField === 'kamar' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                        onClick={() => handleSort('kamar')}
+                      >
+                        <div className="flex items-center">
+                          <span>Kamar</span>
+                          <div className="flex flex-col ml-1">
+                            <ChevronUpIcon className={`h-3 w-3 ${sortField === 'kamar' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            <ChevronDownIcon className={`h-3 w-3 ${sortField === 'kamar' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                          </div>
+                        </div>
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
-                        Jenjang Pendidikan
+                      <th 
+                        scope="col" 
+                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                          sortField === 'jenjangPendidikan' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                        onClick={() => handleSort('jenjangPendidikan')}
+                      >
+                        <div className="flex items-center">
+                          <span>Jenjang Pendidikan</span>
+                          <div className="flex flex-col ml-1">
+                            <ChevronUpIcon className={`h-3 w-3 ${sortField === 'jenjangPendidikan' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            <ChevronDownIcon className={`h-3 w-3 ${sortField === 'jenjangPendidikan' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                          </div>
+                        </div>
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
-                        Semester
+                      <th 
+                        scope="col" 
+                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                          sortField === 'semester' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                        onClick={() => handleSort('semester')}
+                      >
+                        <div className="flex items-center">
+                          <span>Semester</span>
+                          <div className="flex flex-col ml-1">
+                            <ChevronUpIcon className={`h-3 w-3 ${sortField === 'semester' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            <ChevronDownIcon className={`h-3 w-3 ${sortField === 'semester' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                          </div>
+                        </div>
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
-                        Program Studi
+                      <th 
+                        scope="col" 
+                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                          sortField === 'programStudi' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                        onClick={() => handleSort('programStudi')}
+                      >
+                        <div className="flex items-center">
+                          <span>Program Studi</span>
+                          <div className="flex flex-col ml-1">
+                            <ChevronUpIcon className={`h-3 w-3 ${sortField === 'programStudi' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            <ChevronDownIcon className={`h-3 w-3 ${sortField === 'programStudi' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                          </div>
+                        </div>
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
-                        Tahun Masuk
+                      <th 
+                        scope="col" 
+                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                          sortField === 'tahunMasuk' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                        onClick={() => handleSort('tahunMasuk')}
+                      >
+                        <div className="flex items-center">
+                          <span>Tahun Masuk</span>
+                          <div className="flex flex-col ml-1">
+                            <ChevronUpIcon className={`h-3 w-3 ${sortField === 'tahunMasuk' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            <ChevronDownIcon className={`h-3 w-3 ${sortField === 'tahunMasuk' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                          </div>
+                        </div>
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                         Nomor Wali Santri
@@ -923,11 +1070,35 @@ export default function DataSantriPage() {
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                         Nomor Telepon Santri
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
-                        Status Tanggungan
+                      <th 
+                        scope="col" 
+                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                          sortField === 'statusTanggungan' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                        onClick={() => handleSort('statusTanggungan')}
+                      >
+                        <div className="flex items-center">
+                          <span>Status Tanggungan</span>
+                          <div className="flex flex-col ml-1">
+                            <ChevronUpIcon className={`h-3 w-3 ${sortField === 'statusTanggungan' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            <ChevronDownIcon className={`h-3 w-3 ${sortField === 'statusTanggungan' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                          </div>
+                        </div>
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
-                        Status Aktif
+                      <th 
+                        scope="col" 
+                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                          sortField === 'statusAktif' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                        onClick={() => handleSort('statusAktif')}
+                      >
+                        <div className="flex items-center">
+                          <span>Status Aktif</span>
+                          <div className="flex flex-col ml-1">
+                            <ChevronUpIcon className={`h-3 w-3 ${sortField === 'statusAktif' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            <ChevronDownIcon className={`h-3 w-3 ${sortField === 'statusAktif' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                          </div>
+                        </div>
                       </th>
                       <th
                           scope="col"

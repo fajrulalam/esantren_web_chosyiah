@@ -20,11 +20,13 @@ export type IzinStatus =
 // Predefined options for alasan pulang
 export const ALASAN_PULANG_OPTIONS = [
   "Acara Keluarga",
+    "Izin Organisasi/Event Kampus",
   "Kerja Praktik",
   "KKN",
   "Lomba",
   "PPL",
   "Praktik Kesehatan",
+    "Sakit",
   "Seminar",
   "Lainnya"
 ];

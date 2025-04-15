@@ -250,7 +250,7 @@ const IzinCard: React.FC<IzinCardProps> = ({
             </div>
             <div className="min-w-0">
               <p className="text-lg font-semibold text-slate-800 dark:text-slate-100 truncate" title={izin.santriName}>
-                {izin.santriName || 'Nama Santri Tidak Tersedia'}
+                {izin.santriName || 'Izin saya'}
               </p>
               <p className="text-sm text-indigo-600 dark:text-indigo-400 font-medium">
                 Izin {izin.izinType}

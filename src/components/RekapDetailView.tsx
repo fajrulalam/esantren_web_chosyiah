@@ -7,6 +7,7 @@ import { KODE_ASRAMA } from '@/constants';
 import { collection, getDocs, query, where, getDoc, doc, updateDoc, arrayUnion, serverTimestamp, increment } from 'firebase/firestore';
 import { db, functions } from '@/firebase/config';
 import { httpsCallable } from 'firebase/functions';
+import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
 import TagihanModal from '@/components/TagihanModal';
 import StickyHorizontalScroll from '@/components/StickyHorizontalScroll';
 
@@ -62,6 +63,12 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     status: '',
     nama: ''
   });
+  
+  // Sorting state
+  type SortField = 'nama' | 'status' | 'paid' | 'total' | 'educationGrade' | 'kamar';
+  type SortDirection = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('nama');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   
   // State for payment verification/detail view
   const [showPaymentProofModal, setShowPaymentProofModal] = useState(false);
@@ -399,10 +406,58 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     fetchSantriPaymentStatus();
   }, [paymentId]);
 
-  // Apply filters
+  // Handle sort column click
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Function to sort the payments
+  const getSortedPayments = (payments: SantriPaymentStatus[]) => {
+    return [...payments].sort((a, b) => {
+      // For numeric fields
+      if (sortField === 'paid' || sortField === 'total') {
+        const valA = a[sortField] || 0;
+        const valB = b[sortField] || 0;
+        return sortDirection === 'asc' ? valA - valB : valB - valA;
+      }
+      
+      // For status field (special ordering)
+      if (sortField === 'status') {
+        // Define a priority order for statuses
+        const statusOrder = {
+          'Lunas': 1,
+          'Menunggu Verifikasi': 2,
+          'Belum Lunas': 3
+        };
+        
+        const orderA = statusOrder[a.status as keyof typeof statusOrder] || 999;
+        const orderB = statusOrder[b.status as keyof typeof statusOrder] || 999;
+        
+        return sortDirection === 'asc' ? orderA - orderB : orderB - orderA;
+      }
+      
+      // For string fields (name, educationGrade, kamar)
+      const valueA = String(a[sortField] || '').toLowerCase();
+      const valueB = String(b[sortField] || '').toLowerCase();
+      
+      return sortDirection === 'asc' 
+        ? valueA.localeCompare(valueB)
+        : valueB.localeCompare(valueA);
+    });
+  };
+
+  // Apply filters and sorting
   useEffect(() => {
     let result = santriPayments;
 
+    // Apply filters
     if (filters.kamar) {
       // Check if this is a room group filter (e.g., "group:101") or a specific room
       if (filters.kamar.startsWith('group:')) {
@@ -434,8 +489,11 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
       );
     }
 
+    // Apply sorting
+    result = getSortedPayments(result);
+
     setFilteredPayments(result);
-  }, [filters, santriPayments]);
+  }, [filters, santriPayments, sortField, sortDirection]);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -1326,23 +1384,95 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
                     <thead className="bg-gray-100 dark:bg-gray-800 transition-colors">
                       <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
-                          Nama
+                        <th 
+                          scope="col" 
+                          className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                            sortField === 'nama' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-300'
+                          }`}
+                          onClick={() => handleSort('nama')}
+                        >
+                          <div className="flex items-center">
+                            <span>Nama</span>
+                            <div className="flex flex-col ml-1">
+                              <ChevronUpIcon className={`h-3 w-3 ${sortField === 'nama' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                              <ChevronDownIcon className={`h-3 w-3 ${sortField === 'nama' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            </div>
+                          </div>
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
-                          Status Pembayaran
+                        <th 
+                          scope="col" 
+                          className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                            sortField === 'status' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-300'
+                          }`}
+                          onClick={() => handleSort('status')}
+                        >
+                          <div className="flex items-center">
+                            <span>Status Pembayaran</span>
+                            <div className="flex flex-col ml-1">
+                              <ChevronUpIcon className={`h-3 w-3 ${sortField === 'status' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                              <ChevronDownIcon className={`h-3 w-3 ${sortField === 'status' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            </div>
+                          </div>
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
-                          Total Terbayar
+                        <th 
+                          scope="col" 
+                          className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                            sortField === 'paid' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-300'
+                          }`}
+                          onClick={() => handleSort('paid')}
+                        >
+                          <div className="flex items-center">
+                            <span>Total Terbayar</span>
+                            <div className="flex flex-col ml-1">
+                              <ChevronUpIcon className={`h-3 w-3 ${sortField === 'paid' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                              <ChevronDownIcon className={`h-3 w-3 ${sortField === 'paid' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            </div>
+                          </div>
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
-                          Total Tagihan
+                        <th 
+                          scope="col" 
+                          className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                            sortField === 'total' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-300'
+                          }`}
+                          onClick={() => handleSort('total')}
+                        >
+                          <div className="flex items-center">
+                            <span>Total Tagihan</span>
+                            <div className="flex flex-col ml-1">
+                              <ChevronUpIcon className={`h-3 w-3 ${sortField === 'total' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                              <ChevronDownIcon className={`h-3 w-3 ${sortField === 'total' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            </div>
+                          </div>
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
-                          Semester
+                        <th 
+                          scope="col" 
+                          className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                            sortField === 'educationGrade' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-300'
+                          }`}
+                          onClick={() => handleSort('educationGrade')}
+                        >
+                          <div className="flex items-center">
+                            <span>Semester</span>
+                            <div className="flex flex-col ml-1">
+                              <ChevronUpIcon className={`h-3 w-3 ${sortField === 'educationGrade' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                              <ChevronDownIcon className={`h-3 w-3 ${sortField === 'educationGrade' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            </div>
+                          </div>
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
-                          Kamar
+                        <th 
+                          scope="col" 
+                          className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                            sortField === 'kamar' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-300'
+                          }`}
+                          onClick={() => handleSort('kamar')}
+                        >
+                          <div className="flex items-center">
+                            <span>Kamar</span>
+                            <div className="flex flex-col ml-1">
+                              <ChevronUpIcon className={`h-3 w-3 ${sortField === 'kamar' && sortDirection === 'asc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                              <ChevronDownIcon className={`h-3 w-3 ${sortField === 'kamar' && sortDirection === 'desc' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                            </div>
+                          </div>
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
                           No. WhatsApp
