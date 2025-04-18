@@ -44,6 +44,570 @@ interface RekapDetailViewProps {
   onClose: () => void;
 }
 
+// PaymentLogsModal component
+// Message Templates Modal Component
+function MessageTemplatesModal({
+  closeModal,
+  messageTemplates,
+  editedMessageTemplates,
+  setEditedMessageTemplates,
+  isMessageEdited,
+  setIsMessageEdited,
+  savingMessages,
+  saveMessageTemplates,
+  isMobile = false
+}: {
+  closeModal: () => void;
+  messageTemplates: {
+    reminderMessage: string;
+    verifyMessage: string;
+    partialPaymentMessage: string;
+    rejectMessage: string;
+    revocationMessage: string;
+  };
+  editedMessageTemplates: {
+    reminderMessage: string;
+    verifyMessage: string;
+    partialPaymentMessage: string;
+    rejectMessage: string;
+    revocationMessage: string;
+  };
+  setEditedMessageTemplates: React.Dispatch<React.SetStateAction<{
+    reminderMessage: string;
+    verifyMessage: string;
+    partialPaymentMessage: string;
+    rejectMessage: string;
+    revocationMessage: string;
+  }>>;
+  isMessageEdited: boolean;
+  setIsMessageEdited: React.Dispatch<React.SetStateAction<boolean>>;
+  savingMessages: boolean;
+  saveMessageTemplates: () => Promise<void>;
+  isMobile?: boolean;
+}) {
+  const [activeTab, setActiveTab] = useState('reminder');
+  const [modalClass, setModalClass] = useState('');
+  
+  // Handle message template change
+  const handleTemplateChange = (type: string, value: string) => {
+    setEditedMessageTemplates(prev => ({
+      ...prev,
+      [type]: value
+    }));
+    
+    // Check if content is different from original
+    const original = messageTemplates[type as keyof typeof messageTemplates];
+    if (value !== original) {
+      setIsMessageEdited(true);
+    } else {
+      // Check if any other fields are edited
+      const anyEdited = Object.entries(editedMessageTemplates).some(([key, val]) => {
+        if (key === type) return false; // Skip current field
+        return val !== messageTemplates[key as keyof typeof messageTemplates];
+      });
+      setIsMessageEdited(anyEdited);
+    }
+  };
+  
+  // Animation for mobile
+  useEffect(() => {
+    if (isMobile) {
+      setModalClass('transform translate-y-full');
+      setTimeout(() => {
+        setModalClass('transform translate-y-0');
+      }, 10);
+    }
+  }, [isMobile]);
+  
+  // Handle close with animation
+  const handleClose = () => {
+    if (isMobile) {
+      setModalClass('transform translate-y-full');
+      setTimeout(() => {
+        closeModal();
+      }, 300);
+    } else {
+      closeModal();
+    }
+  };
+
+  // Container class based on mobile or desktop
+  const containerClass = isMobile 
+    ? `fixed inset-0 z-50 mt-auto bg-black bg-opacity-50 transition-all duration-300 ${modalClass}` 
+    : 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+  
+  return (
+    <div className={containerClass}>
+      <div 
+        className={isMobile 
+          ? 'bg-white dark:bg-gray-800 rounded-t-xl h-[90vh] transition-colors w-full p-4 overflow-hidden' 
+          : 'bg-white dark:bg-gray-800 rounded-xl w-full max-w-4xl max-h-[90vh] p-6 m-4 transition-colors overflow-hidden'
+        }
+        onClick={(e) => e.stopPropagation()}
+      >
+        {isMobile && (
+          <div className="w-16 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-4 transition-colors"></div>
+        )}
+        
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-medium text-gray-900 dark:text-white transition-colors">
+            Template Pesan
+          </h3>
+          <button 
+            onClick={handleClose} 
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Message Template Tabs */}
+        <div className="flex overflow-x-auto mb-4 border-b border-gray-200 dark:border-gray-700 transition-colors">
+          <button
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'reminder' 
+                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('reminder')}
+          >
+            Pesan Pengingat
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'verify' 
+                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('verify')}
+          >
+            Pesan Verifikasi Lunas
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'partial' 
+                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('partial')}
+          >
+            Pesan Bayar Sebagian
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'reject' 
+                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('reject')}
+          >
+            Pesan Tolak Pembayaran
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'revoke' 
+                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('revoke')}
+          >
+            Pesan Batalkan Status
+          </button>
+        </div>
+        
+        {/* Template Content */}
+        <div className="max-h-[calc(90vh-220px)] overflow-y-auto pr-2 mb-6">
+          <div className="mb-2">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 transition-colors">
+              Anda dapat menggunakan variabel berikut dalam template:
+            </p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <span className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 px-2 py-1 rounded text-xs transition-colors">
+                {'{nama}'} - Nama santri
+              </span>
+              <span className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 px-2 py-1 rounded text-xs transition-colors">
+                {'{paymentName}'} - Nama pembayaran
+              </span>
+              <span className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 px-2 py-1 rounded text-xs transition-colors">
+                {'{amount}'} - Jumlah pembayaran
+              </span>
+              <span className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 px-2 py-1 rounded text-xs transition-colors">
+                {'{total}'} - Total tagihan
+              </span>
+              <span className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 px-2 py-1 rounded text-xs transition-colors">
+                {'{remaining}'} - Sisa yang harus dibayar
+              </span>
+              <span className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 px-2 py-1 rounded text-xs transition-colors">
+                {'{reason}'} - Alasan penolakan/pembatalan
+              </span>
+            </div>
+          </div>
+          
+          {/* Reminder Message Tab */}
+          {activeTab === 'reminder' && (
+            <div>
+              <h4 className="font-medium text-gray-900 dark:text-white mb-2 transition-colors">
+                Template Pesan Pengingat
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 transition-colors">
+                Dikirim ketika Anda klik tombol aksi di santri dengan status "Belum Lunas"
+              </p>
+              <textarea
+                className="w-full h-64 rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 
+                  text-gray-700 dark:text-gray-200 font-mono text-sm p-4 transition-colors"
+                value={editedMessageTemplates.reminderMessage}
+                onChange={(e) => handleTemplateChange('reminderMessage', e.target.value)}
+                placeholder="Masukkan template pesan pengingat..."
+              />
+            </div>
+          )}
+          
+          {/* Verify Message Tab */}
+          {activeTab === 'verify' && (
+            <div>
+              <h4 className="font-medium text-gray-900 dark:text-white mb-2 transition-colors">
+                Template Pesan Verifikasi Lunas
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 transition-colors">
+                Dikirim ketika pembayaran penuh diverifikasi dan santri menjadi "Lunas"
+              </p>
+              <textarea
+                className="w-full h-64 rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 
+                  text-gray-700 dark:text-gray-200 font-mono text-sm p-4 transition-colors"
+                value={editedMessageTemplates.verifyMessage}
+                onChange={(e) => handleTemplateChange('verifyMessage', e.target.value)}
+                placeholder="Masukkan template pesan verifikasi lunas..."
+              />
+            </div>
+          )}
+          
+          {/* Partial Payment Message Tab */}
+          {activeTab === 'partial' && (
+            <div>
+              <h4 className="font-medium text-gray-900 dark:text-white mb-2 transition-colors">
+                Template Pesan Pembayaran Sebagian
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 transition-colors">
+                Dikirim ketika pembayaran sebagian diverifikasi
+              </p>
+              <textarea
+                className="w-full h-64 rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 
+                  text-gray-700 dark:text-gray-200 font-mono text-sm p-4 transition-colors"
+                value={editedMessageTemplates.partialPaymentMessage}
+                onChange={(e) => handleTemplateChange('partialPaymentMessage', e.target.value)}
+                placeholder="Masukkan template pesan pembayaran sebagian..."
+              />
+            </div>
+          )}
+          
+          {/* Reject Message Tab */}
+          {activeTab === 'reject' && (
+            <div>
+              <h4 className="font-medium text-gray-900 dark:text-white mb-2 transition-colors">
+                Template Pesan Tolak Pembayaran
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 transition-colors">
+                Dikirim ketika pembayaran ditolak verifikasinya
+              </p>
+              <textarea
+                className="w-full h-64 rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 
+                  text-gray-700 dark:text-gray-200 font-mono text-sm p-4 transition-colors"
+                value={editedMessageTemplates.rejectMessage}
+                onChange={(e) => handleTemplateChange('rejectMessage', e.target.value)}
+                placeholder="Masukkan template pesan tolak pembayaran..."
+              />
+            </div>
+          )}
+          
+          {/* Revoke Message Tab */}
+          {activeTab === 'revoke' && (
+            <div>
+              <h4 className="font-medium text-gray-900 dark:text-white mb-2 transition-colors">
+                Template Pesan Batalkan Status
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 transition-colors">
+                Dikirim ketika status lunas dibatalkan
+              </p>
+              <textarea
+                className="w-full h-64 rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 
+                  text-gray-700 dark:text-gray-200 font-mono text-sm p-4 transition-colors"
+                value={editedMessageTemplates.revocationMessage}
+                onChange={(e) => handleTemplateChange('revocationMessage', e.target.value)}
+                placeholder="Masukkan template pesan batalkan status..."
+              />
+            </div>
+          )}
+        </div>
+        
+        {/* Action Buttons */}
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 transition-colors">
+          <button
+            onClick={handleClose}
+            className="relative px-4 py-2 rounded-lg text-gray-600 dark:text-gray-400 font-medium
+              transition-all duration-200
+              bg-white dark:bg-gray-700
+              border border-gray-200 dark:border-gray-700
+              hover:translate-y-[-2px] active:translate-y-0"
+          >
+            Batal
+          </button>
+          <button
+            onClick={saveMessageTemplates}
+            disabled={!isMessageEdited || savingMessages}
+            className={`relative px-4 py-2 rounded-lg text-white font-medium
+              transition-all duration-200
+              ${isMessageEdited 
+                ? 'bg-blue-600 dark:bg-blue-700 hover:translate-y-[-2px] active:translate-y-0'
+                : 'bg-blue-300 dark:bg-blue-800 cursor-not-allowed'
+              }
+              border border-blue-500/20 dark:border-blue-600/20`}
+          >
+            {savingMessages ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Menyimpan...
+              </span>
+            ) : (
+              'Simpan Template'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PaymentLogsModal({ 
+  closeModal, 
+  invoiceId, 
+  isMobile = false 
+}: { 
+  closeModal: () => void; 
+  invoiceId: string | null; 
+  isMobile?: boolean; 
+}) {
+  const [modalClass, setModalClass] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [paymentLogs, setPaymentLogs] = useState<Array<{
+    id: string;
+    nama: string;
+    kamar: string;
+    timestamp?: any;
+    formattedDate?: string;
+  }>>([]);
+
+  useEffect(() => {
+    const fetchPaymentLogs = async () => {
+      if (!invoiceId) return;
+      
+      try {
+        setLoading(true);
+        
+        // Query the PaymentStatuses collection for this invoice
+        const paymentStatusesQuery = query(
+          collection(db, 'PaymentStatuses'),
+          where('invoiceId', '==', invoiceId)
+        );
+        
+        const querySnapshot = await getDocs(paymentStatusesQuery);
+        
+        const logs: Array<{
+          id: string;
+          nama: string;
+          kamar: string;
+          timestamp?: any;
+          formattedDate?: string;
+        }> = [];
+        
+        // Process each payment status
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          
+          // Skip if there's no history or verification
+          if (!data.history || !data.history.verification) {
+            logs.push({
+              id: doc.id,
+              nama: data.nama || data.santriName || 'Tidak ada nama',
+              kamar: data.kamar || 'Tidak ada data'
+            });
+            return;
+          }
+          
+          // Extract verification timestamp
+          const verificationData = data.history.verification;
+          const timestamp = verificationData.timestamp || null;
+          
+          // Format the date if timestamp exists
+          let formattedDate: string | undefined;
+          if (timestamp) {
+            const date = timestamp.seconds 
+              ? new Date(timestamp.seconds * 1000) 
+              : new Date(timestamp);
+              
+            formattedDate = new Intl.DateTimeFormat('id-ID', {
+              weekday: 'long',
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }).format(date);
+          }
+          
+          logs.push({
+            id: doc.id,
+            nama: data.nama || data.santriName || 'Tidak ada nama',
+            kamar: data.kamar || 'Tidak ada data',
+            timestamp: timestamp,
+            formattedDate: formattedDate
+          });
+        });
+        
+        // Sort by timestamp (most recent first)
+        logs.sort((a, b) => {
+          // If both have timestamps
+          if (a.timestamp && b.timestamp) {
+            const timeA = a.timestamp.seconds || 0;
+            const timeB = b.timestamp.seconds || 0;
+            return timeB - timeA; // Descending order
+          }
+          // If only one has timestamp, prioritize the one with timestamp
+          if (a.timestamp) return -1;
+          if (b.timestamp) return 1;
+          // If neither has timestamp, sort by name
+          return (a.nama || '').localeCompare(b.nama || '');
+        });
+        
+        setPaymentLogs(logs);
+      } catch (err) {
+        console.error("Error fetching payment logs:", err);
+        setError("Terjadi kesalahan saat mengambil data log pembayaran");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPaymentLogs();
+  }, [invoiceId]);
+
+  useEffect(() => {
+    if (isMobile) {
+      setModalClass('transform translate-y-full');
+      setTimeout(() => {
+        setModalClass('transform translate-y-0');
+      }, 10);
+    }
+  }, [isMobile]);
+
+  const handleClose = () => {
+    if (isMobile) {
+      setModalClass('transform translate-y-full');
+      setTimeout(() => {
+        closeModal();
+      }, 300);
+    } else {
+      closeModal();
+    }
+  };
+
+  const containerClass = isMobile 
+    ? `fixed inset-0 z-50 mt-auto bg-black bg-opacity-50 transition-all duration-300 ${modalClass}` 
+    : 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+
+  return (
+    <div className={containerClass}>
+      <div 
+        className={isMobile 
+          ? 'bg-white dark:bg-gray-800 rounded-t-xl h-[80vh] transition-colors w-full p-4 overflow-hidden' 
+          : 'bg-white dark:bg-gray-800 rounded-xl w-full max-w-lg p-6 m-4 transition-colors'
+        }
+        onClick={(e) => e.stopPropagation()}
+      >
+        {isMobile && (
+          <div className="w-16 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-4 transition-colors"></div>
+        )}
+
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-medium text-gray-900 dark:text-white transition-colors">
+            Log Pembayaran
+          </h3>
+          <button 
+            onClick={handleClose} 
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 dark:border-blue-400 transition-colors"></div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded mb-6 transition-colors">
+            {error}
+          </div>
+        ) : (
+          <div className="max-h-[calc(80vh-120px)] overflow-y-auto">
+            {paymentLogs.length > 0 ? (
+              <div className="divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
+                {paymentLogs.map((log) => (
+                  <div key={log.id} className="py-4">
+                    <h4 className="font-medium text-gray-900 dark:text-white transition-colors">
+                      {log.nama}
+                    </h4>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm transition-colors">
+                      Kamar: {log.kamar}
+                    </p>
+                    {log.formattedDate ? (
+                      <p className="text-gray-500 dark:text-gray-500 text-sm mt-1 transition-colors">
+                        Waktu verifikasi: {log.formattedDate}
+                      </p>
+                    ) : (
+                      <p className="text-gray-500 dark:text-gray-500 text-sm mt-1 italic transition-colors">
+                        Belum terverifikasi
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-gray-500 dark:text-gray-400 transition-colors">
+                Belum ada log pembayaran
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-center transition-colors">
+          <button
+            className="relative px-4 py-2 rounded-lg text-blue-600 dark:text-blue-400 font-medium
+              transition-all duration-200
+              bg-white dark:bg-gray-700
+              border border-blue-200 dark:border-blue-700
+              before:absolute before:inset-0 before:rounded-lg
+              before:bg-gradient-to-r before:from-blue-100/80 before:to-blue-50/90
+              dark:before:bg-gradient-to-r dark:before:from-blue-900/30 dark:before:to-blue-800/10
+              before:z-[-1] before:overflow-hidden
+              hover:translate-y-[-2px] active:translate-y-0"
+            onClick={handleClose}
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RekapDetailView({ payment, onClose }: RekapDetailViewProps) {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -92,6 +656,28 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     numberOfWaitingVerification: 0,
     numberOfPaid: 0
   });
+  
+  // State for payment logs modal
+  const [showPaymentLogsModal, setShowPaymentLogsModal] = useState(false);
+  
+  // State for message templates modal and data
+  const [showMessageTemplatesModal, setShowMessageTemplatesModal] = useState(false);
+  const [messageTemplates, setMessageTemplates] = useState({
+    reminderMessage: '',
+    verifyMessage: '',
+    partialPaymentMessage: '',
+    rejectMessage: '',
+    revocationMessage: ''
+  });
+  const [editedMessageTemplates, setEditedMessageTemplates] = useState({
+    reminderMessage: '',
+    verifyMessage: '',
+    partialPaymentMessage: '',
+    rejectMessage: '',
+    revocationMessage: ''
+  });
+  const [isMessageEdited, setIsMessageEdited] = useState(false);
+  const [savingMessages, setSavingMessages] = useState(false);
   
   // Predefined reasons for rejecting or revoking payments
   const predefinedReasons = [
@@ -189,6 +775,79 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     }
   };
 
+  // Function to fetch message templates from Firebase
+  const fetchMessageTemplates = async (invoiceId: string) => {
+    try {
+      console.log("Fetching message templates for invoice:", invoiceId);
+      
+      const invoiceDocRef = doc(db, 'Invoices', invoiceId);
+      const invoiceDoc = await getDoc(invoiceDocRef);
+      
+      if (invoiceDoc.exists()) {
+        const invoiceData = invoiceDoc.data();
+        
+        // Default message templates
+        const defaultTemplates = {
+          reminderMessage: `[PESAN OTOMATIS DARI Esantren Chosyi'ah]\n\nAssalamu'alaikum Wr. Wb. Santri Ananda {nama},\n\nmengingatkan kembali mengenai pembayaran *{paymentName}* sebesar *{amount}* yang masih belum terselesaikan. Sesaat setelah pembayaran Anda diverifikasi, Anda akan mendapatkankan kode gerbang yang telah diperbarui (kode lama akan hangus pada tanggal 1* April 2025).\n\nUnggah bukti pembayaran ke website Esantren Chosyi'ah: https://esantren-chosyiah.vercel.app/\n\nJazakumullah khairan katsiran.`,
+          
+          verifyMessage: `[Pembayaran Lunas Terverifikasi]\n\n*Assalamu'alaikum Santri Ananda {nama}*,\n\n*Alhamdulillah!* Kami sampaikan bahwa pembayaran *{paymentName}* sebesar *{amount}* telah *LUNAS dan berhasil diverifikasi*! \n\nTerimakasih atas komitmen Bapak/Ibu dalam mendukung pendidikan Ananda di pesantren kami. Semoga menjadi amal jariyah dan keberkahan bagi keluarga.\n\nJazakumullah khairan katsiran. \n\n Kode untuk masuk ke Asrama adalah 37537537# (kode ini wajib dirahasiakan)`,
+          
+          partialPaymentMessage: `[Pembayaran Sebagian Terverifikasi]\n\n*Assalamu'alaikum Wali Santri dari Ananda {nama}*,\n\n*Alhamdulillah!* Pembayaran sebagian untuk *{paymentName}* sebesar *{amount}* telah *berhasil diverifikasi*.\n\nRincian pembayaran:\n• Jumlah dibayarkan: *{amount}*\n• Total tagihan: *{total}*\n• Sisa yang harus dibayar: *{remaining}*\n\nJangan lupa untuk melunasi sisa pembayaran sebelum batas waktu yang ditentukan yaa! 😊\n\nJazakumullah khairan katsiran atas pembayarannya.`,
+          
+          rejectMessage: `[Bukti Pembayaran Perlu Diunggah Ulang]\n\n*Assalamu'alaikum Wali Santri dari Ananda {nama},\n\n*Kami informasikan bahwa bukti pembayaran untuk *{paymentName}* yang sebelumnya diunggah belum dapat diverifikasi karena:\n\n*{reason}\n\n*Mohon untuk mengunggah ulang bukti pembayaran atau melakukan pembayaran kembali melalui aplikasi E-Santren. Apabila ada pertanyaan, silakan menghubungi admin asrama.\n\nJazakumullah khairan katsiran atas perhatian dan kerja samanya.`,
+          
+          revocationMessage: `[Permintaan Unggah Ulang Bukti Pembayaran]\n\n*Assalamu'alaikum Wali Santri dari Ananda {nama}*,\n\nKami informasikan bahwa pembayaran untuk *{paymentName}* yang sebelumnya telah terverifikasi terpaksa kami *batalkan* karena:\n\n*{reason}*\n\nDimohon untuk segera menghubungi admin asrama atau mengulang proses pembayaran melalui aplikasi E-Santren.\n\nJazakumullah khairan katsiran atas perhatian dan kerja samanya.`
+        };
+        
+        // Get message templates from the invoice document if they exist
+        const templates = {
+          reminderMessage: invoiceData.reminderMessage || defaultTemplates.reminderMessage,
+          verifyMessage: invoiceData.verifyMessage || defaultTemplates.verifyMessage,
+          partialPaymentMessage: invoiceData.partialPaymentMessage || defaultTemplates.partialPaymentMessage,
+          rejectMessage: invoiceData.rejectMessage || defaultTemplates.rejectMessage,
+          revocationMessage: invoiceData.revocationMessage || defaultTemplates.revocationMessage
+        };
+        
+        setMessageTemplates(templates);
+        // Initialize edited templates with the current values
+        setEditedMessageTemplates(templates);
+      }
+    } catch (error) {
+      console.error("Error fetching message templates:", error);
+    }
+  };
+  
+  // Function to save message templates to Firebase
+  const saveMessageTemplates = async () => {
+    if (!paymentId) return;
+    
+    try {
+      setSavingMessages(true);
+      
+      const invoiceDocRef = doc(db, 'Invoices', paymentId);
+      await updateDoc(invoiceDocRef, {
+        reminderMessage: editedMessageTemplates.reminderMessage,
+        verifyMessage: editedMessageTemplates.verifyMessage,
+        partialPaymentMessage: editedMessageTemplates.partialPaymentMessage,
+        rejectMessage: editedMessageTemplates.rejectMessage,
+        revocationMessage: editedMessageTemplates.revocationMessage,
+        lastUpdated: serverTimestamp()
+      });
+      
+      // Update the current templates
+      setMessageTemplates(editedMessageTemplates);
+      setIsMessageEdited(false);
+      
+      alert('Template pesan berhasil disimpan!');
+      setShowMessageTemplatesModal(false);
+    } catch (error) {
+      console.error("Error saving message templates:", error);
+      alert('Gagal menyimpan template pesan. Silakan coba lagi.');
+    } finally {
+      setSavingMessages(false);
+    }
+  };
+  
   // Function to fetch santri payment status data
   const fetchSantriPaymentStatus = async () => {
     if (!paymentId) return;
@@ -219,11 +878,13 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
       
       if (invoiceDoc.exists()) {
         const invoiceData = invoiceDoc.data();
+        // Only fetch nominal and numberOfSantriInvoiced from Firebase
+        // The count of Paid and WaitingVerification will be done on the client
         setInvoiceDetails({
           nominal: invoiceData.nominal || 0,
           numberOfSantriInvoiced: invoiceData.numberOfSantriInvoiced || 0,
-          numberOfWaitingVerification: invoiceData.numberOfWaitingVerification || 0,
-          numberOfPaid: invoiceData.numberOfPaid || 0
+          numberOfWaitingVerification: 0, // Will be calculated from the payment statuses
+          numberOfPaid: 0 // Will be calculated from the payment statuses
         });
         setInvoiceTotalAmount(invoiceData.nominal || 0);
       }
@@ -277,6 +938,9 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
         
         setSantriPayments(payments);
         setFilteredPayments(payments);
+        
+        // Count and sync status numbers
+        await countAndSyncStatusNumbers(payments);
       } else {
         // Process results from the new PaymentStatuses collection
         console.log("Using new structure results");
@@ -301,6 +965,9 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
         
         setSantriPayments(payments);
         setFilteredPayments(payments);
+        
+        // Count and sync status numbers
+        await countAndSyncStatusNumbers(payments);
       }
     } catch (error) {
       console.error("Error fetching santri payment status:", error);
@@ -402,8 +1069,45 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
   };
 
   // Call fetchSantriPaymentStatus when component mounts
+  // Count number of santris with specific status and sync with Firebase
+  const countAndSyncStatusNumbers = async (payments: SantriPaymentStatus[]) => {
+    if (!paymentId) return;
+    
+    // Count from the payments array
+    const numberOfPaid = payments.filter(payment => payment.status === 'Lunas').length;
+    const numberOfWaitingVerification = payments.filter(payment => payment.status === 'Menunggu Verifikasi').length;
+    
+    console.log("Counted status statistics:", { 
+      numberOfPaid, 
+      numberOfWaitingVerification, 
+      totalPayments: payments.length 
+    });
+    
+    // Update local state
+    setInvoiceDetails(prev => ({
+      ...prev,
+      numberOfPaid,
+      numberOfWaitingVerification
+    }));
+    
+    // Sync with Firebase
+    try {
+      const invoiceRef = doc(db, 'Invoices', paymentId);
+      await updateDoc(invoiceRef, {
+        numberOfPaid,
+        numberOfWaitingVerification
+      });
+      console.log("Successfully synced payment counts with Firebase");
+    } catch (error) {
+      console.error("Error syncing payment counts with Firebase:", error);
+    }
+  };
+
   useEffect(() => {
-    fetchSantriPaymentStatus();
+    if (paymentId) {
+      fetchSantriPaymentStatus();
+      fetchMessageTemplates(paymentId);
+    }
   }, [paymentId]);
 
   // Handle sort column click
@@ -569,6 +1273,19 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     }).format(amount);
   };
   
+  // Process message template with variables
+  const processTemplate = (template: string, variables: Record<string, string>) => {
+    let processedMessage = template;
+    
+    // Replace each variable placeholder with its value
+    Object.entries(variables).forEach(([key, value]) => {
+      const placeholder = `{${key}}`;
+      processedMessage = processedMessage.replace(new RegExp(placeholder, 'g'), value);
+    });
+    
+    return processedMessage;
+  };
+
   // Handle button click based on status
   const handleActionButtonClick = (payment: SantriPaymentStatus) => {
     setSelectedPayment(payment);
@@ -580,7 +1297,13 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
           ? payment.nomorTelpon.substring(1)
           : payment.nomorTelpon;
 
-        const message = `[PESAN OTOMATIS DARI Esantren Chosyi'ah]\n\nAssalamu'alaikum Wr. Wb. Santri Ananda ${payment.nama},\n\nmengingatkan kembali mengenai pembayaran *${paymentName}* sebesar *${formatCurrency(payment.total - payment.paid)}* yang masih belum terselesaikan. Sesaat setelah pembayaran Anda diverifikasi, Anda akan mendapatkankan kode gerbang yang telah diperbarui (kode lama akan hangus pada tanggal 1* April 2025).\n\nUnggah bukti pembayaran ke website Esantren Chosyi'ah: https://esantren-chosyiah.vercel.app/\n\nJazakumullah khairan katsiran.`
+        // Process the reminder message template with variables
+        const message = processTemplate(messageTemplates.reminderMessage, {
+          nama: payment.nama,
+          paymentName: paymentName,
+          amount: formatCurrency(payment.total - payment.paid)
+        });
+        
         window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
       } else {
         alert('Nomor WhatsApp Wali Santri tidak tersedia');
@@ -642,12 +1365,17 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
           statusTanggungan: 'Lunas'
         });
         
-        // Update the invoice counter
-        const invoiceRef = doc(db, 'Invoices', paymentId);
-        await updateDoc(invoiceRef, {
-          numberOfPaid: increment(1),
-          numberOfWaitingVerification: increment(-1)
-        });
+        // Instead of using increment, we'll count directly from the updated payments array
+        const approvedPayments = [...santriPayments];
+        const statusIndex = approvedPayments.findIndex(p => p.id === selectedPayment.id);
+        if (statusIndex !== -1) {
+          approvedPayments[statusIndex] = {
+            ...approvedPayments[statusIndex],
+            status: 'Lunas'
+          };
+        }
+        // Call our counting and sync function to update Firebase
+        await countAndSyncStatusNumbers(approvedPayments);
         
         // Send WhatsApp confirmation message
         if (selectedPayment.nomorTelpon) {
@@ -690,11 +1418,17 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
           }
         });
         
-        // Update the invoice counter
-        const invoiceRef = doc(db, 'Invoices', paymentId);
-        await updateDoc(invoiceRef, {
-          numberOfWaitingVerification: increment(-1)
-        });
+        // Instead of using increment, we'll count directly from the updated payments array
+        const rejectedPayments = [...santriPayments];
+        const rejectIndex = rejectedPayments.findIndex(p => p.id === selectedPayment.id);
+        if (rejectIndex !== -1) {
+          rejectedPayments[rejectIndex] = {
+            ...rejectedPayments[rejectIndex],
+            status: 'Belum Lunas'
+          };
+        }
+        // Call our counting and sync function to update Firebase
+        await countAndSyncStatusNumbers(rejectedPayments);
         
         // Open WhatsApp with the rejection message
         if (selectedPayment.nomorTelpon) {
@@ -703,18 +1437,18 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
       }
       
       // Refresh the data
-      const updatedPayments = [...santriPayments];
-      const index = updatedPayments.findIndex(p => p.id === selectedPayment.id);
+      const finalUpdatedPayments = [...santriPayments];
+      const paymentIndex = finalUpdatedPayments.findIndex(p => p.id === selectedPayment.id);
       
-      if (index !== -1) {
-        updatedPayments[index] = {
-          ...updatedPayments[index],
+      if (paymentIndex !== -1) {
+        finalUpdatedPayments[paymentIndex] = {
+          ...finalUpdatedPayments[paymentIndex],
           status: approve ? 'Lunas' : 'Belum Lunas'
         };
         
-        setSantriPayments(updatedPayments);
+        setSantriPayments(finalUpdatedPayments);
         setFilteredPayments(
-          updatedPayments.filter(payment => {
+          finalUpdatedPayments.filter(payment => {
             if (filters.kamar && payment.kamar !== filters.kamar) return false;
             if (filters.educationLevel && payment.educationLevel !== filters.educationLevel) return false;
             if (filters.status && payment.status !== filters.status) return false;
@@ -742,7 +1476,13 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
       ? payment.nomorTelpon.substring(1)
       : payment.nomorTelpon;
 
-    const message = `[Bukti Pembayaran Perlu Diunggah Ulang]\n\n*Assalamu'alaikum Wali Santri dari Ananda ${payment.nama},\n\n*Kami informasikan bahwa bukti pembayaran untuk *${paymentName}* yang sebelumnya diunggah belum dapat diverifikasi karena:\n\n*${reason}\n\n*Mohon untuk mengunggah ulang bukti pembayaran atau melakukan pembayaran kembali melalui aplikasi E-Santren. Apabila ada pertanyaan, silakan menghubungi admin asrama.\n\nJazakumullah khairan katsiran atas perhatian dan kerja samanya.`;
+    // Process the rejection message template with variables
+    const message = processTemplate(messageTemplates.rejectMessage, {
+      nama: payment.nama,
+      paymentName: paymentName,
+      reason: reason
+    });
+    
     window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
   };
   
@@ -823,11 +1563,17 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
         statusTanggungan: 'Belum Lunas'
       });
       
-      // Update the invoice counter
-      const invoiceRef = doc(db, 'Invoices', paymentId);
-      await updateDoc(invoiceRef, {
-        numberOfPaid: increment(-1)
-      });
+      // Instead of using increment, we'll count directly from the updated payments array
+      const revokedPayments = [...santriPayments];
+      const revokeIndex = revokedPayments.findIndex(p => p.id === selectedPayment.id);
+      if (revokeIndex !== -1) {
+        revokedPayments[revokeIndex] = {
+          ...revokedPayments[revokeIndex],
+          status: 'Belum Lunas'
+        };
+      }
+      // Call our counting and sync function to update Firebase
+      await countAndSyncStatusNumbers(revokedPayments);
       
       // Open WhatsApp with the revocation message
       if (selectedPayment.nomorTelpon) {
@@ -835,18 +1581,18 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
       }
       
       // Refresh the data
-      const updatedPayments = [...santriPayments];
-      const index = updatedPayments.findIndex(p => p.id === selectedPayment.id);
+      const statusUpdatedPayments = [...santriPayments];
+      const paymentIndex = statusUpdatedPayments.findIndex(p => p.id === selectedPayment.id);
       
-      if (index !== -1) {
-        updatedPayments[index] = {
-          ...updatedPayments[index],
+      if (paymentIndex !== -1) {
+        statusUpdatedPayments[paymentIndex] = {
+          ...statusUpdatedPayments[paymentIndex],
           status: 'Belum Lunas'
         };
         
-        setSantriPayments(updatedPayments);
+        setSantriPayments(statusUpdatedPayments);
         setFilteredPayments(
-          updatedPayments.filter(payment => {
+          statusUpdatedPayments.filter(payment => {
             if (filters.kamar && payment.kamar !== filters.kamar) return false;
             if (filters.educationLevel && payment.educationLevel !== filters.educationLevel) return false;
             if (filters.status && payment.status !== filters.status) return false;
@@ -874,7 +1620,13 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
       ? payment.nomorTelpon.substring(1)
       : payment.nomorTelpon;
 
-    const message = `[Permintaan Unggah Ulang Bukti Pembayaran]\n\n*Assalamu'alaikum Wali Santri dari Ananda ${payment.nama}*,\n\nKami informasikan bahwa pembayaran untuk *${paymentName}* yang sebelumnya telah terverifikasi terpaksa kami *batalkan* karena:\n\n*${reason}*\n\nDimohon untuk segera menghubungi admin asrama atau mengulang proses pembayaran melalui aplikasi E-Santren.\n\nJazakumullah khairan katsiran atas perhatian dan kerja samanya.`;
+    // Process the revocation message template with variables
+    const message = processTemplate(messageTemplates.revocationMessage, {
+      nama: payment.nama,
+      paymentName: paymentName,
+      reason: reason
+    });
+    
     window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
   };
   
@@ -893,13 +1645,29 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     
     if (isPartialPaymentType) {
       // Message for partial payment
-      message = `[Pembayaran Sebagian Terverifikasi]\n\n*Assalamu'alaikum Wali Santri dari Ananda ${payment.nama}*,\n\n*Alhamdulillah!* Pembayaran sebagian untuk *${paymentName}* sebesar *${formatCurrency(amount)}* telah *berhasil diverifikasi*.\n\nRincian pembayaran:\n• Jumlah dibayarkan: *${formatCurrency(amount)}*\n• Total tagihan: *${formatCurrency(payment.total)}*\n• Sisa yang harus dibayar: *${formatCurrency(payment.total - payment.paid)}*\n\nJangan lupa untuk melunasi sisa pembayaran sebelum batas waktu yang ditentukan yaa! 😊\n\nJazakumullah khairan katsiran atas pembayarannya.`;
+      message = processTemplate(messageTemplates.partialPaymentMessage, {
+        nama: payment.nama,
+        paymentName: paymentName,
+        amount: formatCurrency(amount),
+        total: formatCurrency(payment.total),
+        remaining: formatCurrency(payment.total - payment.paid)
+      });
     } else if (isPartialPayment) {
       // Message for full payment that leaves the total not fully paid yet
-      message = `[Pembayaran Terverifikasi]\n\n*Assalamu'alaikum Santri Ananda ${payment.nama}*,\n\n*Alhamdulillah!* Pembayaran untuk *${paymentName}* sebesar *${formatCurrency(amount)}* telah *berhasil diverifikasi*.\n\nRincian pembayaran saat ini:\n• Total dibayarkan: *${formatCurrency(payment.paid)}*\n• Total tagihan: *${formatCurrency(payment.total)}*\n• Sisa yang perlu dilunasi: *${formatCurrency(payment.total - payment.paid)}*\n\nMohon segera melunasi sisa pembayaran untuk menyelesaikan kewajiban ini.\n\nJazakumullah khairan katsiran atas kerjasamanya.`;
+      message = processTemplate(messageTemplates.partialPaymentMessage, {
+        nama: payment.nama,
+        paymentName: paymentName,
+        amount: formatCurrency(amount),
+        total: formatCurrency(payment.total),
+        remaining: formatCurrency(payment.total - payment.paid)
+      });
     } else {
       // Message for full payment that completes the invoice
-      message = `[Pembayaran Lunas Terverifikasi]\n\n*Assalamu'alaikum Santri Ananda ${payment.nama}*,\n\n*Alhamdulillah!* Kami sampaikan bahwa pembayaran *${paymentName}* sebesar *${formatCurrency(amount)}* telah *LUNAS dan berhasil diverifikasi*! \n\nTerimakasih atas komitmen Bapak/Ibu dalam mendukung pendidikan Ananda di pesantren kami. Semoga menjadi amal jariyah dan keberkahan bagi keluarga.\n\nJazakumullah khairan katsiran. \n\n Kode untuk masuk ke Asrama adalah 37537537# (kode ini wajib dirahasiakan)`;
+      message = processTemplate(messageTemplates.verifyMessage, {
+        nama: payment.nama,
+        paymentName: paymentName,
+        amount: formatCurrency(amount)
+      });
     }
     
     window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
@@ -936,6 +1704,23 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     };
   }, []);
 
+  // Determine if we're on mobile
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Check if we're on mobile on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
+  
   return (
     <div className="fixed inset-0 z-50 overflow-auto bg-opacity-75 bg-gray-800">
       {pageLoading && (
@@ -946,6 +1731,31 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
           </div>
         </div>
       )}
+      
+      {/* Payment Logs Modal */}
+      {showPaymentLogsModal && (
+        <PaymentLogsModal 
+          closeModal={() => setShowPaymentLogsModal(false)} 
+          invoiceId={paymentId} 
+          isMobile={isMobile}
+        />
+      )}
+      
+      {/* Message Templates Modal */}
+      {showMessageTemplatesModal && (
+        <MessageTemplatesModal
+          closeModal={() => setShowMessageTemplatesModal(false)}
+          messageTemplates={messageTemplates}
+          editedMessageTemplates={editedMessageTemplates}
+          setEditedMessageTemplates={setEditedMessageTemplates}
+          isMessageEdited={isMessageEdited}
+          setIsMessageEdited={setIsMessageEdited}
+          savingMessages={savingMessages}
+          saveMessageTemplates={saveMessageTemplates}
+          isMobile={isMobile}
+        />
+      )}
+      
       <div className="bg-white dark:bg-gray-900 min-h-screen transition-colors">
         <div className="container mx-auto py-6 px-4">
           <div className="flex justify-between items-center mb-6">
@@ -963,6 +1773,36 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
             </div>
             
             <div className="flex gap-3">
+              <button
+                onClick={() => setShowMessageTemplatesModal(true)}
+                className="relative px-5 py-2.5 rounded-xl text-white font-medium transition-all duration-200
+                  bg-yellow-600 dark:bg-yellow-700
+                  border border-yellow-500/20 dark:border-yellow-600/20
+                  before:absolute before:inset-0 before:rounded-xl
+                  before:bg-gradient-to-br before:from-yellow-400/80 before:to-yellow-600/90
+                  dark:before:bg-gradient-to-br dark:before:from-yellow-600/50 dark:before:to-yellow-800/90
+                  before:z-[-1] before:overflow-hidden
+                  hover:translate-y-[-2px] active:translate-y-0
+                  hover:before:from-yellow-500/80 hover:before:to-yellow-700/90
+                  focus:outline-none focus:ring-2 focus:ring-yellow-500/50 dark:focus:ring-yellow-400/50"
+              >
+                Template Pesan
+              </button>
+              <button
+                onClick={() => setShowPaymentLogsModal(true)}
+                className="relative px-5 py-2.5 rounded-xl text-white font-medium transition-all duration-200
+                  bg-purple-600 dark:bg-purple-700
+                  border border-purple-500/20 dark:border-purple-600/20
+                  before:absolute before:inset-0 before:rounded-xl
+                  before:bg-gradient-to-br before:from-purple-400/80 before:to-purple-600/90
+                  dark:before:bg-gradient-to-br dark:before:from-purple-600/50 dark:before:to-purple-800/90
+                  before:z-[-1] before:overflow-hidden
+                  hover:translate-y-[-2px] active:translate-y-0
+                  hover:before:from-purple-500/80 hover:before:to-purple-700/90
+                  focus:outline-none focus:ring-2 focus:ring-purple-500/50 dark:focus:ring-purple-400/50"
+              >
+                Log Pembayaran
+              </button>
               <button
                 onClick={resyncSantriData}
                 className="relative px-5 py-2.5 rounded-xl text-white font-medium transition-all duration-200
