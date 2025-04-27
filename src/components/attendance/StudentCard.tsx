@@ -9,30 +9,34 @@ import {
 
 // Custom hook for handling long press
 function useLongPress(callback: () => void, ms = 700) {
-  const [startLongPress, setStartLongPress] = useState(false);
-  
-  useEffect(() => {
-    let timerId: NodeJS.Timeout | null = null;
-    
-    if (startLongPress) {
-      timerId = setTimeout(callback, ms);
-    }
-    
-    return () => {
-      if (timerId) {
-        clearTimeout(timerId);
-      }
-    };
-  }, [callback, ms, startLongPress]);
+  // Use a ref for the timer instead of state to avoid re-renders
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   
   const start = useCallback(() => {
     console.log("Starting long press timer");
-    setStartLongPress(true);
-  }, []);
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    // Set new timer
+    timerRef.current = setTimeout(callback, ms);
+  }, [callback, ms]);
   
   const stop = useCallback(() => {
     console.log("Stopping long press timer");
-    setStartLongPress(false);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+  
+  // Ensure timer is cleared on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
   }, []);
   
   return {

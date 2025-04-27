@@ -95,30 +95,7 @@ export function getStatusClass(
   return classes;
 }
 
-// Hook to detect network status
+// Hook to detect network status - deprecated, implement status directly in the component
 export function useNetworkStatus() {
-  // Start with a default value (assuming online) and update it after mount
-  const [isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    // Set the actual state once on client side
-    setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
-    
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-    }
-
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      }
-    };
-  }, []);
-
-  return isOnline;
+  return true; // Always return true to avoid inconsistent hook counts
 }

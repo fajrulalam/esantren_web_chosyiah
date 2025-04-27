@@ -279,7 +279,7 @@ function RekapContent() {
       {!selectedPayment && (
         <>
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-2xl font-bold dark:text-white">Rekapitulasi Pembayaran</h1>
+            <h1 className="text-2xl font-bold dark:text-white">Rekapitulasi Pembayaranss</h1>
             <div>
               <button
                   onClick={() => setShowTagihanModal(true)}

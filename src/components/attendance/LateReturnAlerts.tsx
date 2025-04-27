@@ -58,11 +58,12 @@ export default function LateReturnAlerts({ kodeAsrama, teacherId }: LateReturnAl
       <ul className="divide-y divide-amber-200 dark:divide-amber-800">
         {lateStudents.map(student => {
           const plannedReturn = student.statusKepulangan?.rencanaTanggalKembali?.toDate();
-          // Calculate on client side with memoization to avoid SSR/CSR mismatch
-          const daysLate = React.useMemo(() => {
+          // Calculate days late using a regular function instead of useMemo
+          const getDaysLate = () => {
             if (!plannedReturn) return 'N/A';
             return Math.max(0, Math.floor((new Date().getTime() - plannedReturn.getTime()) / (1000 * 60 * 60 * 24)));
-          }, [plannedReturn?.getTime()]);
+          };
+          const daysLate = getDaysLate();
 
           return (
             <li key={student.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">

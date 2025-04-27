@@ -100,37 +100,37 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
       try {
         // First, update santri documents where status is 'excusedSick'
         const updatePromises = [];
-        
+
         // Process all students in the session
         for (const [santriId, statusData] of Object.entries(currentSession.studentStatuses)) {
           // If student was marked as sick, update their document in SantriCollection
           if (statusData.status === 'excusedSick') {
             const santriDocRef = doc(db, "SantriCollection", santriId);
             updatePromises.push(
-              updateDoc(santriDocRef, {
-                statusKehadiran: "Sakit",
-                updatedAt: serverTimestamp(),
-                updatedBy: teacherId
-              })
+                updateDoc(santriDocRef, {
+                  statusKehadiran: "Sakit",
+                  updatedAt: serverTimestamp(),
+                  updatedBy: teacherId
+                })
             );
           }
           // Note: Dispen doesn't require any change to SantriCollection status
         }
-        
+
         // Wait for all santri document updates to complete
         if (updatePromises.length > 0) {
           await Promise.all(updatePromises);
         }
-        
+
         // Then close the session
         const success = await closeAttendanceSession(sessionId, teacherId);
-        
+
         if (success) {
           // Ask if user wants to share the summary to WhatsApp after closing
           const shareSummary = window.confirm(
-            "Sesi berhasil ditutup! Apakah Anda ingin membagikan ringkasan kehadiran ke WhatsApp?"
+              "Sesi berhasil ditutup! Apakah Anda ingin membagikan ringkasan kehadiran ke WhatsApp?"
           );
-          
+
           if (shareSummary) {
             // Generate and share the summary before redirecting
             shareToWhatsApp();
@@ -313,16 +313,16 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
   const formatDate = (date: Date) => {
     return format(date, 'dd MMMM yyyy');
   };
-  
+
   // Format date/time in specific format for WhatsApp
   const formatDateTimeForWhatsApp = (date: Date) => {
     return format(date, 'EEEE, dd-MM-yyyy HH:mm', { locale: id });
   };
-  
+
   // Generate session summary for WhatsApp
   const generateSessionSummary = () => {
     if (!currentSession) return '';
-    
+
     // Count attendance statuses
     let presentCount = 0;
     let absentCount = 0;
@@ -332,10 +332,10 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
     const absentStudents: string[] = [];
     const sickStudents: string[] = [];
     const dispenStudents: string[] = [];
-    
+
     students.forEach(student => {
       const status = currentSession.studentStatuses[student.id]?.status;
-      
+
       switch(status) {
         case 'present':
         case 'overridePresent':
@@ -358,12 +358,12 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
           break;
       }
     });
-    
+
     // Get session date
-    const sessionDate = currentSession.timestamp 
-      ? new Date(currentSession.timestamp.seconds * 1000) 
-      : new Date();
-    
+    const sessionDate = currentSession.timestamp
+        ? new Date(currentSession.timestamp.seconds * 1000)
+        : new Date();
+
     // Build the summary message
     let summary = `*LAPORAN KEHADIRAN SANTRI*\n\n`;
     summary += `*Kegiatan:* ${currentSession.attendanceType}\n`;
@@ -374,7 +374,7 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
     summary += `🏠 Pulang: ${pulangCount} santri\n`;
     summary += `🟣 Dispensasi: ${dispenCount} santri\n`;
     summary += `❌ Alfa: ${absentCount} santri\n\n`;
-    
+
     // Add list of absent students if any
     if (absentStudents.length > 0) {
       summary += `*Daftar Santri Tidak Hadir:*\n`;
@@ -383,7 +383,7 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
       });
       summary += '\n';
     }
-    
+
     // Add list of sick students if any
     if (sickStudents.length > 0) {
       summary += `*Daftar Santri Sakit:*\n`;
@@ -392,7 +392,7 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
       });
       summary += '\n';
     }
-    
+
     // Add list of dispensation students if any
     if (dispenStudents.length > 0) {
       summary += `*Daftar Santri Dispensasi:*\n`;
@@ -400,10 +400,10 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
         summary += `${index + 1}. ${name}\n`;
       });
     }
-    
+
     return summary;
   };
-  
+
   // Open WhatsApp with session summary
   const shareToWhatsApp = () => {
     const summary = generateSessionSummary();
@@ -452,14 +452,14 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
                   {currentSession.timestamp && formatDate(currentSession.timestamp.toDate())}
                 </p>
                 <div className="flex items-center gap-3 mt-2">
-                {/*<span className="bg-gray-100 dark:bg-gray-700 py-1 px-3 rounded-full text-sm text-gray-600 dark:text-gray-300">*/}
-                {/*  Asrama: {currentSession.kodeAsrama}*/}
-                {/*</span>*/}
-                {/*  {currentSession.attendanceTypeId && (*/}
-                {/*      <span className="bg-indigo-50 dark:bg-indigo-900/30 py-1 px-3 rounded-full text-sm text-indigo-700 dark:text-indigo-300">*/}
-                {/*    {currentSession.attendanceTypeId}*/}
-                {/*  </span>*/}
-                {/*  )}*/}
+                  {/*<span className="bg-gray-100 dark:bg-gray-700 py-1 px-3 rounded-full text-sm text-gray-600 dark:text-gray-300">*/}
+                  {/*  Asrama: {currentSession.kodeAsrama}*/}
+                  {/*</span>*/}
+                  {/*  {currentSession.attendanceTypeId && (*/}
+                  {/*      <span className="bg-indigo-50 dark:bg-indigo-900/30 py-1 px-3 rounded-full text-sm text-indigo-700 dark:text-indigo-300">*/}
+                  {/*    {currentSession.attendanceTypeId}*/}
+                  {/*  </span>*/}
+                  {/*  )}*/}
                 </div>
               </div>
 
@@ -467,19 +467,19 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
                 <NetworkStatusIndicator />
 
                 {!currentSession.isActive && (
-                  <>
-                    <div className="text-center px-4 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50 rounded-full text-sm font-medium text-red-600 dark:text-red-300">
-                      Sesi telah ditutup
-                    </div>
-                    <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      <button 
-                        onClick={shareToWhatsApp}
-                        className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 underline"
-                      >
-                        Bagikan ringkasan ke WhatsApp
-                      </button>
-                    </div>
-                  </>
+                    <>
+                      <div className="text-center px-4 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50 rounded-full text-sm font-medium text-red-600 dark:text-red-300">
+                        Sesi telah ditutup
+                      </div>
+                      <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <button
+                            onClick={shareToWhatsApp}
+                            className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 underline"
+                        >
+                          Bagikan ringkasan ke WhatsApp
+                        </button>
+                      </div>
+                    </>
                 )}
               </div>
             </div>
@@ -514,7 +514,7 @@ export default function AttendanceScreen({ params }: { params: { sessionId: stri
                     {/*>*/}
                     {/*  Share ke WhatsApp*/}
                     {/*</button>*/}
-                    
+
                     <button
                         onClick={handleCloseSession}
                         className="px-5 py-2.5 bg-white dark:bg-gray-800
