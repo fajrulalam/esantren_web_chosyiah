@@ -1197,7 +1197,8 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
     if (filters.nama) {
       const searchTerm = filters.nama.toLowerCase();
       result = result.filter(payment => 
-        payment.nama.toLowerCase().includes(searchTerm)
+        payment.nama.toLowerCase().includes(searchTerm) || 
+        (payment.notes && payment.notes.toLowerCase().includes(searchTerm))
       );
     }
 
@@ -2010,7 +2011,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
             {/* Search */}
             <div className="mb-6">
               <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
-                Cari Nama Santri
+                Cari Nama Santri atau Catatan
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -2022,7 +2023,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                   type="text"
                   id="search"
                   name="nama"
-                  placeholder="Cari berdasarkan nama santri..."
+                  placeholder="Cari berdasarkan nama santri atau catatan..."
                   value={filters.nama}
                   onChange={handleSearchChange}
                   className="pl-10 w-full rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 
@@ -2235,7 +2236,7 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                       text-purple-700 dark:text-purple-300
                       hover:translate-y-[-1px] active:translate-y-0"
                   >
-                    Nama: {filters.nama}
+                    Nama/Catatan: {filters.nama}
                     <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
