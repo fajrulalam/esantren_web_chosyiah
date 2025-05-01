@@ -223,11 +223,17 @@ export default function PaymentStatusModal({ closeModal, paymentId, isMobile }: 
                                                         </p>
                                                     )}
                                                     <p className="text-gray-700 mb-2">Bukti Pembayaran:</p>
-                                                    <img 
-                                                        src={item.imageUrl} 
-                                                        alt="Bukti Pembayaran" 
-                                                        className="w-full max-w-xs mx-auto rounded-lg shadow-sm" 
-                                                    />
+                                                    <a 
+                                                        href={item.imageUrl} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                    >
+                                                        <img 
+                                                            src={item.imageUrl} 
+                                                            alt="Bukti Pembayaran" 
+                                                            className="w-full max-w-xs mx-auto rounded-lg shadow-sm cursor-pointer hover:opacity-90 transition-opacity" 
+                                                        />
+                                                    </a>
                                                 </div>
                                             )}
                                         </div>

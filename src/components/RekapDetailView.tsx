@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
 import { KODE_ASRAMA } from '@/constants';
+import { toast } from 'react-hot-toast';
 import { collection, getDocs, query, where, getDoc, doc, updateDoc, arrayUnion, serverTimestamp, increment } from 'firebase/firestore';
 import { db, functions } from '@/firebase/config';
 import { httpsCallable } from 'firebase/functions';
@@ -24,6 +25,7 @@ interface SantriPaymentStatus {
   nomorTelpon?: string;
   total: number;
   history?: any;
+  notes?: string;
 }
 
 interface PaymentProof {
@@ -679,6 +681,10 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
   const [isMessageEdited, setIsMessageEdited] = useState(false);
   const [savingMessages, setSavingMessages] = useState(false);
   
+  // State for note editing
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState('');
+  
   // Predefined reasons for rejecting or revoking payments
   const predefinedReasons = [
     'Gambar kurang jelas (blur/pecah)',
@@ -1315,6 +1321,52 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
       // Show the payment history modal
       setShowPaymentHistoryModal(true);
     }
+  };
+  
+  // Function to start editing a note
+  const handleEditNote = (payment: SantriPaymentStatus) => {
+    if (editingNoteId) return; // If already editing a note, do nothing
+    setEditingNoteId(payment.id);
+    setNoteText(payment.notes || '');
+  };
+
+  // Function to save the edited note
+  const handleSaveNote = async (paymentId: string) => {
+    try {
+      setPageLoading(true);
+      const paymentRef = doc(db, 'PaymentStatuses', paymentId);
+      await updateDoc(paymentRef, {
+        notes: noteText
+      });
+      
+      // Update local state
+      setSantriPayments(prevPayments => 
+        prevPayments.map(payment => 
+          payment.id === paymentId ? { ...payment, notes: noteText } : payment
+        )
+      );
+      
+      setFilteredPayments(prevFiltered => 
+        prevFiltered.map(payment => 
+          payment.id === paymentId ? { ...payment, notes: noteText } : payment
+        )
+      );
+      
+      // Reset states
+      setEditingNoteId(null);
+      setNoteText('');
+    } catch (error) {
+      console.error('Error saving note:', error);
+      toast.error('Gagal menyimpan catatan.');
+    } finally {
+      setPageLoading(false);
+    }
+  };
+
+  // Function to cancel note editing
+  const handleCancelEditNote = () => {
+    setEditingNoteId(null);
+    setNoteText('');
   };
   
   // Handle verifying payment proof
@@ -2318,6 +2370,9 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                           No. WhatsApp
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
+                          Catatan
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors">
                           Aksi
                         </th>
                       </tr>
@@ -2353,6 +2408,46 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
                             {payment.nomorTelpon || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                            <div className="flex items-center">
+                              {editingNoteId === payment.id ? (
+                                <>
+                                  <input
+                                    type="text"
+                                    value={noteText}
+                                    onChange={(e) => setNoteText(e.target.value.slice(0, 30))}
+                                    className="text-xs font-light italic px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-500 w-full"
+                                    placeholder="Tulis catatan..."
+                                    maxLength={30}
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleSaveNote(payment.id)}
+                                    className="ml-2 text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-xs font-light italic w-full truncate mr-2">
+                                    {payment.notes || '...'}
+                                  </div>
+                                  <button
+                                    onClick={() => handleEditNote(payment)}
+                                    className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                    disabled={!!editingNoteId}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${editingNoteId ? 'opacity-50 cursor-not-allowed' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                    </svg>
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right">
                             <button 
@@ -2416,11 +2511,17 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                         const paymentProof = getPaymentProofFromHistory(selectedPayment);
                         return (
                           <>
-                            <img 
-                              src={paymentProof.imageUrl} 
-                              alt="Bukti Pembayaran" 
-                              className="w-full h-auto rounded-lg mb-4" 
-                            />
+                            <a 
+                              href={paymentProof.imageUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                            >
+                              <img 
+                                src={paymentProof.imageUrl} 
+                                alt="Bukti Pembayaran" 
+                                className="w-full h-auto rounded-lg mb-4 cursor-pointer hover:opacity-90 transition-opacity" 
+                              />
+                            </a>
                             
                             <div className="grid grid-cols-2 gap-4">
                               <div>
@@ -2630,11 +2731,17 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
                                   {historyItem.imageUrl && (
                                     <div className="col-span-2 mt-2">
                                       <p className="text-gray-600 text-xs font-medium mb-1">Bukti Pembayaran:</p>
-                                      <img 
-                                        src={historyItem.imageUrl} 
-                                        alt="Bukti Pembayaran" 
-                                        className="w-full max-h-40 object-contain rounded" 
-                                      />
+                                      <a 
+                                        href={historyItem.imageUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                      >
+                                        <img 
+                                          src={historyItem.imageUrl} 
+                                          alt="Bukti Pembayaran" 
+                                          className="w-full max-h-40 object-contain rounded cursor-pointer hover:opacity-90 transition-opacity" 
+                                        />
+                                      </a>
                                     </div>
                                   )}
                                 </div>
