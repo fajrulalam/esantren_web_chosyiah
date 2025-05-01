@@ -938,7 +938,8 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
             nomorWaliSantri: data.nomorWaliSantri || '',
             nomorTelpon: data.nomorTelpon || '',
             total: data.total || 0,
-            history: data.history || {}
+            history: data.history || {},
+            notes: data.notes || ''
           });
         });
         
@@ -965,7 +966,8 @@ export default function RekapDetailView({ payment, onClose }: RekapDetailViewPro
             nomorWaliSantri: data.nomorWaliSantri || '',
             nomorTelpon: data.nomorTelpon || '',
             total: data.total || 0,
-            history: data.history || {}
+            history: data.history || {},
+            notes: data.notes || ''
           });
         });
         
