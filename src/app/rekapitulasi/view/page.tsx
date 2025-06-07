@@ -395,7 +395,7 @@ function RekapitulasiViewContent() {
           payment.nama
         },\n\nmengingatkan kembali mengenai pembayaran *${paymentName}* sebesar *${formatCurrency(
           payment.total - payment.paid
-        )}* yang masih belum terselesaikan. Segeralah melakukan pembayaran untuk mendapatkan kode gerbang yang telah diperbarui (kode lama akan hangus pada tanggal 1* April 2025).\n\nUnggah bukti pembayaran ke website Esantren Hurun Inn: https://esantren-chosyiah.vercel.app/\n\nJazakumullah khairan katsiran.`;
+        )}* yang masih belum terselesaikan. Segeralah melakukan pembayaran untuk mendapatkan kode gerbang yang telah diperbarui (kode lama akan hangus pada tanggal 1* April 2025).\n\nUnggah bukti pembayaran ke website Esantren Hurun Inn: https://hurun-inn.vercel.app/\n\nJazakumullah khairan katsiran.`;
         window.open(
           `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`,
           "_blank"

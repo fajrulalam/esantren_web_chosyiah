@@ -895,7 +895,7 @@ export default function RekapDetailView({
 
         // Default message templates
         const defaultTemplates = {
-          reminderMessage: `[PESAN OTOMATIS DARI Esantren Chosyi'ah]\n\nAssalamu'alaikum Wr. Wb. Santri Ananda {nama},\n\nmengingatkan kembali mengenai pembayaran *{paymentName}* sebesar *{amount}* yang masih belum terselesaikan. Sesaat setelah pembayaran Anda diverifikasi, Anda akan mendapatkankan kode gerbang yang telah diperbarui (kode lama akan hangus pada tanggal 1* April 2025).\n\nUnggah bukti pembayaran ke website Esantren Hurun Inn: https://esantren-chosyiah.vercel.app/\n\nJazakumullah khairan katsiran.`,
+          reminderMessage: `[PESAN OTOMATIS DARI Esantren Chosyi'ah]\n\nAssalamu'alaikum Wr. Wb. Santri Ananda {nama},\n\nmengingatkan kembali mengenai pembayaran *{paymentName}* sebesar *{amount}* yang masih belum terselesaikan. Sesaat setelah pembayaran Anda diverifikasi, Anda akan mendapatkankan kode gerbang yang telah diperbarui (kode lama akan hangus pada tanggal 1* April 2025).\n\nUnggah bukti pembayaran ke website Esantren Hurun Inn: https://hurun-in.vercel.app/\n\nJazakumullah khairan katsiran.`,
 
           verifyMessage: `[Pembayaran Lunas Terverifikasi]\n\n*Assalamu'alaikum Santri Ananda {nama}*,\n\n*Alhamdulillah!* Kami sampaikan bahwa pembayaran *{paymentName}* sebesar *{amount}* telah *LUNAS dan berhasil diverifikasi*! \n\nTerimakasih atas komitmen Bapak/Ibu dalam mendukung pendidikan Ananda di pesantren kami. Semoga menjadi amal jariyah dan keberkahan bagi keluarga.\n\nJazakumullah khairan katsiran. \n\n Kode untuk masuk ke Asrama adalah 37537537# (kode ini wajib dirahasiakan)`,
 
