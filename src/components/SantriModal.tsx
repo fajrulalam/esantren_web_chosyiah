@@ -1,9 +1,9 @@
 "use client";
 
-import { Fragment } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { Santri, SantriFormData } from '@/types/santri';
-import SantriForm from './SantriForm';
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { Santri, SantriFormData } from "@/types/santri";
+import SantriForm from "./SantriForm";
 
 interface SantriModalProps {
   isOpen: boolean;
@@ -22,54 +22,49 @@ export default function SantriModal({
   onSubmit,
   onDelete,
   isSubmitting,
-  title
+  title,
 }: SantriModalProps) {
-  return (
-    <Transition show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={onClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-black bg-opacity-25" />
-        </Transition.Child>
+  const [mounted, setMounted] = useState(false);
 
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title
-                  as="h3"
-                  className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4"
-                >
-                  {title}
-                </Dialog.Title>
-                
-                <SantriForm
-                  santri={santri}
-                  onSubmit={onSubmit}
-                  onCancel={onClose}
-                  isSubmitting={isSubmitting}
-                  onDelete={onDelete}
-                />
-              </Dialog.Panel>
-            </Transition.Child>
-          </div>
-        </div>
-      </Dialog>
-    </Transition>
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
+
+  // Create a portal to render the modal at the root level of the DOM
+  return createPortal(
+    <div
+      className="fixed inset-0 flex items-center justify-center"
+      style={{ zIndex: 999999 }}
+    >
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50"
+        onClick={onClose}
+        style={{ zIndex: 999999 }}
+      />
+
+      {/* Modal content */}
+      <div
+        className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all relative"
+        style={{ zIndex: 1000000 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
+          {title}
+        </h3>
+
+        <SantriForm
+          santri={santri}
+          onSubmit={onSubmit}
+          onCancel={onClose}
+          isSubmitting={isSubmitting}
+          onDelete={onDelete}
+        />
+      </div>
+    </div>,
+    document.body
   );
 }

@@ -17,6 +17,28 @@ const validators = {
   tanggalLahir: () => true, // Accept any value for tanggalLahir, including empty
 };
 
+// Validates that date string is in dd/mm/yyyy format and returns formatted date
+const validateAndFormatDateString = (dateValue: string | number, rowNumber: number, errors: string[]): string => {
+  // Check if empty
+  if (!dateValue) return '';
+  
+  // If it's already in dd/mm/yyyy format
+  if (typeof dateValue === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateValue)) {
+    // Further validate day and month ranges
+    const [day, month, year] = dateValue.split('/').map(Number);
+    if (day < 1 || day > 31 || month < 1 || month > 12) {
+      errors.push(`Baris ${rowNumber}: Format tanggal lahir tidak valid. Nilai hari atau bulan di luar rentang yang valid (${dateValue}).`);
+      return dateValue;
+    }
+    return dateValue;
+  } else {
+    // If it's not in the required format, add error
+    errors.push(`Baris ${rowNumber}: Format tanggal lahir harus dalam bentuk dd/mm/yyyy. Ditemukan: ${dateValue}`);
+    // Try to convert it to proper format for preview
+    return formatDateString(dateValue);
+  }
+};
+
 // Format date string from Excel (could be in various formats) to dd/mm/yyyy
 const formatDateString = (dateValue: string | number): string => {
   try {
@@ -134,10 +156,19 @@ export const processCSVFile = async (file: File): Promise<CSVValidationResult> =
           }
           
           // Prepare a base santri data object with required fields
+          
+          // Get semester/kelas value (prioritize the combined field, fall back to individual fields)
+          const semesterKelasValue = row['semester/kelas']?.toString().trim() || 
+                                   row.kelas?.toString().trim() || 
+                                   row.semester?.toString().trim() || 
+                                   '';
+          
           const santriData: any = {
             nama: row.nama?.toString().trim() || '',
             kamar: row.kamar?.toString().trim() || '',
-            kelas: row.kelas?.toString().trim() || '',
+            // Set both kelas and semester to the same value
+            kelas: semesterKelasValue,
+            semester: semesterKelasValue,
             tahunMasuk: row.tahunMasuk?.toString().trim() || new Date().getFullYear().toString(),
             nomorWalisantri: row.nomorWalisantri ? formatPhoneNumber(row.nomorWalisantri) : '',
             nomorTelpon: row.nomorTelpon ? formatPhoneNumber(row.nomorTelpon) : '',
@@ -149,7 +180,7 @@ export const processCSVFile = async (file: File): Promise<CSVValidationResult> =
               ['Aktif', 'Boyong', 'Lulus', 'Dikeluarkan', 'Alumni'].includes(row.statusAktif)
                 ? row.statusAktif
                 : 'Aktif',
-            tanggalLahir: row.tanggalLahir ? formatDateString(row.tanggalLahir) : '',
+            tanggalLahir: row.tanggalLahir ? validateAndFormatDateString(row.tanggalLahir, index + 2, errors) : '',
           };
           
           // Process additional columns (no filtering or validation)
