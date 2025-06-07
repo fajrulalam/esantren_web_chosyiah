@@ -90,13 +90,13 @@ export default function IzinSantriPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Permohonan Izin Sakit/Pulang</h1>
-        <Link 
-          href="/izin-santri/new" 
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          <PlusIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
-          Buat Permohonan
-        </Link>
+        {/*<Link */}
+        {/*  href="/izin-santri/new" */}
+        {/*  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"*/}
+        {/*>*/}
+        {/*  <PlusIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />*/}
+        {/*  Buat Permohonan*/}
+        {/*</Link>*/}
       </div>
 
       {error && (
@@ -114,7 +114,7 @@ export default function IzinSantriPage() {
         <>
           {izinList.length === 0 ? (
             <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <p className="text-gray-600 dark:text-gray-400">Belum ada permohonan izin. Klik tombol "Buat Permohonan" untuk membuat permohonan baru.</p>
+              <p className="text-gray-600 dark:text-gray-400">Mekanisme izin sakit/pulang menggunakan buku izin dan melalui Kalastri</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
