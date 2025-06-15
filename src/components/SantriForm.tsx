@@ -47,6 +47,7 @@ export default function SantriForm({
     programStudi: "",
     statusAktif: "Aktif",
     tanggalLahir: "",
+    tempatLahir: "",
     nomorTelpon: defaultPhoneFormat,
   });
 
@@ -84,6 +85,7 @@ export default function SantriForm({
         programStudi: santri.programStudi || "",
         statusAktif: santri.statusAktif,
         tanggalLahir: santri.tanggalLahir,
+        tempatLahir: (santri.tempatLahir as string) || "",
         nomorTelpon: santri.nomorWalisantri || "", // Use same number for both fields
       });
     }
@@ -456,6 +458,23 @@ export default function SantriForm({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label
+            htmlFor="tempatLahir"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-200"
+          >
+            Tempat Lahir
+          </label>
+          <input
+            type="text"
+            id="tempatLahir"
+            name="tempatLahir"
+            value={formData.tempatLahir}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+            placeholder="Masukkan tempat lahir"
+          />
+        </div>
         <div>
           <label
             htmlFor="tanggalLahir"

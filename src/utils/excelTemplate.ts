@@ -15,6 +15,7 @@ export function downloadSantriTemplate() {
     { name: "statusAktif", required: true, example: "Aktif" },
     { name: "nomorTelpon", required: true, example: "6281234567890" },
     { name: "nomorWalisantri", required: false, example: "6281234567890" },
+    { name: "tempatLahir", required: false, example: "Jakarta" },
     { name: "tanggalLahir", required: false, example: "06/06/2006" },
     { name: "kamar", required: false, example: "A1" },
     // { name: "kelas", required: false, example: "10" },

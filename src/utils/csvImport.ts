@@ -17,26 +17,12 @@ const validators = {
   tanggalLahir: () => true, // Accept any value for tanggalLahir, including empty
 };
 
-// Validates that date string is in dd/mm/yyyy format and returns formatted date
-const validateAndFormatDateString = (dateValue: string | number, rowNumber: number, errors: string[]): string => {
-  // Check if empty
+// Simplified: just try to format the date to dd/mm/yyyy without strict validation
+const validateAndFormatDateString = (dateValue: string | number): string => {
   if (!dateValue) return '';
   
-  // If it's already in dd/mm/yyyy format
-  if (typeof dateValue === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateValue)) {
-    // Further validate day and month ranges
-    const [day, month, year] = dateValue.split('/').map(Number);
-    if (day < 1 || day > 31 || month < 1 || month > 12) {
-      errors.push(`Baris ${rowNumber}: Format tanggal lahir tidak valid. Nilai hari atau bulan di luar rentang yang valid (${dateValue}).`);
-      return dateValue;
-    }
-    return dateValue;
-  } else {
-    // If it's not in the required format, add error
-    errors.push(`Baris ${rowNumber}: Format tanggal lahir harus dalam bentuk dd/mm/yyyy. Ditemukan: ${dateValue}`);
-    // Try to convert it to proper format for preview
-    return formatDateString(dateValue);
-  }
+  // Simply pass to formatDateString to handle any format
+  return formatDateString(dateValue);
 };
 
 // Format date string from Excel (could be in various formats) to dd/mm/yyyy
@@ -180,7 +166,8 @@ export const processCSVFile = async (file: File): Promise<CSVValidationResult> =
               ['Aktif', 'Boyong', 'Lulus', 'Dikeluarkan', 'Alumni'].includes(row.statusAktif)
                 ? row.statusAktif
                 : 'Aktif',
-            tanggalLahir: row.tanggalLahir ? validateAndFormatDateString(row.tanggalLahir, index + 2, errors) : '',
+            tanggalLahir: row.tanggalLahir ? validateAndFormatDateString(row.tanggalLahir) : '',
+            tempatLahir: row.tempatLahir?.toString() || '',
           };
           
           // Process additional columns (no filtering or validation)
@@ -188,7 +175,7 @@ export const processCSVFile = async (file: File): Promise<CSVValidationResult> =
             // If the key is not already in the santriData and is not part of the base form fields
             if (!santriData.hasOwnProperty(key) && 
                 !['nama', 'kamar', 'kelas', 'tahunMasuk', 'nomorWalisantri', 'nomorTelpon',
-                  'jenjangPendidikan', 'statusAktif', 'tanggalLahir', 'kodeAsrama'].includes(key)) {
+                  'jenjangPendidikan', 'statusAktif', 'tanggalLahir', 'tempatLahir', 'kodeAsrama'].includes(key)) {
               // Add the additional field as a string
               santriData[key] = row[key]?.toString() || '';
             }

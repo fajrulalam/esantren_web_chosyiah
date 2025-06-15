@@ -35,6 +35,7 @@ export interface SantriFormData {
   programStudi?: string;
   statusAktif: 'Aktif' | 'Boyong' | 'Lulus' | 'Dikeluarkan' | 'Pending' | 'Ditolak';
   tanggalLahir: string;
+  tempatLahir?: string;
   nomorTelpon?: string;
 }
 
