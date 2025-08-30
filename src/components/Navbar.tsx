@@ -127,20 +127,20 @@ export default function Navbar() {
                                                 Izin Santri
                                             </Link>
                                             {user.role === 'superAdmin' && (
-                                                <>
-                                                    <Link
-                                                        href="/user-management"
-                                                        className={isActive('/user-management') ? activeClass : inactiveClass}
-                                                    >
-                                                        User Management
-                                                    </Link>
-                                                    <Link
-                                                        href="/voucher-asrama"
-                                                        className={isActive('/voucher-asrama') ? activeClass : inactiveClass}
-                                                    >
-                                                        Voucher Asrama
-                                                    </Link>
-                                                </>
+                                                <Link
+                                                    href="/user-management"
+                                                    className={isActive('/user-management') ? activeClass : inactiveClass}
+                                                >
+                                                    User Management
+                                                </Link>
+                                            )}
+                                            {['superAdmin', 'pengurus', 'pengasuh'].includes(user.role) && (
+                                                <Link
+                                                    href="/voucher-asrama"
+                                                    className={isActive('/voucher-asrama') ? activeClass : inactiveClass}
+                                                >
+                                                    Voucher Asrama
+                                                </Link>
                                             )}
                                         </>
                                     ) : user.role === 'waliSantri' ? (
@@ -260,22 +260,22 @@ export default function Navbar() {
                                                 Izin Santri
                                             </Link>
                                             {user.role === 'superAdmin' && (
-                                                <>
-                                                    <Link
-                                                        href="/user-management"
-                                                        className={`block ${isActive('/user-management') ? activeClass : inactiveClass}`}
-                                                        onClick={() => setIsMenuOpen(false)}
-                                                    >
-                                                        User Management
-                                                    </Link>
-                                                    <Link
-                                                        href="/voucher-asrama"
-                                                        className={`block ${isActive('/voucher-asrama') ? activeClass : inactiveClass}`}
-                                                        onClick={() => setIsMenuOpen(false)}
-                                                    >
-                                                        Voucher Asrama
-                                                    </Link>
-                                                </>
+                                                <Link
+                                                    href="/user-management"
+                                                    className={`block ${isActive('/user-management') ? activeClass : inactiveClass}`}
+                                                    onClick={() => setIsMenuOpen(false)}
+                                                >
+                                                    User Management
+                                                </Link>
+                                            )}
+                                            {['superAdmin', 'pengurus', 'pengasuh'].includes(user.role) && (
+                                                <Link
+                                                    href="/voucher-asrama"
+                                                    className={`block ${isActive('/voucher-asrama') ? activeClass : inactiveClass}`}
+                                                    onClick={() => setIsMenuOpen(false)}
+                                                >
+                                                    Voucher Asrama
+                                                </Link>
                                             )}
                                         </>
                                     ) : user.role === 'waliSantri' ? (
