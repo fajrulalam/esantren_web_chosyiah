@@ -2,25 +2,25 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/firebase/auth";
-import { 
-  getPendingIzinApplications, 
-  getNdalemPendingIzinApplications, 
-  getOngoingIzinApplications, 
+import {
+  getPendingIzinApplications,
+  getNdalemPendingIzinApplications,
+  getOngoingIzinApplications,
   getIzinHistory,
   updateIzinApplicationStatus,
   updateNdalemApprovalStatus,
   getIzinReport,
-  IzinReportItem
+  IzinReportItem,
 } from "@/firebase/izinSakitPulang";
 import { IzinSakitPulang } from "@/types/izinSakitPulang";
 import { Timestamp } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { 
+import {
   ArrowPathIcon,
   DocumentTextIcon,
   DocumentArrowDownIcon,
-  ChartBarIcon
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import IzinCard from "@/components/izin/IzinCard";
 import DatePicker from "react-datepicker";
@@ -33,20 +33,26 @@ export default function IzinAdminPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>("pending");
-  const [applications, setApplications] = useState<(IzinSakitPulang & { santriName?: string })[]>([]);
+  const [applications, setApplications] = useState<
+    (IzinSakitPulang & { santriName?: string })[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  
+
   // History tab states
-  const [historyStartDate, setHistoryStartDate] = useState<Date>(new Date(new Date().setMonth(new Date().getMonth() - 1)));
+  const [historyStartDate, setHistoryStartDate] = useState<Date>(
+    new Date(new Date().setMonth(new Date().getMonth() - 1))
+  );
   const [historyEndDate, setHistoryEndDate] = useState<Date>(new Date());
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [historyFilterApplied, setHistoryFilterApplied] = useState(false);
-  
+
   // Report tab states
   const [reportData, setReportData] = useState<IzinReportItem[]>([]);
-  const [startDate, setStartDate] = useState<Date>(new Date(new Date().setMonth(new Date().getMonth() - 1)));
+  const [startDate, setStartDate] = useState<Date>(
+    new Date(new Date().setMonth(new Date().getMonth() - 1))
+  );
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const csvLinkRef = useRef<HTMLAnchorElement>(null);
@@ -55,30 +61,35 @@ export default function IzinAdminPage() {
   useEffect(() => {
     const fetchApplications = async () => {
       if (loading) return;
-      
-      if (!user || (user.role !== "pengurus" && user.role !== "pengasuh" && user.role !== "superAdmin")) {
+
+      if (
+        !user ||
+        (user.role !== "pengurus" &&
+          user.role !== "pengasuh" &&
+          user.role !== "superAdmin")
+      ) {
         router.push("/");
         return;
       }
-      
+
       // Skip data fetching for the history tab as it requires user interaction first
       if (activeTab === "history" && !historyFilterApplied) {
         setIsLoading(false);
         return;
       }
-      
+
       // Skip data fetching for report tab as it requires user interaction
       if (activeTab === "report") {
         setIsLoading(false);
         return;
       }
-      
+
       setIsLoading(true);
       setError(null);
-      
+
       try {
         let data: (IzinSakitPulang & { santriName?: string })[] = [];
-        
+
         switch (activeTab) {
           case "pending":
             data = await getPendingIzinApplications();
@@ -100,7 +111,7 @@ export default function IzinAdminPage() {
             }
             break;
         }
-        
+
         setApplications(data);
       } catch (err) {
         console.error(`Error fetching ${activeTab} applications:`, err);
@@ -109,9 +120,18 @@ export default function IzinAdminPage() {
         setIsLoading(false);
       }
     };
-    
+
     fetchApplications();
-  }, [activeTab, user, loading, router, refreshTrigger, historyFilterApplied, historyStartDate, historyEndDate]);
+  }, [
+    activeTab,
+    user,
+    loading,
+    router,
+    refreshTrigger,
+    historyFilterApplied,
+    historyStartDate,
+    historyEndDate,
+  ]);
 
   // Format timestamp to readable date
   const formatDate = (timestamp: Timestamp) => {
@@ -121,28 +141,31 @@ export default function IzinAdminPage() {
       month: "long",
       year: "numeric",
       hour: "2-digit",
-      minute: "2-digit"
+      minute: "2-digit",
     });
   };
 
-
   // Refresh data
   const handleRefresh = () => {
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   // Render tab button
   const renderTabButton = (tabName: TabType, label: string) => {
     const isActive = activeTab === tabName;
     const baseClasses = "px-4 py-2 text-sm font-medium";
-    const activeClasses = "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-100 rounded-md shadow-sm";
-    const inactiveClasses = "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md";
-    
+    const activeClasses =
+      "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-100 rounded-md shadow-sm";
+    const inactiveClasses =
+      "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md";
+
     // Show all tabs for all admin roles
     return (
       <button
         onClick={() => setActiveTab(tabName)}
-        className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
+        className={`${baseClasses} ${
+          isActive ? activeClasses : inactiveClasses
+        }`}
       >
         {label}
       </button>
@@ -159,77 +182,90 @@ export default function IzinAdminPage() {
   };
 
   // Handle approval directly from list
-  const handleQuickApprove = async (application: IzinSakitPulang & { santriName?: string }, isNdalemApproval: boolean) => {
+  const handleQuickApprove = async (
+    application: IzinSakitPulang & { santriName?: string },
+    isNdalemApproval: boolean
+  ) => {
     if (!user) return;
-    
+
     try {
       if (isNdalemApproval) {
         await updateNdalemApprovalStatus(application.id, true, user);
       } else {
         await updateIzinApplicationStatus(application.id, true, user);
       }
-      
+
       // Refresh the list
-      setRefreshTrigger(prev => prev + 1);
+      setRefreshTrigger((prev) => prev + 1);
     } catch (err) {
       console.error("Error with quick approval:", err);
       setError("Gagal menyetujui permohonan. Silakan coba lagi.");
     }
   };
-  
+
   // Handle rejection directly from list
-  const handleQuickReject = async (application: IzinSakitPulang & { santriName?: string }, isNdalemApproval: boolean) => {
+  const handleQuickReject = async (
+    application: IzinSakitPulang & { santriName?: string },
+    isNdalemApproval: boolean
+  ) => {
     if (!user) return;
-    
+
     try {
       if (isNdalemApproval) {
         await updateNdalemApprovalStatus(application.id, false, user);
       } else {
         await updateIzinApplicationStatus(application.id, false, user);
       }
-      
+
       // Refresh the list
-      setRefreshTrigger(prev => prev + 1);
+      setRefreshTrigger((prev) => prev + 1);
     } catch (err) {
       console.error("Error with quick rejection:", err);
       setError("Gagal menolak permohonan. Silakan coba lagi.");
     }
   };
-  
+
   // Check if user can approve as ndalem
   const canApproveAsNdalem = () => {
     return user?.role === "pengasuh" || user?.role === "superAdmin";
-  }
-  
+  };
+
   // Load history data with date range
   const loadHistoryData = async () => {
-    if (!user || (user.role !== "pengurus" && user.role !== "pengasuh" && user.role !== "superAdmin")) {
+    if (
+      !user ||
+      (user.role !== "pengurus" &&
+        user.role !== "pengasuh" &&
+        user.role !== "superAdmin")
+    ) {
       setError("Anda tidak memiliki akses untuk melihat data sejarah izin.");
       return;
     }
-    
+
     // Validate date range - maximum 3 months apart
-    const diffTime = Math.abs(historyEndDate.getTime() - historyStartDate.getTime());
+    const diffTime = Math.abs(
+      historyEndDate.getTime() - historyStartDate.getTime()
+    );
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays > 90) {
       setError("Rentang tanggal maksimal 3 bulan (90 hari).");
       return;
     }
-    
+
     if (historyEndDate < historyStartDate) {
       setError("Tanggal akhir harus setelah tanggal awal.");
       return;
     }
-    
+
     setIsLoadingHistory(true);
     setError(null);
-    
+
     try {
       // Set endDate to end of day to include all records on that day
       const adjustedEndDate = new Date(historyEndDate);
       adjustedEndDate.setHours(23, 59, 59, 999);
-      
+
       const data = await getIzinHistory(historyStartDate, adjustedEndDate);
       setApplications(data);
       setHistoryFilterApplied(true);
@@ -240,36 +276,41 @@ export default function IzinAdminPage() {
       setIsLoadingHistory(false);
     }
   };
-  
+
   // Generate report based on date range
   const generateReport = async () => {
-    if (!user || (user.role !== "pengurus" && user.role !== "pengasuh" && user.role !== "superAdmin")) {
+    if (
+      !user ||
+      (user.role !== "pengurus" &&
+        user.role !== "pengasuh" &&
+        user.role !== "superAdmin")
+    ) {
       setError("Anda tidak memiliki akses untuk melihat laporan.");
       return;
     }
-    
+
     // Validate date range - maximum 1 month apart
     const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays > 31) {
       setError("Rentang tanggal maksimal 1 bulan (31 hari).");
       return;
     }
-    
+
     if (endDate < startDate) {
       setError("Tanggal akhir harus setelah tanggal awal.");
       return;
     }
-    
+
     setIsGeneratingReport(true);
     setError(null);
-    
+
     try {
       // Set endDate to end of day to include all records on that day
       const adjustedEndDate = new Date(endDate);
       adjustedEndDate.setHours(23, 59, 59, 999);
-      
+
       const data = await getIzinReport(startDate, adjustedEndDate);
       setReportData(data);
     } catch (err) {
@@ -279,27 +320,27 @@ export default function IzinAdminPage() {
       setIsGeneratingReport(false);
     }
   };
-  
+
   // Export report data to CSV
   const exportToCSV = () => {
     if (reportData.length === 0) return;
-    
+
     const headers = [
-      "Nama Santri", 
-      "Kamar", 
+      "Nama Santri",
+      "Kamar",
       "Semester",
-      "Jumlah Izin Pulang", 
-      "Jumlah Izin Sakit", 
+      "Jumlah Izin Pulang",
+      "Jumlah Izin Sakit",
       "Jumlah Terlambat Kembali",
       "Alasan Pulang",
-      "Keluhan Sakit"
+      "Keluhan Sakit",
     ];
-    
+
     const csvRows = [];
-    
+
     // Add headers
-    csvRows.push(headers.join(','));
-    
+    csvRows.push(headers.join(","));
+
     // Add data rows
     for (const item of reportData) {
       const values = [
@@ -310,35 +351,40 @@ export default function IzinAdminPage() {
         item.jumlahIzinSakit,
         item.jumlahTerlambatKembali,
         `"${item.alasanPulang}"`,
-        `"${item.keluhanSakit}"`
+        `"${item.keluhanSakit}"`,
       ];
-      
-      csvRows.push(values.join(','));
+
+      csvRows.push(values.join(","));
     }
-    
+
     // Create CSV content
-    const csvContent = csvRows.join('\n');
-    
+    const csvContent = csvRows.join("\n");
+
     // Create blob and download link
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    
+
     // Format date range for filename
     const startDateStr = formatISODate(startDate);
     const endDateStr = formatISODate(endDate);
-    
+
     // Create download link
     if (csvLinkRef.current) {
       csvLinkRef.current.href = url;
-      csvLinkRef.current.setAttribute('download', `izin_report_${startDateStr}_to_${endDateStr}.csv`);
+      csvLinkRef.current.setAttribute(
+        "download",
+        `izin_report_${startDateStr}_to_${endDateStr}.csv`
+      );
       csvLinkRef.current.click();
     }
-  };;
+  };
 
   return (
     <div className="container mx-auto px-4 py-8 dark:bg-gray-900">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold dark:text-white">Manajemen Izin Sakit &amp; Pulang</h1>
+        <h1 className="text-2xl font-bold dark:text-white">
+          Manajemen Izin Sakit &amp; Pulang
+        </h1>
         <button
           onClick={handleRefresh}
           className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900"
@@ -361,7 +407,10 @@ export default function IzinAdminPage() {
 
       {/* Error message */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-400 px-4 py-3 rounded mb-4" role="alert">
+        <div
+          className="bg-red-100 border border-red-400 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-400 px-4 py-3 rounded mb-4"
+          role="alert"
+        >
           <p>{error}</p>
         </div>
       )}
@@ -404,32 +453,56 @@ export default function IzinAdminPage() {
                 >
                   {isLoadingHistory ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
                       </svg>
                       Memproses...
                     </>
                   ) : (
-                    'Tampilkan Data'
+                    "Tampilkan Data"
                   )}
                 </button>
               </div>
             </div>
-            
+
             <div className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-              <p>Tampilkan sejarah izin yang sudah selesai atau ditolak. Maksimal rentang waktu adalah 3 bulan.</p>
+              <p>
+                Tampilkan sejarah izin yang sudah selesai atau ditolak. Maksimal
+                rentang waktu adalah 3 bulan.
+              </p>
               {!historyFilterApplied && applications.length > 0 && (
-                <p className="mt-1 italic">Menampilkan 8 data terbaru. Gunakan filter untuk melihat lebih banyak data.</p>
+                <p className="mt-1 italic">
+                  Menampilkan 8 data terbaru. Gunakan filter untuk melihat lebih
+                  banyak data.
+                </p>
               )}
             </div>
           </div>
-          
+
           {/* Applications List */}
           {isLoading || isLoadingHistory ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 dark:border-indigo-400 mx-auto"></div>
-              <p className="mt-3 text-gray-600 dark:text-gray-400">Memuat data...</p>
+              <p className="mt-3 text-gray-600 dark:text-gray-400">
+                Memuat data...
+              </p>
             </div>
           ) : (
             <>
@@ -437,8 +510,8 @@ export default function IzinAdminPage() {
                 <div className="text-center py-12 bg-gray-50 dark:bg-gray-800">
                   <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto" />
                   <p className="mt-2 text-gray-500 dark:text-gray-400">
-                    {historyFilterApplied 
-                      ? "Tidak ada data izin sejarah dalam rentang waktu yang dipilih." 
+                    {historyFilterApplied
+                      ? "Tidak ada data izin sejarah dalam rentang waktu yang dipilih."
                       : "Silakan pilih rentang tanggal dan klik 'Tampilkan Data'."}
                   </p>
                 </div>
@@ -494,9 +567,25 @@ export default function IzinAdminPage() {
                 >
                   {isGeneratingReport ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
                       </svg>
                       Memproses...
                     </>
@@ -519,52 +608,84 @@ export default function IzinAdminPage() {
               </div>
             </div>
           </div>
-          
+
           {/* Report Table */}
           {isGeneratingReport ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 dark:border-indigo-400 mx-auto"></div>
-              <p className="mt-3 text-gray-600 dark:text-gray-400">Memproses laporan...</p>
+              <p className="mt-3 text-gray-600 dark:text-gray-400">
+                Memproses laporan...
+              </p>
             </div>
           ) : reportData.length === 0 ? (
             <div className="text-center py-12">
               <DocumentTextIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto" />
-              <p className="mt-2 text-gray-600 dark:text-gray-400">Belum ada data laporan. Silakan pilih rentang tanggal dan klik "Buat Laporan".</p>
+              <p className="mt-2 text-gray-600 dark:text-gray-400">
+                Belum ada data laporan. Silakan pilih rentang tanggal dan klik
+                "Buat Laporan".
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                    >
                       Nama Santri
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                    >
                       Kamar
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Semester
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                    >
+                      Semester/Kelas
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                    >
                       Izin Pulang
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                    >
                       Izin Sakit
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                    >
                       Terlambat Kembali
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                    >
                       Alasan Pulang
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                    >
                       Keluhan Sakit
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                   {reportData.map((item) => (
-                    <tr key={item.santriId} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <tr
+                      key={item.santriId}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                         {item.nama}
                       </td>
@@ -602,7 +723,9 @@ export default function IzinAdminPage() {
           {isLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 dark:border-indigo-400 mx-auto"></div>
-              <p className="mt-3 text-gray-600 dark:text-gray-400">Memuat data...</p>
+              <p className="mt-3 text-gray-600 dark:text-gray-400">
+                Memuat data...
+              </p>
             </div>
           ) : (
             <>
@@ -610,11 +733,15 @@ export default function IzinAdminPage() {
               {applications.length === 0 ? (
                 <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-gray-500 dark:text-gray-400">
-                    Tidak ada pengajuan {
-                      activeTab === "pending" ? "yang menunggu persetujuan" : 
-                      activeTab === "ndalem" ? "yang menunggu persetujuan ndalem" : 
-                      activeTab === "ongoing" ? "yang sedang berlangsung" : ""
-                    }.
+                    Tidak ada pengajuan{" "}
+                    {activeTab === "pending"
+                      ? "yang menunggu persetujuan"
+                      : activeTab === "ndalem"
+                      ? "yang menunggu persetujuan ndalem"
+                      : activeTab === "ongoing"
+                      ? "yang sedang berlangsung"
+                      : ""}
+                    .
                   </p>
                 </div>
               ) : (
@@ -625,8 +752,14 @@ export default function IzinAdminPage() {
                       izin={application}
                       formatDate={formatDate}
                       detailLink={`/izin-admin/${application.id}`}
-                      showQuickApprove={activeTab === "pending" || (activeTab === "ndalem" && canApproveAsNdalem())}
-                      showQuickReject={activeTab === "pending" || (activeTab === "ndalem" && canApproveAsNdalem())}
+                      showQuickApprove={
+                        activeTab === "pending" ||
+                        (activeTab === "ndalem" && canApproveAsNdalem())
+                      }
+                      showQuickReject={
+                        activeTab === "pending" ||
+                        (activeTab === "ndalem" && canApproveAsNdalem())
+                      }
                       onQuickApprove={handleQuickApprove}
                       onQuickReject={handleQuickReject}
                       isNdalemAction={activeTab === "ndalem"}

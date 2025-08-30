@@ -759,7 +759,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       {/* Add Attendance Type Modal */}
       {showAddTypeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg max-w-6xl w-full
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg max-w-md w-full
                          border border-gray-200 dark:border-gray-700
                          shadow-[5px_5px_15px_rgba(0,0,0,0.1),-5px_-5px_15px_rgba(255,255,255,0.1)]
                          dark:shadow-[5px_5px_15px_rgba(0,0,0,0.3),-5px_-5px_15px_rgba(255,255,255,0.05)]">
@@ -800,7 +800,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
               <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-3">Pilih Santri untuk Presensi Ini</h4>
               
               {/* Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                 <div>
                   <label htmlFor="statusAktif" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                     Status Aktif
@@ -816,24 +816,6 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                     <option value="Aktif">Aktif</option>
                     <option value="Boyong">Boyong</option>
                     <option value="Lulus">Lulus</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="jenjangPendidikan" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    Jenjang Pendidikan
-                  </label>
-                  <select
-                    id="jenjangPendidikan"
-                    name="jenjangPendidikan"
-                    value={filters.jenjangPendidikan}
-                    onChange={handleFilterChange}
-                    className="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
-                  >
-                    <option value="">Semua Jenjang</option>
-                    {[...new Set(santris.map(s => s.jenjangPendidikan))].filter(Boolean).sort().map(jenjang => (
-                      <option key={jenjang} value={jenjang}>{jenjang}</option>
-                    ))}
                   </select>
                 </div>
                 
@@ -857,7 +839,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                 
                 <div>
                   <label htmlFor="semester" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    Semester/Kelas
+                    Semester
                   </label>
                   <select
                     id="semester"
@@ -866,7 +848,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                     onChange={handleFilterChange}
                     className="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
                   >
-                    <option value="">Semua Semester/Kelas</option>
+                    <option value="">Semua</option>
                     {[...new Set(santris.map(s => s.semester))].filter(Boolean).sort().map(jenjang => (
                       <option key={jenjang} value={jenjang}>{jenjang}</option>
                     ))}
@@ -920,15 +902,6 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                             <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                               Kamar
                             </th>
-                            <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              Jenjang Pendidikan
-                            </th>
-                            <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              Semester/Kelas
-                            </th>
-                            <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              Program Studi
-                            </th>
                           </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
@@ -969,15 +942,6 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                                 {santri.kamar || "-"}
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                {santri.jenjangPendidikan || "-"}
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                {santri.semester || "-"}
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                {santri.programStudi || "-"}
                               </td>
                             </tr>
                           ))}
@@ -1205,15 +1169,6 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                             <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                               Kamar
                             </th>
-                            <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              Jenjang Pendidikan
-                            </th>
-                            <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              Semester/Kelas
-                            </th>
-                            <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              Program Studi
-                            </th>
                           </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
@@ -1257,15 +1212,6 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                                 {santri.kamar || "-"}
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                {santri.jenjangPendidikan || "-"}
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                {santri.semester || "-"}
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                                {santri.programStudi || "-"}
                               </td>
                             </tr>
                           ))}
@@ -1332,7 +1278,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       {/* Delete Attendance Type Modal */}
       {showDeleteTypeModal && selectedTypeToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg max-w-6xl w-full
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg max-w-md w-full
                          border border-gray-200 dark:border-gray-700
                          shadow-[5px_5px_15px_rgba(0,0,0,0.1),-5px_-5px_15px_rgba(255,255,255,0.1)]
                          dark:shadow-[5px_5px_15px_rgba(0,0,0,0.3),-5px_-5px_15px_rgba(255,255,255,0.05)]">
