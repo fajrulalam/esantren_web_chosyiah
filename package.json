@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbo",
     "build": "next build",
     "build:dev": "NODE_ENV=development next build",
     "start": "next start",
@@ -12,6 +12,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.2.0",
+    "@next/swc-darwin-x64": "^15.5.2",
     "@tailwindcss/forms": "^0.5.10",
     "firebase": "^11.4.0",
     "next": "15.2.1",

@@ -87,7 +87,7 @@ export default function Navbar() {
                                 />
                                 <div className="flex flex-col w-48 text-center">
       <span className="text-2xl font-bold text-amber-800 dark:text-amber-300 tracking-widest">
-        Chosyi'ah
+        Chosyi&apos;ah
       </span>
                                     <span className="text-sm font-bold text-amber-800 dark:text-amber-300">
         Asrama Mahasiswi
@@ -100,7 +100,7 @@ export default function Navbar() {
                         <div className="hidden md:flex items-center space-x-4">
                             {user ? (
                                 <>
-                                    {user.role !== 'waliSantri' ? (
+                                    {['pengurus', 'pengasuh', 'superAdmin'].includes(user.role) ? (
                                         <>
                                             <Link
                                                 href="/rekapitulasi"
@@ -127,21 +127,51 @@ export default function Navbar() {
                                                 Izin Santri
                                             </Link>
                                             {user.role === 'superAdmin' && (
-                                                <Link
-                                                    href="/user-management"
-                                                    className={isActive('/user-management') ? activeClass : inactiveClass}
-                                                >
-                                                    User Management
-                                                </Link>
+                                                <>
+                                                    <Link
+                                                        href="/user-management"
+                                                        className={isActive('/user-management') ? activeClass : inactiveClass}
+                                                    >
+                                                        User Management
+                                                    </Link>
+                                                    <Link
+                                                        href="/voucher-asrama"
+                                                        className={isActive('/voucher-asrama') ? activeClass : inactiveClass}
+                                                    >
+                                                        Voucher Asrama
+                                                    </Link>
+                                                </>
                                             )}
                                         </>
-                                    ) : (
+                                    ) : user.role === 'waliSantri' ? (
                                         <>
                                             <Link
                                                 href="/payment-history"
                                                 className={isActive('/payment-history') ? activeClass : inactiveClass}
                                             >
                                                 History Pembayaran
+                                            </Link>
+                                            <Link
+                                                href="/my-vouchers"
+                                                className={isActive('/my-vouchers') ? activeClass : inactiveClass}
+                                            >
+                                                Voucher 375
+                                            </Link>
+                                            <Link
+                                                href="/izin-santri"
+                                                className={isActive('/izin-santri') ? activeClass : inactiveClass}
+                                            >
+                                                Izin Sakit/Pulang
+                                            </Link>
+                                        </>
+                                    ) : (
+                                        // Santri navigation (users from SantriCollection)
+                                        <>
+                                            <Link
+                                                href="/my-vouchers"
+                                                className={isActive('/my-vouchers') ? activeClass : inactiveClass}
+                                            >
+                                                Voucher 375
                                             </Link>
                                             <Link
                                                 href="/izin-santri"
@@ -199,7 +229,7 @@ export default function Navbar() {
                         <div className="px-4 pt-2 pb-3 space-y-2 bg-amber-50 dark:bg-gray-800 shadow-inner">
                             {user ? (
                                 <>
-                                    {user.role !== 'waliSantri' ? (
+                                    {['pengurus', 'pengasuh', 'superAdmin'].includes(user.role) ? (
                                         <>
                                             <Link
                                                 href="/rekapitulasi"
@@ -230,16 +260,25 @@ export default function Navbar() {
                                                 Izin Santri
                                             </Link>
                                             {user.role === 'superAdmin' && (
-                                                <Link
-                                                    href="/user-management"
-                                                    className={`block ${isActive('/user-management') ? activeClass : inactiveClass}`}
-                                                    onClick={() => setIsMenuOpen(false)}
-                                                >
-                                                    User Management
-                                                </Link>
+                                                <>
+                                                    <Link
+                                                        href="/user-management"
+                                                        className={`block ${isActive('/user-management') ? activeClass : inactiveClass}`}
+                                                        onClick={() => setIsMenuOpen(false)}
+                                                    >
+                                                        User Management
+                                                    </Link>
+                                                    <Link
+                                                        href="/voucher-asrama"
+                                                        className={`block ${isActive('/voucher-asrama') ? activeClass : inactiveClass}`}
+                                                        onClick={() => setIsMenuOpen(false)}
+                                                    >
+                                                        Voucher Asrama
+                                                    </Link>
+                                                </>
                                             )}
                                         </>
-                                    ) : (
+                                    ) : user.role === 'waliSantri' ? (
                                         <>
                                             <Link
                                                 href="/payment-history"
@@ -247,6 +286,31 @@ export default function Navbar() {
                                                 onClick={() => setIsMenuOpen(false)}
                                             >
                                                 History Pembayaran
+                                            </Link>
+                                            <Link
+                                                href="/my-vouchers"
+                                                className={`block ${isActive('/my-vouchers') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Voucher 375
+                                            </Link>
+                                            <Link
+                                                href="/izin-santri"
+                                                className={`block ${isActive('/izin-santri') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Izin Sakit/Pulang
+                                            </Link>
+                                        </>
+                                    ) : (
+                                        // Santri navigation (users from SantriCollection)
+                                        <>
+                                            <Link
+                                                href="/my-vouchers"
+                                                className={`block ${isActive('/my-vouchers') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Voucher 375
                                             </Link>
                                             <Link
                                                 href="/izin-santri"

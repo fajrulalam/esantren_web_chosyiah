@@ -3,7 +3,7 @@ import PaymentModal from './PaymentModal';
 import PaymentStatusModal from './PaymentStatusModal';
 import { useState, useEffect, useRef } from 'react';
 import { db, functions } from '../firebase/config';
-import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc, orderBy, limit } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { useAuth } from '../firebase/auth';
 import { PaymentStatus } from '@/types/santri';
@@ -19,128 +19,160 @@ export default function PaymentHistory() {
     const [santriData, setSantriData] = useState<any>(null);
     const [payments, setPayments] = useState<PaymentStatus[]>([]);
     const [error, setError] = useState<string | null>(null);
-    const loadTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const initialWaitTime = 30000; // 30 seconds
-    const subsequentWaitTime = 60000; // 60 seconds
-    const [currentWaitTime, setCurrentWaitTime] = useState(initialWaitTime);
-    const [fetchAttempts, setFetchAttempts] = useState(0);
     
-    // Fetch santri data based on user information
+    // Simple cache to prevent unnecessary refetches
+    const cacheRef = useRef<{
+        santriId?: string;
+        data?: PaymentStatus[];
+        timestamp?: number;
+    }>({});
+    
+    // Optimized data fetching - combine santri and payment data fetching
     useEffect(() => {
-        const fetchSantriData = async () => {
+        const fetchData = async () => {
             try {
                 setIsLoading(true);
+                setError(null);
                 
                 if (!user) return;
                 
-                // For wali santri, fetch using the santri ID if available
+                let santriId: string | null = null;
+                let santriDocData: any = null;
+                
+                // Get santri ID and data efficiently
                 if (user.role === 'waliSantri' && user.santriId) {
-                    const santriDoc = doc(db, "SantriCollection", user.santriId);
+                    santriId = user.santriId;
+                    // Fetch santri data in parallel with payment data
+                    const santriDoc = doc(db, "SantriCollection", santriId);
                     const santriSnapshot = await getDoc(santriDoc);
                     
                     if (santriSnapshot.exists()) {
-                        setSantriData(santriSnapshot.data());
-                        fetchPayments(user.santriId);
+                        santriDocData = santriSnapshot.data();
+                        setSantriData(santriDocData);
                     } else {
                         setError("Data santri tidak ditemukan");
+                        return;
                     }
-                } 
-                // If we have a santri name from login but no santriId in user object
-                else if (santriName) {
-                    // Query the collection to find the santri
+                } else if (santriName) {
+                    // Query to find santri by name (optimized with proper casing)
                     const santriRef = collection(db, "SantriCollection");
-                    const q = query(
-                        santriRef, 
-                        where("nama", "==", santriName.trim().toLowerCase())
-                    );
+                    const q = query(santriRef, where("nama", "==", santriName));
                     
                     const querySnapshot = await getDocs(q);
                     
                     if (!querySnapshot.empty) {
-                        // Take the first match
-                        const doc = querySnapshot.docs[0];
-                        setSantriData(doc.data());
-                        fetchPayments(doc.id);
+                        const docSnapshot = querySnapshot.docs[0];
+                        santriId = docSnapshot.id;
+                        santriDocData = docSnapshot.data();
+                        setSantriData(santriDocData);
                     } else {
                         setError("Data santri tidak ditemukan");
+                        return;
                     }
                 }
+                
+                // Fetch payment data directly from Firestore (much faster than Cloud Function)
+                if (santriId) {
+                    await fetchPaymentsDirect(santriId);
+                }
+                
             } catch (err) {
-                console.error("Error fetching santri data:", err);
-                setError("Terjadi kesalahan saat mengambil data santri");
+                console.error("Error fetching data:", err);
+                setError("Terjadi kesalahan saat mengambil data");
             } finally {
                 setIsLoading(false);
+                setShowEmptyState(true);
             }
         };
         
-        fetchSantriData();
+        fetchData();
     }, [user, santriName]);
-    
-    // Clear timer when component unmounts
-    useEffect(() => {
-        return () => {
-            if (loadTimerRef.current) {
-                clearTimeout(loadTimerRef.current);
-            }
-        };
-    }, []);
 
-    // Fetch payment data for the santri using Cloud Function
-    const fetchPayments = async (santriId: string) => {
+    // Smart payment fetching - tries direct query first, falls back to cloud function
+    const fetchPaymentsDirect = async (santriId: string, forceRefresh = false) => {
         try {
-            setIsLoading(true);
-            setShowEmptyState(false);
-            setFetchAttempts(prev => prev + 1);
+            // Check cache first (cache for 5 minutes)
+            const now = Date.now();
+            const cacheExpiry = 5 * 60 * 1000; // 5 minutes
             
-            // Clear any existing timer
-            if (loadTimerRef.current) {
-                clearTimeout(loadTimerRef.current);
-            }
-            
-            const getSantriPaymentHistory = httpsCallable(functions, 'getSantriPaymentHistory');
-            const result = await getSantriPaymentHistory({ santriId });
-            
-            const paymentList = result.data as PaymentStatus[];
-            
-            // Sort payments by timestamp (newest first)
-            setPayments(paymentList.sort((a, b) => b.timestamp - a.timestamp));
-            
-            // If no payments found, start a timer to show empty state
-            if (paymentList.length === 0) {
-                loadTimerRef.current = setTimeout(() => {
-                    if (payments.length === 0) {
-                        setShowEmptyState(true);
-                    }
-                }, currentWaitTime);
+            if (!forceRefresh && 
+                cacheRef.current.santriId === santriId && 
+                cacheRef.current.data && 
+                cacheRef.current.timestamp && 
+                (now - cacheRef.current.timestamp) < cacheExpiry) {
                 
-                // Set the wait time for the next attempt
-                setCurrentWaitTime(subsequentWaitTime);
-            } else {
-                // Reset timer if we found data
-                setShowEmptyState(true); // Immediately show content if we have data
-                setCurrentWaitTime(initialWaitTime);
+                setPayments(cacheRef.current.data);
+                return;
             }
+            
+            let paymentList: PaymentStatus[] = [];
+            
+            // Try direct Firestore query first (faster)
+            try {
+                const paymentRef = collection(db, "PaymentStatuses");
+                const q = query(
+                    paymentRef,
+                    where("santriId", "==", santriId),
+                    orderBy("createdAt", "desc"),
+                    limit(50)
+                );
+                
+                const querySnapshot = await getDocs(q);
+                
+                querySnapshot.forEach((doc) => {
+                    paymentList.push({
+                        id: doc.id,
+                        ...doc.data()
+                    } as PaymentStatus);
+                });
+                
+                // If direct query succeeded and returned data, use it
+                if (paymentList.length > 0) {
+                    console.log("Using direct Firestore query for payments");
+                }
+            } catch (directError) {
+                console.warn("Direct query failed, falling back to cloud function:", directError);
+                
+                // Fallback to cloud function if direct query fails
+                try {
+                    const getSantriPaymentHistory = httpsCallable(functions, 'getSantriPaymentHistory');
+                    const result = await getSantriPaymentHistory({ santriId });
+                    paymentList = (result.data as any)?.paymentHistory || result.data as PaymentStatus[];
+                    console.log("Using cloud function fallback for payments");
+                } catch (cloudError) {
+                    console.error("Cloud function also failed:", cloudError);
+                    throw cloudError;
+                }
+            }
+            
+            // Update cache
+            cacheRef.current = {
+                santriId,
+                data: paymentList,
+                timestamp: now
+            };
+            
+            setPayments(paymentList);
+            
         } catch (err) {
             console.error("Error fetching payments:", err);
             setError("Gagal mengambil data pembayaran. Silakan coba lagi nanti.");
             setPayments([]);
-            
-            // Start a timer to show empty state on error
-            loadTimerRef.current = setTimeout(() => {
-                setShowEmptyState(true);
-            }, currentWaitTime);
-        } finally {
-            setIsLoading(false);
         }
     };
     
     // Refresh payments after a new payment is submitted
-    const handlePaymentComplete = () => {
-        setIsLoading(true); // Show loading state immediately
-        if (user?.santriId) {
-            fetchPayments(user.santriId);
-        } else if (santriData?.id) {
-            fetchPayments(santriData.id);
+    const handlePaymentComplete = async () => {
+        setIsLoading(true);
+        try {
+            const santriId = user?.santriId || santriData?.id;
+            if (santriId) {
+                await fetchPaymentsDirect(santriId, true); // Force refresh after payment
+            }
+        } catch (err) {
+            console.error("Error refreshing payments:", err);
+        } finally {
+            setIsLoading(false);
         }
     };
     
@@ -245,10 +277,10 @@ export default function PaymentHistory() {
                     <p className="text-gray-700 dark:text-gray-300 mb-4">Belum ada riwayat pembayaran</p>
                     <button 
                         onClick={() => {
-                            if (user?.santriId) {
-                                fetchPayments(user.santriId);
-                            } else if (santriData?.id) {
-                                fetchPayments(santriData.id);
+                            const santriId = user?.santriId || santriData?.id;
+                            if (santriId) {
+                                setIsLoading(true);
+                                fetchPaymentsDirect(santriId, true).finally(() => setIsLoading(false)); // Force refresh
                             }
                         }}
                         className="bg-blue-600 dark:bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 dark:hover:bg-amber-700 transition-colors"
