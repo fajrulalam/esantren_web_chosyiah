@@ -22,6 +22,7 @@ import { httpsCallable } from "firebase/functions";
 import { ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/20/solid";
 import TagihanModal from "@/components/TagihanModal";
 import StickyHorizontalScroll from "@/components/StickyHorizontalScroll";
+import PaymentModal from "@/components/PaymentModal";
 
 interface SantriPaymentStatus {
   id: string;
@@ -771,6 +772,13 @@ export default function RekapDetailView({
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
 
+  // State for payment modal (admin upload)
+  const [showAdminPaymentModal, setShowAdminPaymentModal] = useState(false);
+  const [selectedPaymentForUpload, setSelectedPaymentForUpload] = useState<string | null>(null);
+
+  // State for dropdown menus
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
   // Predefined reasons for rejecting or revoking payments
   const predefinedReasons = [
     "Gambar kurang jelas (blur/pecah)",
@@ -895,7 +903,7 @@ export default function RekapDetailView({
 
         // Default message templates
         const defaultTemplates = {
-          reminderMessage: `[PESAN OTOMATIS DARI Esantren Chosyi'ah]\n\nAssalamu'alaikum Wr. Wb. Santri Ananda {nama},\n\nmengingatkan kembali mengenai pembayaran *{paymentName}* sebesar *{amount}* yang masih belum terselesaikan. Sesaat setelah pembayaran Anda diverifikasi, Anda akan mendapatkankan kode gerbang yang telah diperbarui (kode lama akan hangus pada tanggal 1* April 2025).\n\nUnggah bukti pembayaran ke website Esantren Hurun Inn: https://hurun-in.vercel.app/\n\nJazakumullah khairan katsiran.`,
+          reminderMessage: `[PESAN OTOMATIS DARI Esantren Chosyi'ah]\n\nAssalamu'alaikum Wr. Wb. Santri Ananda {nama},\n\nmengingatkan kembali mengenai pembayaran *{paymentName}* sebesar *{amount}* yang masih belum terselesaikan. Sesaat setelah pembayaran Anda diverifikasi, Anda akan mendapatkankan kode gerbang yang telah diperbarui (kode lama akan hangus pada tanggal 1* April 2025).\n\nUnggah bukti pembayaran ke website Esantren Chosyi'ah: https://hurun-in.vercel.app/\n\nJazakumullah khairan katsiran.`,
 
           verifyMessage: `[Pembayaran Lunas Terverifikasi]\n\n*Assalamu'alaikum Santri Ananda {nama}*,\n\n*Alhamdulillah!* Kami sampaikan bahwa pembayaran *{paymentName}* sebesar *{amount}* telah *LUNAS dan berhasil diverifikasi*! \n\nTerimakasih atas komitmen Bapak/Ibu dalam mendukung pendidikan Ananda di pesantren kami. Semoga menjadi amal jariyah dan keberkahan bagi keluarga.\n\nJazakumullah khairan katsiran. \n\n Kode untuk masuk ke Asrama adalah 37537537# (kode ini wajib dirahasiakan)`,
 
@@ -1979,6 +1987,35 @@ export default function RekapDetailView({
     };
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdownId(null);
+    };
+
+    if (openDropdownId) {
+      document.addEventListener("click", handleClickOutside);
+      return () => {
+        document.removeEventListener("click", handleClickOutside);
+      };
+    }
+  }, [openDropdownId]);
+
+  // Handle admin payment upload
+  const handleAdminUploadPayment = (payment: SantriPaymentStatus) => {
+    setSelectedPaymentForUpload(payment.id);
+    setShowAdminPaymentModal(true);
+    setOpenDropdownId(null);
+  };
+
+  // Handle payment complete callback
+  const handlePaymentComplete = async () => {
+    setShowAdminPaymentModal(false);
+    setSelectedPaymentForUpload(null);
+    // Refresh the payment data
+    await fetchSantriPaymentStatus();
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-auto bg-opacity-75 bg-gray-800">
       {pageLoading && (
@@ -3002,27 +3039,110 @@ export default function RekapDetailView({
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right">
-                            <button
-                              onClick={() => handleActionButtonClick(payment)}
-                              className={`px-3 py-1 text-xs font-semibold rounded-md
-                                transition-all duration-200
-                                shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
-                                hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
-                                active:translate-y-0.5
-                                ${
-                                  payment.status === "Lunas"
-                                    ? "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100"
-                                    : payment.status === "Menunggu Verifikasi"
-                                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
-                                    : "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
-                                } transition-colors`}
-                            >
-                              {payment.status === "Lunas"
-                                ? "Lihat Riwayat"
-                                : payment.status === "Menunggu Verifikasi"
-                                ? "Verifikasi"
-                                : "Ingatkan"}
-                            </button>
+                            {payment.status === "Belum Lunas" ? (
+                              <div className="relative inline-block text-left">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdownId(openDropdownId === payment.id ? null : payment.id);
+                                  }}
+                                  className="px-3 py-1 text-xs font-semibold rounded-md
+                                    transition-all duration-200
+                                    shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
+                                    hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
+                                    active:translate-y-0.5
+                                    bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100
+                                    transition-colors inline-flex items-center gap-1"
+                                >
+                                  Aksi
+                                  <svg
+                                    className={`w-4 h-4 transition-transform ${
+                                      openDropdownId === payment.id ? "rotate-180" : ""
+                                    }`}
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 9l-7 7-7-7"
+                                    />
+                                  </svg>
+                                </button>
+
+                                {openDropdownId === payment.id && (
+                                  <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50">
+                                    <div className="py-1">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleActionButtonClick(payment);
+                                          setOpenDropdownId(null);
+                                        }}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
+                                      >
+                                        <svg
+                                          className="w-4 h-4"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                                          />
+                                        </svg>
+                                        Ingatkan via WhatsApp
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleAdminUploadPayment(payment);
+                                        }}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
+                                      >
+                                        <svg
+                                          className="w-4 h-4"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                                          />
+                                        </svg>
+                                        Unggah Bukti Pembayaran
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleActionButtonClick(payment)}
+                                className={`px-3 py-1 text-xs font-semibold rounded-md
+                                  transition-all duration-200
+                                  shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
+                                  hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
+                                  active:translate-y-0.5
+                                  ${
+                                    payment.status === "Lunas"
+                                      ? "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100"
+                                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
+                                  } transition-colors`}
+                              >
+                                {payment.status === "Lunas"
+                                  ? "Lihat Riwayat"
+                                  : "Verifikasi"}
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -3426,6 +3546,19 @@ export default function RekapDetailView({
             )}
             editMode={true}
           />
+
+          {/* Payment Modal for Admin Upload */}
+          {showAdminPaymentModal && selectedPaymentForUpload && (
+            <PaymentModal
+              closeModal={() => {
+                setShowAdminPaymentModal(false);
+                setSelectedPaymentForUpload(null);
+              }}
+              paymentId={selectedPaymentForUpload}
+              isMobile={isMobile}
+              onPaymentComplete={handlePaymentComplete}
+            />
+          )}
 
           {/* Revoke Status Modal */}
           {showRevokeStatusModal && (

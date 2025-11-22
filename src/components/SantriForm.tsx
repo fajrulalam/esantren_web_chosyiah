@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Santri, SantriFormData } from "@/types/santri";
 import { KODE_ASRAMA } from "@/constants";
 import { formatName } from "@/utils/nameFormatter";
+import { toast } from "react-hot-toast";
 
 interface SantriFormProps {
   santri?: Santri;
@@ -46,6 +47,7 @@ export default function SantriForm({
     jenjangPendidikan: "Semester 1",
     programStudi: "",
     statusAktif: "Aktif",
+    statusTanggungan: "Belum Ada Tagihan",
     tanggalLahir: "",
     nomorTelpon: defaultPhoneFormat,
   });
@@ -83,6 +85,7 @@ export default function SantriForm({
         jenjangPendidikan: santri.jenjangPendidikan,
         programStudi: santri.programStudi || "",
         statusAktif: santri.statusAktif,
+        statusTanggungan: santri.statusTanggungan,
         tanggalLahir: santri.tanggalLahir,
         nomorTelpon: santri.nomorWalisantri || "", // Use same number for both fields
       });
@@ -216,8 +219,7 @@ export default function SantriForm({
     // Check most required fields individually
     if (!updatedFormData.nama) newErrors.nama = "Field ini wajib diisi";
     if (!updatedFormData.kamar) newErrors.kamar = "Field ini wajib diisi";
-    if (!updatedFormData.tahunMasuk)
-      newErrors.tahunMasuk = "Field ini wajib diisi";
+    // tahunMasuk is no longer required
     if (!updatedFormData.jenjangPendidikan)
       newErrors.jenjangPendidikan = "Field ini wajib diisi";
 
@@ -235,10 +237,35 @@ export default function SantriForm({
         "Program Studi wajib diisi untuk Perguruan Tinggi";
     }
 
-    // Log validation results
+    // Log validation results and show toast with specific error messages
     if (Object.keys(newErrors).length > 0) {
       console.log("Validation failed with errors:", newErrors);
       setErrors(newErrors);
+      
+      // Show toast with all error messages
+      const errorMessages = Object.entries(newErrors).map(([field, message]) => {
+        const fieldNames: Record<string, string> = {
+          nama: "Nama Santri",
+          kamar: "Kamar",
+          jenjangPendidikan: "Jenjang Pendidikan",
+          phone: "Nomor Telepon Wali Santri",
+          programStudi: "Program Studi"
+        };
+        return `${fieldNames[field] || field}: ${message}`;
+      });
+      
+      toast.error(
+        <div>
+          <strong>Gagal menyimpan data:</strong>
+          <ul className="mt-1 list-disc list-inside">
+            {errorMessages.map((msg, idx) => (
+              <li key={idx}>{msg}</li>
+            ))}
+          </ul>
+        </div>,
+        { duration: 5000 }
+      );
+      
       return;
     }
 
@@ -494,6 +521,30 @@ export default function SantriForm({
           </select>
         </div>
       </div>
+
+      {/* Status Tanggungan field - only show when editing existing santri */}
+      {santri && (
+        <div>
+          <label
+            htmlFor="statusTanggungan"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-200"
+          >
+            Status Tanggungan
+          </label>
+          <select
+            id="statusTanggungan"
+            name="statusTanggungan"
+            value={formData.statusTanggungan || "Belum Ada Tagihan"}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+          >
+            <option value="Belum Lunas">Belum Lunas</option>
+            <option value="Belum Ada Tagihan">Belum Ada Tagihan</option>
+            <option value="Lunas">Lunas</option>
+            <option value="Menunggu Verifikasi">Menunggu Verifikasi</option>
+          </select>
+        </div>
+      )}
 
       <div className="flex justify-between space-x-3 pt-4">
         {santri && onDelete && (

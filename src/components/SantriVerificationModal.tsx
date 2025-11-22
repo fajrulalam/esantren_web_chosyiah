@@ -144,7 +144,7 @@ export default function SantriVerificationModal({
 
     // Create a custom message based on the reason
     const message = encodeURIComponent(
-      `Assalamu'alaikum, mohon maaf kami belum dapat menerima pendaftaran Anda di Asrama Hurun Inn dengan alasan: ${reason}. ${
+      `Assalamu'alaikum, mohon maaf kami belum dapat menerima pendaftaran Anda di Asrama Chosyi'ah dengan alasan: ${reason}. ${
         reason === "Asrama sudah penuh"
           ? "Kami akan menghubungi Anda jika ada kuota tersedia."
           : reason === "Pembayaran belum diterima"

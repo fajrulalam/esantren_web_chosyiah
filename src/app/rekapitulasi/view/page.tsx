@@ -391,11 +391,11 @@ function RekapitulasiViewContent() {
           ? payment.nomorWaliSantri.substring(1)
           : payment.nomorWaliSantri;
 
-        const message = `[PESAN OTOMATIS DARI Esantren Hurun Inn]\n\nAssalamu'alaikum Wr. Wb. Santri Ananda ${
+        const message = `[PESAN OTOMATIS DARI Esantren Chosyi'ah]\n\nAssalamu'alaikum Wr. Wb. Santri Ananda ${
           payment.nama
         },\n\nmengingatkan kembali mengenai pembayaran *${paymentName}* sebesar *${formatCurrency(
           payment.total - payment.paid
-        )}* yang masih belum terselesaikan. Segeralah melakukan pembayaran untuk mendapatkan kode gerbang yang telah diperbarui (kode lama akan hangus pada tanggal 1* April 2025).\n\nUnggah bukti pembayaran ke website Esantren Hurun Inn: https://hurun-inn.vercel.app/\n\nJazakumullah khairan katsiran.`;
+        )}* yang masih belum terselesaikan. Segeralah melakukan pembayaran untuk mendapatkan kode gerbang yang telah diperbarui (kode lama akan hangus pada tanggal 1* April 2025).\n\nUnggah bukti pembayaran ke website Esantren Chosyi'ah: https://hurun-inn.vercel.app/\n\nJazakumullah khairan katsiran.`;
         window.open(
           `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`,
           "_blank"

@@ -124,17 +124,17 @@ export default function Registration() {
       const timestamp = Date.now();
 
       // Properly format name with correct capitalization
-      const formattedName = formatName(formData.namaLengkap);
+      const formattedName = formatName(formData.namaLengkap).trim();
 
       // Generate document ID following convention: [nama]_[timestampInMillis]
-      const sanitizedName = formatNameForId(formattedName);
+      const sanitizedName = formatNameForId(formattedName).trim();
       const docId = `${sanitizedName}_${timestamp}`;
 
       // Prepare Santri data
       const santriData = {
         // Required fields from formData
         email: formData.email,
-        nama: formattedName, // Use properly formatted name
+        nama: formattedName.trim(), // Use properly formatted name
         tempatLahir: formData.tempatLahir,
         tanggalLahir: formatDate(formData.tanggalLahir),
         namaOrangTua: formData.namaOrangTua,
@@ -661,7 +661,7 @@ export default function Registration() {
                   <div className="bg-white p-4 rounded-lg border border-amber-200">
                     <p className="font-medium">Bank BSI</p>
                     <p className="text-lg font-bold">9999019991</p>
-                    <p>a.n. PP Darul Ulum Asrama Hurun Inn</p>
+                    <p>a.n. PP Darul Ulum Asrama Chosyi'ah</p>
                   </div>
                   <p className="mt-4 text-amber-700 text-sm">
                     Pastikan bukti pembayaran menunjukkan nominal dan tanggal

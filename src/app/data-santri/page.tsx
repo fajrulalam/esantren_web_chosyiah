@@ -26,6 +26,7 @@ import ImportProgressPanel from "@/components/ImportProgressPanel";
 import { exportToExcel } from "@/utils/excelExport";
 import { formatName, formatNameForId } from "@/utils/nameFormatter";
 import StickyHorizontalScroll from "@/components/StickyHorizontalScroll";
+import { toast } from "react-hot-toast";
 
 export default function DataSantriPage() {
   const { user, loading } = useAuth();
@@ -101,7 +102,11 @@ export default function DataSantriPage() {
     ...new Set(santris.map((santri) => santri.jenjangPendidikan)),
   ].sort();
   const uniqueSemester = [
-    ...new Set(santris.map((santri) => santri.semester).filter(Boolean)),
+    ...new Set(
+      santris
+        .map((santri) => santri.semester)
+        .filter((s): s is string => Boolean(s))
+    ),
   ].sort((a, b) => parseInt(a) - parseInt(b));
 
   // Get unique kamar values and organize them into room groups
@@ -413,14 +418,22 @@ export default function DataSantriPage() {
         const formattedName = formatName(syncedFormData.nama);
         console.log("Formatted name:", formattedName);
 
-        // Update existing santri with formatted name and synchronized fields
-        const santriRef = doc(db, "SantriCollection", selectedSantri.id);
-        console.log("Updating document in Firestore...");
-        await updateDoc(santriRef, {
+        // Prepare update data - only include statusTanggungan if it's provided
+        const updateData: any = {
           ...syncedFormData,
           nama: formattedName, // Use properly formatted name
           kodeAsrama: KODE_ASRAMA,
-        });
+        };
+
+        // Include statusTanggungan if it's provided in the form data
+        if (syncedFormData.statusTanggungan) {
+          updateData.statusTanggungan = syncedFormData.statusTanggungan;
+        }
+
+        // Update existing santri with formatted name and synchronized fields
+        const santriRef = doc(db, "SantriCollection", selectedSantri.id);
+        console.log("Updating document in Firestore...");
+        await updateDoc(santriRef, updateData);
         console.log("Firestore update successful");
 
         // Update local state
@@ -430,9 +443,7 @@ export default function DataSantriPage() {
             s.id === selectedSantri.id
               ? {
                   ...s,
-                  ...syncedFormData,
-                  nama: formattedName,
-                  kodeAsrama: KODE_ASRAMA,
+                  ...updateData,
                 }
               : s
           )
@@ -443,6 +454,8 @@ export default function DataSantriPage() {
         setTimeout(() => {
           setHighlightedSantriId(null);
         }, 500);
+
+        toast.success("Data santri berhasil diupdate");
       } else {
         console.log("Creating new santri...");
         // Format the name properly
@@ -494,13 +507,15 @@ export default function DataSantriPage() {
         } catch (error) {
           console.error("Error creating new santri:", error);
           console.error("Error details:", JSON.stringify(error, null, 2));
-          alert(
-            `Terjadi kesalahan saat membuat santri baru: ${
-              error instanceof Error ? error.message : "Unknown error"
-            }`
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+          toast.error(
+            `Terjadi kesalahan saat membuat santri baru: ${errorMessage}`
           );
           throw error; // Re-throw to be caught by the outer try-catch
         }
+
+        toast.success("Santri baru berhasil ditambahkan");
       }
 
       console.log("Closing modal...");
@@ -509,7 +524,11 @@ export default function DataSantriPage() {
     } catch (error) {
       console.error("Error saving santri data:", error);
       console.error("Error details:", JSON.stringify(error, null, 2));
-      alert("Terjadi kesalahan saat menyimpan data santri");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Terjadi kesalahan saat menyimpan data santri";
+      toast.error(errorMessage);
     } finally {
       console.log("Setting isSubmitting to false");
       setIsSubmitting(false);
@@ -1059,7 +1078,7 @@ export default function DataSantriPage() {
               <option value="all">Semua Status</option>
               <option value="Lunas">Lunas</option>
               <option value="Belum Ada Tagihan">Belum Ada Tagihan</option>
-              <option value="Ada Tunggakan">Belum Lunas</option>
+              <option value="Belum Lunas">Belum Lunas</option>
               <option value="Menunggu Verifikasi">Menunggu Verifikasi</option>
             </select>
           </div>
@@ -1089,7 +1108,7 @@ export default function DataSantriPage() {
                   </option>
 
                   {/* Individual Rooms in this Group */}
-                  {group.rooms.map((room) => (
+                  {group.rooms.map((room: string) => (
                     <option
                       key={room}
                       value={room}

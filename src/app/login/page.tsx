@@ -104,7 +104,7 @@ export default function Login() {
     if (!namaSantri) return;
 
     const message = encodeURIComponent(
-      `Assalamu'alaikum, Saya ${namaSantri} tidak bisa masuk website Esantren Hurun Inn meskipun menurut saya nomor sudah sesuai. Mohon bantuannya untuk mengecek / memperbarui data saya dengan nomor ini.`
+      `Assalamu'alaikum, Saya ${namaSantri} tidak bisa masuk website Esantren Chosyi'ah meskipun menurut saya nomor sudah sesuai. Mohon bantuannya untuk mengecek / memperbarui data saya dengan nomor ini.`
     );
 
     // Open WhatsApp with pre-filled message

@@ -42,7 +42,7 @@ export default function Home() {
         {/* Textual Content */}
         <div className="relative z-10 max-w-xl space-y-6">
           <h1 className="text-5xl md:text-6xl font-extrabold leading-tight text-[#1E4FDE] drop-shadow-sm">
-            Selamat Datang di Asrama Hurun Inn
+            Selamat Datang di Asrama Chosyi'ah
           </h1>
           <p className="text-lg md:text-xl font-medium text-[#D100A3] backdrop-blur-sm bg-white/30 dark:bg-white/5 rounded-xl px-4 py-3 shadow-lg ring-1 ring-white/40 dark:ring-white/10">
             Membentuk Generasi Berakhlak Mulia, Cerdas, dan Mandiri di
@@ -161,7 +161,7 @@ export default function Home() {
           {/* Column 1 */}
           <div>
             <h3 className="text-2xl font-bold text-[#1E4FDE] mb-3">
-              Asrama Hurun Inn
+              Asrama Chosyi'ah
             </h3>
             <p>
               Pondok pesantren modern dengan visi membangun generasi Qur'ani.
