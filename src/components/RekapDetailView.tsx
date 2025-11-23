@@ -774,7 +774,9 @@ export default function RekapDetailView({
 
   // State for payment modal (admin upload)
   const [showAdminPaymentModal, setShowAdminPaymentModal] = useState(false);
-  const [selectedPaymentForUpload, setSelectedPaymentForUpload] = useState<string | null>(null);
+  const [selectedPaymentForUpload, setSelectedPaymentForUpload] = useState<
+    string | null
+  >(null);
 
   // State for dropdown menus
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
@@ -2942,192 +2944,210 @@ export default function RekapDetailView({
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600 transition-colors">
-                      {filteredPayments.map((payment) => (
-                        <tr
-                          key={payment.id}
-                          className="hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white transition-colors">
-                            {payment.nama}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span
-                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full shadow-neumorphic-button dark:shadow-neumorphic-button-dark ${
-                                payment.status === "Lunas"
-                                  ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
-                                  : payment.status === "Menunggu Verifikasi"
-                                  ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
-                                  : "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100"
-                              } transition-colors`}
-                            >
-                              {payment.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
-                            {formatCurrency(payment.paid)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
-                            {formatCurrency(payment.total)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
-                            {payment.educationGrade}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
-                            {payment.kamar}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
-                            {payment.nomorTelpon || "-"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
-                            <div className="flex items-center">
-                              {editingNoteId === payment.id ? (
-                                <>
-                                  <input
-                                    type="text"
-                                    value={noteText}
-                                    onChange={(e) =>
-                                      setNoteText(e.target.value.slice(0, 30))
-                                    }
-                                    className="text-xs font-light italic px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-500 w-full"
-                                    placeholder="Tulis catatan..."
-                                    maxLength={30}
-                                    autoFocus
-                                  />
-                                  <button
-                                    onClick={() => handleSaveNote(payment.id)}
-                                    className="ml-2 text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300"
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="h-5 w-5"
-                                      viewBox="0 0 20 20"
-                                      fill="currentColor"
+                      {filteredPayments.map((payment, index) => {
+                        const isLastRow = index === filteredPayments.length - 1;
+                        return (
+                          <tr
+                            key={payment.id}
+                            className="hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white transition-colors">
+                              {payment.nama}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <span
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full shadow-neumorphic-button dark:shadow-neumorphic-button-dark ${
+                                  payment.status === "Lunas"
+                                    ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
+                                    : payment.status === "Menunggu Verifikasi"
+                                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
+                                    : "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100"
+                                } transition-colors`}
+                              >
+                                {payment.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                              {formatCurrency(payment.paid)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                              {formatCurrency(payment.total)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                              {payment.educationGrade}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                              {payment.kamar}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                              {payment.nomorTelpon || "-"}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors">
+                              <div className="flex items-center">
+                                {editingNoteId === payment.id ? (
+                                  <>
+                                    <input
+                                      type="text"
+                                      value={noteText}
+                                      onChange={(e) =>
+                                        setNoteText(e.target.value.slice(0, 30))
+                                      }
+                                      className="text-xs font-light italic px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-500 w-full"
+                                      placeholder="Tulis catatan..."
+                                      maxLength={30}
+                                      autoFocus
+                                    />
+                                    <button
+                                      onClick={() => handleSaveNote(payment.id)}
+                                      className="ml-2 text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300"
                                     >
-                                      <path
-                                        fillRule="evenodd"
-                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                        clipRule="evenodd"
-                                      />
-                                    </svg>
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="text-xs font-light italic w-full truncate mr-2">
-                                    {payment.notes || "..."}
-                                  </div>
-                                  <button
-                                    onClick={() => handleEditNote(payment)}
-                                    className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                                    disabled={!!editingNoteId}
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className={`h-4 w-4 ${
-                                        editingNoteId
-                                          ? "opacity-50 cursor-not-allowed"
-                                          : ""
-                                      }`}
-                                      viewBox="0 0 20 20"
-                                      fill="currentColor"
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-5 w-5"
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                      >
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                          clipRule="evenodd"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="text-xs font-light italic w-full truncate mr-2">
+                                      {payment.notes || "..."}
+                                    </div>
+                                    <button
+                                      onClick={() => handleEditNote(payment)}
+                                      className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                      disabled={!!editingNoteId}
                                     >
-                                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                    </svg>
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right">
-                            {payment.status === "Belum Lunas" ? (
-                              <div className="relative inline-block text-left">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenDropdownId(openDropdownId === payment.id ? null : payment.id);
-                                  }}
-                                  className="px-3 py-1 text-xs font-semibold rounded-md
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className={`h-4 w-4 ${
+                                          editingNoteId
+                                            ? "opacity-50 cursor-not-allowed"
+                                            : ""
+                                        }`}
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                      >
+                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                      </svg>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                              {payment.status === "Belum Lunas" ? (
+                                <div className="relative inline-block text-left">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenDropdownId(
+                                        openDropdownId === payment.id
+                                          ? null
+                                          : payment.id
+                                      );
+                                    }}
+                                    className="px-3 py-1 text-xs font-semibold rounded-md
                                     transition-all duration-200
                                     shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
                                     hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
                                     active:translate-y-0.5
                                     bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100
                                     transition-colors inline-flex items-center gap-1"
-                                >
-                                  Aksi
-                                  <svg
-                                    className={`w-4 h-4 transition-transform ${
-                                      openDropdownId === payment.id ? "rotate-180" : ""
-                                    }`}
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
                                   >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M19 9l-7 7-7-7"
-                                    />
-                                  </svg>
-                                </button>
+                                    Aksi
+                                    <svg
+                                      className={`w-4 h-4 transition-transform ${
+                                        openDropdownId === payment.id
+                                          ? isLastRow
+                                            ? ""
+                                            : "rotate-180"
+                                          : isLastRow
+                                          ? "rotate-180"
+                                          : ""
+                                      }`}
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 9l-7 7-7-7"
+                                      />
+                                    </svg>
+                                  </button>
 
-                                {openDropdownId === payment.id && (
-                                  <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50">
-                                    <div className="py-1">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleActionButtonClick(payment);
-                                          setOpenDropdownId(null);
-                                        }}
-                                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
-                                      >
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
+                                  {openDropdownId === payment.id && (
+                                    <div
+                                      className={`absolute right-0 w-56 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50 ${
+                                        isLastRow ? "bottom-full mb-2" : "mt-2"
+                                      }`}
+                                    >
+                                      <div className="py-1">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleActionButtonClick(payment);
+                                            setOpenDropdownId(null);
+                                          }}
+                                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
                                         >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                                          />
-                                        </svg>
-                                        Ingatkan via WhatsApp
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleAdminUploadPayment(payment);
-                                        }}
-                                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
-                                      >
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
+                                          <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                                            />
+                                          </svg>
+                                          Ingatkan via WhatsApp
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAdminUploadPayment(payment);
+                                          }}
+                                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
                                         >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                                          />
-                                        </svg>
-                                        Unggah Bukti Pembayaran
-                                      </button>
+                                          <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                                            />
+                                          </svg>
+                                          Unggah Bukti Pembayaran
+                                        </button>
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleActionButtonClick(payment)}
-                                className={`px-3 py-1 text-xs font-semibold rounded-md
+                                  )}
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() =>
+                                    handleActionButtonClick(payment)
+                                  }
+                                  className={`px-3 py-1 text-xs font-semibold rounded-md
                                   transition-all duration-200
                                   shadow-neumorphic-button dark:shadow-neumorphic-button-dark 
                                   hover:shadow-neumorphic-button-pressed hover:dark:shadow-neumorphic-button-pressed-dark
@@ -3137,15 +3157,16 @@ export default function RekapDetailView({
                                       ? "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100"
                                       : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
                                   } transition-colors`}
-                              >
-                                {payment.status === "Lunas"
-                                  ? "Lihat Riwayat"
-                                  : "Verifikasi"}
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                                >
+                                  {payment.status === "Lunas"
+                                    ? "Lihat Riwayat"
+                                    : "Verifikasi"}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}
