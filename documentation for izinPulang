@@ -1,0 +1,165 @@
+    role as 'waliSantri', they have another menu that they can access: "Izin Pulang/Sakit"
+    - They can see their "Izin Pulang/Sakit" History
+    - They can create another Card for "Izin Pulang" / or "Izin Sakit"
+    - They have deleting privileges, but not editing. Although they can't delete it once it has received an approval.
+
+    - For every Izin Pulang or Izin Sakit, the data is stored in SakitDanPulangCollection
+        These are the data that need to be stored
+            If "Izin Pulang": alasan (string, filled in the form), idPemberiIzin (string, default to null for now),
+                kembaliSesuaiRencana (boolean, default to null),  pemberiIzin (string, default to null),
+                rencanaTanggalKembali (timestamp, fill using date picker), sudahKembali (boolean, default to null), sudahDapatIzinNdalem (boolean, default to false),
+                tglPulang (timestamp, fill using date picker), timestamp (firestore time of document creation),
+                sudahDapatIzinUstadzah (boolean, default to null), jumlahTunggakan (int, obtained from SantriCollection/docID.jumlahTunggakan)
+                status (string, default to "Menunggu Persetujuan Ustadzah"
+
+            If "Izin Sakit": keluhan, sudahDapatIzinUstadzah (boolean, fill using form), timestamp (date time created), status (string, default to "Menunggu Diperiksa Ustadzah"
+
+        Each walisantri can only see their own data, in accordance to their SantriCollection/docId
+
+    role as 'pengurus/pengasuh/superAdmin', they have another menu that they can access: "Izin Pulang/Sakit"
+    - They can see all of the Izin Pulang and Izin Sakit that are awaiting for approval
+    - They can see the Izin Pulang cards along with the details and they can click to approve/reject. If they approve then  sudahDapatIzinUstadzah becomes true
+        and the status will be updated to "Menunggu Persetujuan Ndalem". If they decline, then it will be false, and the status field will be changed to "Ditolak Ustadzah"
+    - They can also see the Izin Sakit menu along with the details and they can click to approve/reject. If they approve then  sudahDapatIzinUstadzah becomes true and
+        and the status will be updated to "Sudah diperiksa Ustadzah"
+    - They can also mark when a Santri has returned to the boarding.
+    - So when a santri has returned to the boarding school, they will report to pengurus/pengasuh/superAdmin
+      And in the same menu pengurus/pengasuh/superAdmin will mark that they have returned, meaning updating 'sudahKembali' to true
+      if they return was updated before passing the rencanaTanggalKembali, then kembaliSesuaiRencana will be marked as true. Else, it will be false.
+
+
+    role as 'pengasuh/superAdmin'
+    - Same as the previous role, but Basically they fill the 2nd layer of approval needed for izin pulang.
+    - Once the santri has all two necessary approval for izin pulang, then in SantriCollection/docID.statusKehadiran will be updated as "Pulang"
+    - Furthermore, the SantriCollection/docID will also have a new field called statusKepulangan, which is a map and contains all the details from the
+       document in izin pulang that was just approved.
+    - Same with Izin sakit, once the santri has all the necessary approval for izin sakit (which is just 1), then SantriCollection/docID.statusKehadiran will be updated as "Sakit".
+    - Furthermore, the SantriCollection/docID will also have a new field called statusSakit, which is a map and contains all the details from the
+       document in izin sakit that was just approved.
+
+
+    In a nutshell,
+    waliSantri creates izin pulang or izin sakit documents
+    pengurus/pengasuh/superAdmin --> approves or rejects it.
+    pengasuh/superAdmin --> gives the 2nd layer of approval needed for izin pulang.
+    record all the data in the document.
+
+    General Questions:
+        1.	What language/style should the output use? Formal, informal, Bahasa Indonesia, English, or mixed?
+                Use formal Bahasa Indonesia
+        2.	Should the LLM also include form-validation guidance or assume all forms are already validated before submission?
+                Validate the all the data in the form are filled up
+
+    User Roles and Permissions:
+        3.	Does ‘waliSantri’ have editing or deletion privileges after submission? Or can they only create new requests?
+                They have deleting privileges, but not editing. Although they can't delete it once it has received an approval.
+
+        4.	What notifications (if any) should each user role receive after a request is created, approved, rejected, or updated?
+                No notifications for now.
+
+        5.	Should the history view include rejected requests, or only approved ones?
+                Rejected requests as well.
+
+    Approval Flow Clarifications:
+        6.	Is there a time limit after which pending requests expire automatically?
+                No.
+
+        7.	What happens if the ‘pengurus/pengasuh/superAdmin’ roles do not respond to a request?
+                It stays unapproved. Nothing happens.
+
+        8.	Can approvals be undone or edited by approvers after submission?
+                No
+
+        9.	Do approvers need to provide a reason if they reject a request?
+                Yes but optional
+
+    Data and Fields Clarifications:
+        10.	For ‘jumlahTunggakan’, clarify what happens if the student’s outstanding payments (jumlahTunggakan) exceed a certain threshold—does this affect the approval process?
+                No need for clarification for this, just obtain the data from the field that I specified.
+
+        11.	Are there any required file attachments (like doctor’s notes for Izin Sakit)?
+                No
+
+        12.	Clarify the meaning of fields like:
+        •	sudahKembali: How and when is this status updated?
+                I've completely forgotten about this. So when they've returned to the boarding school, they will report to pengurus/pengasuh/superAdmin
+                And pengurus/pengasuh/superAdmin will mark that they have returned, meaning updating 'sudahKembali' to true.
+
+        •	kembaliSesuaiRencana: How is this verified?
+                if they return before passing the rencanaTanggalKembali.
+        13.	Should there be logging or auditing for each approval or rejection action? (e.g., who approved, timestamp)
+                Yes, it should be all within that document
+
+    Security and Access:
+        14.	How are roles assigned? Does the LLM need context about user authentication or role management?
+                The LLM will know.
+
+        15.	Is there a scenario where a user’s role can change, and how does this affect their access and stored data?
+                No.
+
+_____________
+
+Context:
+In a nutshell, I want to create a new feature for izin sakit and izin pulang (it's just one menu)
+
+Overall the system is like this
+ waliSantri creates izin pulang or izin sakit documents
+    pengurus/pengasuh/superAdmin --> approves or rejects it.
+    pengasuh/superAdmin --> gives the 2nd layer of approval needed for izin pulang.
+    record all the data in the document.
+
+I will breakdown to you your tasks in separate prompts. The first prompt is:
+
+
+System Prompt:
+You are an expert web developer with NextJs and Firebase. Implement the "Izin Pulang/Sakit" feature with the following rules:
+
+Role: waliSantri
+
+Features available:
+
+View the history of Izin Pulang/Sakit applications (including those approved, rejected, and those awaiting approval).
+
+Create a new application: choose between "Izin Pulang" or "Izin Sick".
+
+Delete applications, except those that have been approved by the administrator/caregiver/superAdmin.
+
+Cannot edit data after the application is created.
+
+Data structure:
+Each application is stored in the SakitDanPulangCollection Firestore collection.
+Form validation must ensure all fields are filled in before the application is submitted.
+
+Example of the "Izin Pulang" application structure:
+
+```
+{
+  "alasan": "Menghadiri acara keluarga",
+  "idPemberiIzin": null,
+  "kembaliSesuaiRencana": null,
+  "pemberiIzin": null,
+  "rencanaTanggalKembali": "2025-04-15T12:00:00",
+  "sudahKembali": null,
+  "sudahDapatIzinNdalem": false,
+  "tglPulang": "2025-04-10T08:00:00",
+  "timestamp": "2025-04-01T10:00:00",
+  "sudahDapatIzinUstadzah": null,
+  "jumlahTunggakan": 0,
+  "status": "Menunggu Persetujuan Ustadzah"
+}
+```
+
+Example of a "Sick Leave" application structure:
+```
+{
+  "keluhan": "Demam tinggi, sakit kepala",
+  "sudahDapatIzinUstadzah": false,
+  "timestamp": "2025-04-01T11:00:00",
+  "status": "Menunggu Diperiksa Ustadzah"
+}
+```
+
+waliSantri can only see their own data, according to SantriCollection/docId.
+
+
+

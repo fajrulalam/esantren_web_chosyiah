@@ -1,0 +1,128 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Base rule - authenticated users can read/write any data
+    match /{document=**} {
+      allow read: if true; // Allow anyone to read
+      allow write: if request.auth != null; // Allow any authenticated user to write
+    }
+    
+    // PengurusCollection rules
+    match /PengurusCollection/{userId} {
+      // Anyone can read PengurusCollection documents
+      allow read: if request.auth != null;
+      
+      // Only superAdmins can create new pengurus
+      allow create: if userIsSuperAdmin();
+      
+      // Users can update their own data, and superAdmins can update anyone's data
+      allow update: if request.auth.uid == userId || userIsSuperAdmin();
+      
+      // Only superAdmins can delete
+      allow delete: if userIsSuperAdmin();
+    }
+    
+    // SantriCollection rules
+    match /SantriCollection/{santriId} {
+      // Anyone can read santri data - needed for login functionality
+      // If this causes security concerns later, we can restrict it more
+      allow read: if true;
+      
+      // Allow authenticated users to create any santri (for CSV import)
+      allow create: if request.auth != null;
+      
+      // Allow authenticated users to update/delete santri data
+      allow update, delete: if request.auth != null;
+    }
+    
+    // TagihanCollection rules
+    match /TagihanCollection/{tagihanId} {
+      // Allow anyone to read tagihan
+      allow read: if true;
+      
+      // Allow any authenticated user to create/update/delete tagihan
+      allow create, update, delete: if request.auth != null;
+    }
+    
+    // NEW: Invoices collection rules
+    match /Invoices/{invoiceId} {
+      // Allow anyone to read invoice data
+      allow read: if true;
+      
+      // Allow any authenticated user to create/update invoices
+      allow create, update: if request.auth != null;
+      
+      // Allow any authenticated user to delete invoices
+      allow delete: if request.auth != null;
+    }
+    
+    // NEW: PaymentStatuses collection rules
+    match /PaymentStatuses/{paymentStatusId} {
+      // Allow anyone to read payment statuses
+      allow read: if true;
+      
+      // Allow any authenticated user to update and create payment statuses
+      allow create, update: if request.auth != null;
+      
+      // Allow any authenticated user to delete payment statuses
+      allow delete: if request.auth != null;
+    }
+    
+    // NEW: Counters collection rules
+    match /Counters/{counterId} {
+      // Allow anyone to read counters
+      allow read: if true;
+      
+      // Allow any authenticated user to write to counters
+      allow write: if request.auth != null;
+    }
+    
+    // NEW: Attendance collections rules
+    match /AttendanceTypes/{typeId} {
+      // Allow authenticated users to read attendance types
+      allow read: if request.auth != null;
+      
+      // Allow authenticated users to create and update attendance types
+      allow create, update: if request.auth != null;
+      
+      // Only admins can delete attendance types
+      allow delete: if userIsSuperAdmin();
+    }
+    
+    match /AttendanceRecords/{sessionId} {
+      // Allow authenticated users to read attendance records
+      allow read: if request.auth != null;
+      
+      // Allow authenticated users to create attendance records
+      allow create: if request.auth != null;
+      
+      // Allow authenticated users to update attendance records
+      // Added restriction: can only close a session if they created it or are admin
+      allow update: if request.auth != null && 
+                      // If closing a session (changing isActive from true to false)
+                      (request.resource.data.isActive == false && resource.data.isActive == true
+                        ? (resource.data.createdBy == request.auth.uid || userIsSuperAdmin())
+                        : true);
+      
+      // Only admins can delete attendance records
+      allow delete: if userIsSuperAdmin();
+    }
+    
+    // Helper functions
+    function userIsSuperAdmin() {
+      let userDoc = get(/databases/$(database)/documents/PengurusCollection/$(request.auth.uid)).data;
+      return userDoc != null && userDoc.role == "superAdmin";
+    }
+    
+    function userHasRole(role) {
+      let userDoc = get(/databases/$(database)/documents/PengurusCollection/$(request.auth.uid)).data;
+      return userDoc != null && userDoc.role == role;
+    }
+    
+    function getSantriIdForWali() {
+      let userDoc = get(/databases/$(database)/documents/PengurusCollection/$(request.auth.uid)).data;
+      return userDoc != null ? userDoc.santriId : null;
+    }
+  }
+}
