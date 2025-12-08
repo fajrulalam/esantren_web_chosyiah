@@ -86,12 +86,12 @@ export default function Navbar() {
                                     className="w-12 h-12"
                                 />
                                 <div className="flex flex-col w-48 text-center">
-      <span className="text-2xl font-bold text-amber-800 dark:text-amber-300 tracking-widest">
-        Chosyi&apos;ah
-      </span>
+                                    <span className="text-2xl font-bold text-amber-800 dark:text-amber-300 tracking-widest">
+                                        Chosyi&apos;ah
+                                    </span>
                                     <span className="text-sm font-bold text-amber-800 dark:text-amber-300">
-        Asrama Mahasiswi
-      </span>
+                                        Asrama Mahasiswi
+                                    </span>
                                 </div>
                             </Link>
                         </div>
@@ -120,6 +120,14 @@ export default function Navbar() {
                                             >
                                                 Presensi
                                             </Link>
+                                            {/* --- ADDED KEGIATAN LINK HERE --- */}
+                                            <Link
+                                                href="/kegiatan"
+                                                className={isActive('/kegiatan') ? activeClass : inactiveClass}
+                                            >
+                                                Kegiatan
+                                            </Link>
+                                            {/* ------------------------------- */}
                                             <Link
                                                 href="/izin-admin"
                                                 className={isActive('/izin-admin') ? activeClass : inactiveClass}
@@ -252,6 +260,15 @@ export default function Navbar() {
                                             >
                                                 Presensi
                                             </Link>
+                                            {/* --- ADDED KEGIATAN LINK HERE --- */}
+                                            <Link
+                                                href="/kegiatan"
+                                                className={`block ${isActive('/kegiatan') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Kegiatan
+                                            </Link>
+                                            {/* ------------------------------- */}
                                             <Link
                                                 href="/izin-admin"
                                                 className={`block ${isActive('/izin-admin') ? activeClass : inactiveClass}`}
