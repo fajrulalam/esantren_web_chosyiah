@@ -116,12 +116,12 @@ function getMonthName(month: number): string {
 }
 
 /**
- * Generate and download PDF report for monthly kegiatan
+ * Generate and download PDF report for monthly kegiatan (Dalam Asrama)
  */
 export function generateKegiatanPDF(
     activities: KegiatanData[],
-    month: number,
-    year: number,
+    startDate: string,
+    endDate: string,
     includeSummary: boolean = true
 ): void {
     // Create new PDF document
@@ -133,11 +133,11 @@ export function generateKegiatanPDF(
     doc.setFont("helvetica", "bold");
     doc.text("Laporan Kegiatan Harian", pageWidth / 2, 15, { align: "center" });
 
-    // Subtitle with month and year
+    // Subtitle with Date Range
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
     doc.text(
-        `${getMonthName(month)} ${year}`,
+        `${formatDate(startDate)} - ${formatDate(endDate)}`,
         pageWidth / 2,
         22,
         { align: "center" }
@@ -287,6 +287,115 @@ export function generateKegiatanPDF(
     }
 
     // Save PDF
-    const fileName = `Kegiatan-${getMonthName(month)}-${year}.pdf`;
+    const fileName = `Kegiatan-Dalam-${startDate}-to-${endDate}.pdf`;
+    doc.save(fileName);
+}
+
+/**
+ * Generate and download PDF report for Luar Asrama Activities
+ */
+export function generateLuarAsramaPDF(
+    activities: KegiatanData[],
+    startDate: string,
+    endDate: string
+): void {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Title
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Laporan Kegiatan Luar Asrama", pageWidth / 2, 15, { align: "center" });
+
+    // Subtitle with Date Range
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(
+        `${formatDate(startDate)} - ${formatDate(endDate)}`,
+        pageWidth / 2,
+        22,
+        { align: "center" }
+    );
+
+    // Asrama name
+    doc.setFontSize(10);
+    doc.text("Asrama Mahasiswi Chosyi'ah", pageWidth / 2, 28, {
+        align: "center",
+    });
+
+    const now = new Date();
+    const timestamp = now.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    doc.text(`Dibuat: ${timestamp}`, pageWidth / 2, 33, { align: "center" });
+    doc.setTextColor(0);
+
+    // Prepare table data
+    const tableData: string[][] = [];
+
+    activities.forEach((dayData) => {
+        if (dayData.luarAsramaActivities && dayData.luarAsramaActivities.length > 0) {
+            dayData.luarAsramaActivities.forEach((activity, idx) => {
+                tableData.push([
+                    idx === 0 ? formatDate(dayData.date) : "", // Only show date on first row of the day
+                    activity.name || "-",
+                    (activity.startTime && activity.endTime)
+                        ? `${activity.startTime} - ${activity.endTime}`
+                        : (activity.startTime || activity.endTime || "-"),
+                    Array.isArray(activity.partTimer)
+                        ? activity.partTimer.map(p => p.name).join(", ")
+                        : (activity.partTimer || "-")
+                ]);
+            });
+            // Add a separator row if needed or just handle via date grouping visually
+            // For simple table, we just list them.
+        }
+    });
+
+    if (tableData.length === 0) {
+        // No data handling? Just show empty table or message
+        tableData.push(["-", "Tidak ada kegiatan", "-", "-"]);
+    }
+
+    autoTable(doc, {
+        startY: 38,
+        head: [
+            [
+                "Tanggal",
+                "Nama Kegiatan",
+                "Jam Mulai - Akhir",
+                "Part-Timer",
+            ],
+        ],
+        body: tableData,
+        theme: "grid",
+        headStyles: {
+            fillColor: [59, 130, 246], // Blue for Luar Asrama
+            textColor: 255,
+            fontStyle: "bold",
+            fontSize: 9,
+        },
+        bodyStyles: {
+            fontSize: 8,
+        },
+        columnStyles: {
+            0: { cellWidth: 30 },
+            1: { cellWidth: 70 },
+            2: { cellWidth: 40 },
+            3: { cellWidth: 40 },
+        },
+        styles: {
+            overflow: "linebreak",
+            cellPadding: 2,
+        },
+    });
+
+    const fileName = `Kegiatan-Luar-${startDate}-to-${endDate}.pdf`;
     doc.save(fileName);
 }
