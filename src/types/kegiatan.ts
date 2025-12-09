@@ -30,7 +30,8 @@ export interface KegiatanData {
     imamMaghrib: Person | null;
     mengajarNgaji: Person[];
     mengajarPegon: Person[];
-    customActivities: CustomActivity[]; // User-defined activities
+    customActivities: CustomActivity[]; // User-defined activities (Internal)
+    luarAsramaActivities: LuarAsramaActivity[]; // External activities
     createdByUid: string;
     updatedByUid: string;
     createdAt: Timestamp;
@@ -47,6 +48,19 @@ export interface KegiatanFormData {
     mengajarNgaji: Person[];
     mengajarPegon: Person[];
     customActivities: CustomActivity[];
+    luarAsramaActivities: LuarAsramaActivity[];
+}
+
+/**
+ * Structure for Outside Dormitory Activities
+ */
+export interface LuarAsramaActivity {
+    id: string; // Unique ID for keying in lists
+    name: string;
+    startTime: string;
+    endTime: string;
+    partTimer: Person[]; // Changed to Person[] for PersonSelector compatibility
+    isCustom?: boolean; // UI state for custom activity input
 }
 
 /**
