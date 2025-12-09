@@ -13,6 +13,7 @@ import {
     where,
     serverTimestamp,
     orderBy,
+    Timestamp, // Added Timestamp
 } from "firebase/firestore";
 import { db } from "./config";
 import { KegiatanData, KegiatanFormData, Person } from "@/types/kegiatan";
@@ -140,6 +141,7 @@ export async function saveKegiatan(
             mengajarNgaji: data.mengajarNgaji,
             mengajarPegon: data.mengajarPegon,
             customActivities: data.customActivities, // Add customActivities
+            luarAsramaActivities: data.luarAsramaActivities || [], // Add luarAsramaActivities
             updatedByUid: userId,
             updatedAt: serverTimestamp() as any,
         };
@@ -197,6 +199,41 @@ export async function getKegiatanByMonth(
 }
 
 /**
+ * Get all kegiatan data for a specific date range
+ * @param startDate - Start date YYYY-MM-DD
+ * @param endDate - End date YYYY-MM-DD
+ */
+export async function getKegiatanByDateRange(
+    startDate: string,
+    endDate: string
+): Promise<KegiatanData[]> {
+    try {
+        const kegiatanQuery = query(
+            collection(db, KEGIATAN_COLLECTION),
+            where("date", ">=", startDate),
+            where("date", "<=", endDate),
+            orderBy("date", "asc")
+        );
+
+        const querySnapshot = await getDocs(kegiatanQuery);
+        const activities: KegiatanData[] = [];
+
+        querySnapshot.forEach((doc) => {
+            const data = doc.data() as KegiatanData;
+            // Ensure arrays exist
+            if (!data.luarAsramaActivities) data.luarAsramaActivities = [];
+            if (!data.customActivities) data.customActivities = [];
+            activities.push(data);
+        });
+
+        return activities;
+    } catch (error) {
+        console.error("Error fetching range kegiatan:", error);
+        throw new Error("Gagal memuat data kegiatan rentang tanggal");
+    }
+}
+
+/**
  * Copy yesterday's kegiatan to current date
  * @param currentDate - Current date in YYYY-MM-DD format
  * @param userId - Current user ID
@@ -231,6 +268,7 @@ export async function copyYesterdayKegiatan(
             mengajarNgaji: yesterdayData.mengajarNgaji,
             mengajarPegon: yesterdayData.mengajarPegon,
             customActivities: yesterdayData.customActivities,
+            luarAsramaActivities: yesterdayData.luarAsramaActivities || [],
         };
     } catch (error) {
         console.error("Error copying yesterday's kegiatan:", error);

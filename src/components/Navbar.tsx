@@ -1,6 +1,5 @@
 "use client";
 
-
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -46,9 +45,9 @@ export default function Navbar() {
     const navbarClasses = `
         fixed top-0 left-0 right-0 z-30 transition-all duration-300
         ${isScrolled
-        ? 'bg-amber-50/90 dark:bg-gray-900/90 backdrop-blur-md py-3 shadow-lg'
-        : 'bg-amber-50 dark:bg-gray-900 py-5'
-    }
+            ? 'bg-amber-50/90 dark:bg-gray-900/90 backdrop-blur-md py-3 shadow-lg'
+            : 'bg-amber-50 dark:bg-gray-900 py-5'
+        }
     `;
 
     const buttonClasses = `
@@ -121,14 +120,12 @@ export default function Navbar() {
                                             >
                                                 Presensi
                                             </Link>
-                                            {/* --- ADDED KEGIATAN LINK HERE --- */}
                                             <Link
                                                 href="/kegiatan"
                                                 className={isActive('/kegiatan') ? activeClass : inactiveClass}
                                             >
                                                 Kegiatan
                                             </Link>
-                                            {/* ------------------------------- */}
                                             <Link
                                                 href="/izin-admin"
                                                 className={isActive('/izin-admin') ? activeClass : inactiveClass}
@@ -261,7 +258,6 @@ export default function Navbar() {
                                             >
                                                 Presensi
                                             </Link>
-                                            {/* --- ADDED KEGIATAN LINK HERE --- */}
                                             <Link
                                                 href="/kegiatan"
                                                 className={`block ${isActive('/kegiatan') ? activeClass : inactiveClass}`}
@@ -269,7 +265,6 @@ export default function Navbar() {
                                             >
                                                 Kegiatan
                                             </Link>
-                                            {/* ------------------------------- */}
                                             <Link
                                                 href="/izin-admin"
                                                 className={`block ${isActive('/izin-admin') ? activeClass : inactiveClass}`}
