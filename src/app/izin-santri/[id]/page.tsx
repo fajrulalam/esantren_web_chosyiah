@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { useAuth } from "@/firebase/auth";
 import { useRouter } from "next/navigation";
 import { IzinSakitPulang } from "@/types/izinSakitPulang";
@@ -11,7 +11,8 @@ import { deleteIzinApplication } from "@/firebase/izinSakitPulang";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 
-export default function IzinDetailPage({ params }: { params: { id: string } }) {
+export default function IzinDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const { user, loading, santriName } = useAuth();
   const router = useRouter();
   const [izin, setIzin] = useState<IzinSakitPulang | null>(null);
@@ -35,7 +36,7 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchIzinData = async () => {
       if (loading) return;
-      
+
       if (!user || user.role !== "waliSantri" || !user.santriId) {
         setError("Anda tidak memiliki akses ke halaman ini.");
         setIsLoading(false);
@@ -43,27 +44,27 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
       }
 
       try {
-        const izinRef = doc(db, "SakitDanPulangCollection", params.id);
+        const izinRef = doc(db, "SakitDanPulangCollection", id);
         const izinSnap = await getDoc(izinRef);
-        
+
         if (!izinSnap.exists()) {
           setError("Permohonan tidak ditemukan.");
           setIsLoading(false);
           return;
         }
-        
+
         const izinData = izinSnap.data() as any;
-        
+
         // Check if this application belongs to the current user's santri
         if (izinData.santriId !== user.santriId) {
           setError("Anda tidak memiliki akses untuk melihat permohonan ini.");
           setIsLoading(false);
           return;
         }
-        
+
         // Set the data with ID
         setIzin({
-          id: params.id,
+          id: id,
           ...izinData
         } as IzinSakitPulang);
         setIsLoading(false);
@@ -75,7 +76,7 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
     };
 
     fetchIzinData();
-  }, [params.id, user, loading]);
+  }, [id, user, loading]);
 
   // Check if application can be deleted
   const canDelete = () => {
@@ -87,7 +88,7 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
   // Handle delete application
   const handleDelete = async () => {
     if (!izin) return;
-    
+
     if (!confirm("Apakah Anda yakin ingin menghapus permohonan ini?")) {
       return;
     }
@@ -149,20 +150,20 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <Link 
-          href="/izin-santri" 
+        <Link
+          href="/izin-santri"
           className="inline-flex items-center text-indigo-600 hover:text-indigo-800"
         >
           <ArrowLeftIcon className="h-4 w-4 mr-1" /> Kembali ke Daftar Permohonan
         </Link>
       </div>
-      
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
           <p>{error}</p>
         </div>
       )}
-      
+
       {isLoading ? (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
@@ -185,7 +186,7 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
               </div>
             </div>
           </div>
-          
+
           <div className="border-t border-gray-200">
             <dl>
               {/* Common Fields */}
@@ -195,14 +196,14 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
                   Izin {izin.izinType}
                 </dd>
               </div>
-              
+
               <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">Tanggal Dibuat</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                   {formatDate(izin.timestamp)}
                 </dd>
               </div>
-              
+
               {/* Izin Type-specific Fields */}
               {izin.izinType === "Sakit" ? (
                 <>
@@ -221,21 +222,21 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
                       {izin.alasan}
                     </dd>
                   </div>
-                  
+
                   <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt className="text-sm font-medium text-gray-500">Tanggal Pulang</dt>
                     <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                       {formatDate(izin.tglPulang)}
                     </dd>
                   </div>
-                  
+
                   <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt className="text-sm font-medium text-gray-500">Rencana Tanggal Kembali</dt>
                     <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                       {formatDate(izin.rencanaTanggalKembali)}
                     </dd>
                   </div>
-                  
+
                   {izin.pemberiIzin && (
                     <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                       <dt className="text-sm font-medium text-gray-500">Pemberi Izin</dt>
@@ -244,7 +245,7 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
                       </dd>
                     </div>
                   )}
-                  
+
                   {izin.sudahKembali !== null && (
                     <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                       <dt className="text-sm font-medium text-gray-500">Status Kepulangan</dt>
@@ -253,7 +254,7 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
                       </dd>
                     </div>
                   )}
-                  
+
                   {izin.kembaliSesuaiRencana !== null && (
                     <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                       <dt className="text-sm font-medium text-gray-500">Kembali Sesuai Rencana</dt>
@@ -264,7 +265,7 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
                   )}
                 </>
               )}
-              
+
               {/* Status Fields */}
               <div className={`${izin.izinType === "Pulang" ? "bg-gray-50" : "bg-white"} px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6`}>
                 <dt className="text-sm font-medium text-gray-500">Status Persetujuan Ustadzah</dt>
@@ -278,7 +279,7 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
                   )}
                 </dd>
               </div>
-              
+
               {izin.izinType === "Pulang" && (
                 <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                   <dt className="text-sm font-medium text-gray-500">Status Persetujuan Ndalem</dt>
@@ -293,7 +294,7 @@ export default function IzinDetailPage({ params }: { params: { id: string } }) {
               )}
             </dl>
           </div>
-          
+
           {canDelete() && (
             <div className="px-4 py-3 bg-gray-50 text-right sm:px-6 border-t border-gray-200">
               <button

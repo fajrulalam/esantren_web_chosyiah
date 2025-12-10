@@ -23,30 +23,30 @@ export const metadata = {
     apple: [
       { url: '/esantren-chosyiah favicon compressed.png', sizes: '180x180', type: 'image/png' },
     ],
-    shortcut: ['esantren-chosyiah favicon compressed.png'],
+    shortcut: ['/esantren-chosyiah favicon compressed.png'],
   },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-      <html lang="id" className={nunito.variable}>
+    <html lang="id" className={nunito.variable} suppressHydrationWarning>
       <head>
         <link rel="icon" href="/hurun_inn_favicon.png" type="image/png" />
       </head>
       <body className="antialiased font-nunito dark:bg-gray-900 transition-colors">
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <AuthProvider>
-          <Toaster position="top-right" />
-          <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 transition-colors">
-            <Navbar />
-            {/* Added top padding to ensure the Navbar does not cover page content */}
-            <main className="flex-grow pt-24 bg-white dark:bg-gray-900 transition-colors">
-              {children}
-            </main>
-          </div>
-        </AuthProvider>
-      </ThemeProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthProvider>
+            <Toaster position="top-right" />
+            <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 transition-colors">
+              <Navbar />
+              {/* Added top padding to ensure the Navbar does not cover page content */}
+              <main className="flex-grow pt-24 bg-white dark:bg-gray-900 transition-colors">
+                {children}
+              </main>
+            </div>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
-      </html>
+    </html>
   );
 }
