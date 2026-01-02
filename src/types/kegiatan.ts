@@ -84,5 +84,6 @@ export interface ActivitySummary {
         imamMaghribCount: number;
         mengajarNgajiCount: number;
         mengajarPegonCount: number;
+        customActivitiesCount: { [activityName: string]: number };
     };
 }

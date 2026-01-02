@@ -1,7 +1,3 @@
-/**
- * Firestore service for Kegiatan (Daily Activities) feature
- * Handles CRUD operations for daily activity tracking
- */
 
 import {
     collection,
@@ -13,7 +9,8 @@ import {
     where,
     serverTimestamp,
     orderBy,
-    Timestamp, // Added Timestamp
+    Timestamp,
+    writeBatch
 } from "firebase/firestore";
 import { db } from "./config";
 import { KegiatanData, KegiatanFormData, Person } from "@/types/kegiatan";
@@ -290,5 +287,87 @@ export async function getKegiatanDatesInMonth(
     } catch (error) {
         console.error("Error fetching kegiatan dates:", error);
         return [];
+    }
+}
+
+/**
+ * ADMIN UTILITY: Migrate person name in historical data
+ * Updates all instances of oldName to newName in KegiatanCollection
+ * @param oldName - Old name to replace
+ * @param newName - New name to use
+ * @returns number - Count of documents updated
+ */
+export async function migratePersonName(oldName: string, newName: string): Promise<number> {
+    try {
+        console.log(`[Migration] Starting migration from "${oldName}" to "${newName}"...`);
+        const querySnapshot = await getDocs(collection(db, KEGIATAN_COLLECTION));
+        let updatedCount = 0;
+        const batch = writeBatch(db); // Note: batch limit is 500. Assuming < 500 docs for now or just commit per doc if large.
+
+        // Handling > 500 docs with Batches would require chunking. 
+        // For simplicity and robustness in this quick fix, let's just do individual updates or one big batch if small.
+        // Let's iterate and update individually to be safe against batch limits for now unless it's huge.
+
+        const updates: Promise<void>[] = [];
+
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data() as KegiatanData;
+            let isModified = false;
+
+            // Helper to update person
+            const updatePerson = (p: Person | null) => {
+                if (p && p.name === oldName) {
+                    p.name = newName;
+                    isModified = true;
+                }
+            };
+
+            // Check single fields
+            if (data.imamSubuh && data.imamSubuh.name === oldName) {
+                data.imamSubuh.name = newName;
+                isModified = true;
+            }
+            if (data.imamMaghrib && data.imamMaghrib.name === oldName) {
+                data.imamMaghrib.name = newName;
+                isModified = true;
+            }
+
+            // Check arrays
+            data.mengajarNgaji.forEach(p => updatePerson(p));
+            data.mengajarPegon.forEach(p => updatePerson(p));
+
+            // Check Custom Activities
+            if (data.customActivities) {
+                data.customActivities.forEach(act => {
+                    act.people.forEach(p => updatePerson(p));
+                });
+            }
+
+            // Check Luar Asrama Activities
+            if (data.luarAsramaActivities) {
+                data.luarAsramaActivities.forEach(act => {
+                    if (Array.isArray(act.partTimer)) {
+                        act.partTimer.forEach(p => updatePerson(p));
+                    } else if (act.partTimer && (act.partTimer as any).name === oldName) {
+                        // Type assertion just in case legacy data has single object
+                        (act.partTimer as any).name = newName;
+                        isModified = true;
+                    }
+                });
+            }
+
+            if (isModified) {
+                // We create a promise to update this doc
+                updates.push(setDoc(docSnap.ref, data, { merge: true }));
+                updatedCount++;
+            }
+        });
+
+        await Promise.all(updates);
+        console.log(`[Migration] Completed. Updated ${updatedCount} documents.`);
+        return updatedCount;
+    } catch (error) {
+        console.error("Error migrating person name:", error);
+        throw new Error("Gagal migrasi nama orang");
     }
 }

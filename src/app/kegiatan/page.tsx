@@ -15,11 +15,12 @@ import {
     copyYesterdayKegiatan,
     getKegiatanByMonth,
     getKegiatanByDateRange,
+    migratePersonName,
 } from "@/firebase/kegiatan";
 import { Person, KegiatanFormData, LuarAsramaActivity } from "@/types/kegiatan";
 import PersonSelector from "@/components/kegiatan/PersonSelector";
 import ActivitySelector from "@/components/kegiatan/ActivitySelector";
-import { generateKegiatanPDF, generateLuarAsramaPDF } from "@/utils/pdfGenerator";
+import { generateDalamAsramaPDF, generateLuarAsramaPDF } from "@/utils/pdfGenerator";
 import { toast } from "react-hot-toast";
 import {
     CalendarIcon,
@@ -56,6 +57,7 @@ export default function KegiatanPage() {
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
     const [exportingPdf, setExportingPdf] = useState(false);
+    const [migrating, setMigrating] = useState(false);
 
     // Role-based access control
     useEffect(() => {
@@ -233,7 +235,7 @@ export default function KegiatanPage() {
             }
 
             if (exportType === "dalam") {
-                generateKegiatanPDF(activities, startDate, endDate, true);
+                generateDalamAsramaPDF(activities, startDate, endDate, true);
             } else {
                 generateLuarAsramaPDF(activities, startDate, endDate);
             }
@@ -244,6 +246,25 @@ export default function KegiatanPage() {
             toast.error("Gagal membuat PDF");
         } finally {
             setExportingPdf(false);
+        }
+    };
+
+    // Handle Migration (Temporary Fix)
+    const handleMigration = async () => {
+        const oldName = "Shafira Agila Syafa Adika";
+        const newName = "Shafira Agil Syafa'adhika";
+
+        if (!confirm(`Apakah Anda yakin ingin mengubah nama "${oldName}" menjadi "${newName}" pada semua data lama?`)) return;
+
+        try {
+            setMigrating(true);
+            const count = await migratePersonName(oldName, newName);
+            toast.success(`Berhasil memperbarui ${count} dokumen.`);
+        } catch (error) {
+            console.error(error);
+            toast.error("Gagal melakukan migrasi.");
+        } finally {
+            setMigrating(false);
         }
     };
 
@@ -606,6 +627,18 @@ export default function KegiatanPage() {
                             )}
                         </button>
                     </div>
+                </div>
+
+                {/* Maintenance Section */}
+                <div className="mt-8 border-t pt-4 dark:border-gray-700">
+                    <button
+                        type="button"
+                        onClick={handleMigration}
+                        disabled={migrating}
+                        className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 underline"
+                    >
+                        {migrating ? "Sedang Memperbaiki Data..." : "Perbaiki Nama Shafira (Maintenance)"}
+                    </button>
                 </div>
             </div>
         </div >
