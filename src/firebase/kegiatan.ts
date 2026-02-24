@@ -30,12 +30,11 @@ export async function getAllPeople(): Promise<Person[]> {
         const people: Person[] = [];
         const allowedKodeAsrama = ["DU11_Chosyiah", "DU11_ChosyiahJadid"];
 
-        // Fetch active Santri from allowed asrama who are currently present
+        // Fetch active Santri from allowed asrama
         const santriQuery = query(
             collection(db, SANTRI_COLLECTION),
             where("statusAktif", "==", "Aktif"),
-            where("kodeAsrama", "in", allowedKodeAsrama),
-            where("statusKehadiran", "==", "Ada")
+            where("kodeAsrama", "in", allowedKodeAsrama)
         );
         const santriSnapshot = await getDocs(santriQuery);
         santriSnapshot.forEach((doc) => {

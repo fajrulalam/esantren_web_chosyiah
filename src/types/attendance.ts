@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase/firestore";
+import { Person } from "@/types/kegiatan";
 
 // Santri interface for student selection
 export interface Santri {
@@ -58,7 +59,11 @@ export interface AttendanceRecord {
   closedAt?: Timestamp;
   closedBy?: string;
   attendanceTypeId?: string | null; // Reference to the attendance type document
+  penanggungJawab?: Person[]; // People in charge of this session
 }
+
+// Re-export Person for convenience
+export type { Person };
 
 // Teacher/pengurus data
 export interface Teacher {

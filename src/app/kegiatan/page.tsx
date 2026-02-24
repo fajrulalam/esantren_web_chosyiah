@@ -17,6 +17,7 @@ import {
     getKegiatanByDateRange,
     migratePersonName,
 } from "@/firebase/kegiatan";
+import { getAttendanceSessionsForDate } from "@/firebase/attendance";
 import { Person, KegiatanFormData, LuarAsramaActivity } from "@/types/kegiatan";
 import PersonSelector from "@/components/kegiatan/PersonSelector";
 import ActivitySelector from "@/components/kegiatan/ActivitySelector";
@@ -114,29 +115,21 @@ export default function KegiatanPage() {
                 const data = await getKegiatanByDate(selectedDate);
 
                 if (data) {
-                    // Ensure at least 2 rows for Luar Asrama if empty
+                    // Saved kegiatan data exists — load it directly
                     let loadedLuarActivities = data.luarAsramaActivities || [];
-
-                    // Map loaded activities to include isCustom UI state
                     loadedLuarActivities = loadedLuarActivities.map(a => ({
                         ...a,
                         isCustom: !["UniMart", "Canteen 375"].includes(a.name) && a.name !== ""
                     }));
-
                     if (loadedLuarActivities.length < 2) {
                         const needed = 2 - loadedLuarActivities.length;
                         for (let i = 0; i < needed; i++) {
                             loadedLuarActivities.push({
                                 id: Date.now().toString() + Math.random().toString(36).substr(2, 9) + i,
-                                name: "",
-                                startTime: "",
-                                endTime: "",
-                                partTimer: [],
-                                isCustom: false
+                                name: "", startTime: "", endTime: "", partTimer: [], isCustom: false
                             });
                         }
                     }
-
                     setFormData({
                         date: selectedDate,
                         imamSubuh: data.imamSubuh,
@@ -147,18 +140,43 @@ export default function KegiatanPage() {
                         luarAsramaActivities: loadedLuarActivities,
                     });
                 } else {
-                    // No data for this date, reset form with 2 default rows
+                    // No saved kegiatan yet — try to auto-populate from attendance sessions
                     const defaultLuarActivities = [
                         { id: Date.now().toString() + Math.random().toString(36).substr(2, 9), name: "", startTime: "", endTime: "", partTimer: [], isCustom: false },
                         { id: Date.now().toString() + Math.random().toString(36).substr(2, 9) + "1", name: "", startTime: "", endTime: "", partTimer: [], isCustom: false }
                     ];
 
+                    let imamSubuh: Person | null = null;
+                    let imamMaghrib: Person | null = null;
+                    let mengajarNgaji: Person[] = [];
+                    let mengajarPegon: Person[] = [];
+
+                    try {
+                        const sessions = await getAttendanceSessionsForDate("DU11_ChosyiahJadid", selectedDate);
+                        sessions.forEach(session => {
+                            const pj = session.penanggungJawab || [];
+                            if (pj.length === 0) return;
+                            const name = (session.attendanceType || "").toLowerCase();
+                            if (name.includes("subuh") && !imamSubuh) {
+                                imamSubuh = pj[0]; // First person as imam
+                            } else if ((name.includes("maghrib") || name.includes("magrib")) && !imamMaghrib) {
+                                imamMaghrib = pj[0];
+                            } else if (name.includes("ngaji") || name.includes("quran") || name.includes("qur'an")) {
+                                mengajarNgaji = [...mengajarNgaji, ...pj];
+                            } else if (name.includes("pegon") || name.includes("kitab")) {
+                                mengajarPegon = [...mengajarPegon, ...pj];
+                            }
+                        });
+                    } catch (e) {
+                        // Silently ignore — attendance data is optional
+                    }
+
                     setFormData({
                         date: selectedDate,
-                        imamSubuh: null,
-                        imamMaghrib: null,
-                        mengajarNgaji: [],
-                        mengajarPegon: [],
+                        imamSubuh,
+                        imamMaghrib,
+                        mengajarNgaji,
+                        mengajarPegon,
                         customActivities: [],
                         luarAsramaActivities: defaultLuarActivities,
                     });

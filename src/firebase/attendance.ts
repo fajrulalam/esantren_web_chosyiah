@@ -29,7 +29,8 @@ export async function createAttendanceSession(
   attendanceType: string,
   kodeAsrama: string,
   teacherId: string,
-  attendanceTypeId?: string
+  attendanceTypeId?: string,
+  penanggungJawab?: import("@/types/kegiatan").Person[]
 ): Promise<string> {
   const now = new Date();
   const today = format(now, "yyyy-MM-dd");
@@ -76,15 +77,13 @@ export async function createAttendanceSession(
             if (santriData.statusKehadiran === "Sakit") {
               statusToUse = "excusedSick";
               console.log(
-                `Setting ${
-                  santriData.nama || santriId
+                `Setting ${santriData.nama || santriId
                 } to 'excusedSick' based on SantriCollection status`
               );
             } else if (santriData.statusKehadiran === "Pulang") {
               statusToUse = "excusedPulang";
               console.log(
-                `Setting ${
-                  santriData.nama || santriId
+                `Setting ${santriData.nama || santriId
                 } to 'excusedPulang' based on SantriCollection status`
               );
             }
@@ -98,8 +97,7 @@ export async function createAttendanceSession(
         }
 
         console.log(
-          `Added ${
-            Object.keys(studentStatuses).length
+          `Added ${Object.keys(studentStatuses).length
           } students from the specified list`
         );
       } else {
@@ -141,15 +139,13 @@ export async function createAttendanceSession(
       if (santriData.statusKehadiran === "Sakit") {
         statusToUse = "excusedSick";
         console.log(
-          `Setting ${
-            santriData.nama || doc.id
+          `Setting ${santriData.nama || doc.id
           } to 'excusedSick' based on SantriCollection status`
         );
       } else if (santriData.statusKehadiran === "Pulang") {
         statusToUse = "excusedPulang";
         console.log(
-          `Setting ${
-            santriData.nama || doc.id
+          `Setting ${santriData.nama || doc.id
           } to 'excusedPulang' based on SantriCollection status`
         );
       }
@@ -175,10 +171,30 @@ export async function createAttendanceSession(
     studentStatuses: studentStatuses,
     isActive: true,
     attendanceTypeId: attendanceTypeId || null, // Store the type ID for reference
+    penanggungJawab: penanggungJawab && penanggungJawab.length > 0 ? penanggungJawab : [],
   };
 
   await setDoc(doc(db, "AttendanceRecords", sessionId), sessionDoc);
   return sessionId;
+}
+
+// Function to get today's attendance sessions for a dormitory (used by kegiatan page)
+export async function getAttendanceSessionsForDate(
+  kodeAsrama: string,
+  date: string // YYYY-MM-DD
+): Promise<AttendanceRecord[]> {
+  const startOfDay = new Date(date + "T00:00:00");
+  const endOfDay = new Date(date + "T23:59:59");
+
+  const q = query(
+    collection(db, "AttendanceRecords"),
+    where("kodeAsrama", "==", kodeAsrama),
+    where("timestamp", ">=", startOfDay),
+    where("timestamp", "<=", endOfDay)
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => doc.data() as AttendanceRecord);
 }
 
 // Function to find active sessions for a dormitory
@@ -211,10 +227,10 @@ export async function loadStudentsForDormitory(
   const snapshot = await getDocs(q);
   return snapshot.docs.map(
     (doc) =>
-      ({
-        id: doc.id,
-        ...doc.data(),
-      } as SantriWithAttendance)
+    ({
+      id: doc.id,
+      ...doc.data(),
+    } as SantriWithAttendance)
   );
 }
 
@@ -404,8 +420,7 @@ export async function overrideReturnStatus(
       });
 
       console.log(
-        `Santri ${santriId} marked as returned ${
-          kembaliSesuaiRencana ? "on time" : "late"
+        `Santri ${santriId} marked as returned ${kembaliSesuaiRencana ? "on time" : "late"
         }`
       );
       return true;
@@ -465,10 +480,10 @@ export async function getAttendanceTypes(
   const snapshot = await getDocs(q);
   return snapshot.docs.map(
     (doc) =>
-      ({
-        ...doc.data(),
-        id: doc.id, // Include the document ID
-      } as AttendanceType)
+    ({
+      ...doc.data(),
+      id: doc.id, // Include the document ID
+    } as AttendanceType)
   );
 }
 
@@ -492,10 +507,14 @@ export function findLateReturnStudents(
   const now = new Date();
 
   return students.filter(
-    (student) =>
-      student.statusKehadiran === "Pulang" &&
-      student.statusKepulangan?.rencanaTanggalKembali?.toDate() < now &&
-      !student.statusKepulangan?.sudahKembali
+    (student) => {
+      const returnDate = student.statusKepulangan?.rencanaTanggalKembali?.toDate();
+      return (
+        student.statusKehadiran === "Pulang" &&
+        returnDate !== undefined && returnDate < now &&
+        !student.statusKepulangan?.sudahKembali
+      );
+    }
   );
 }
 
@@ -565,10 +584,10 @@ export async function generateAttendanceReport(
 
   const students = studentsSnapshot.docs.map(
     (doc) =>
-      ({
-        id: doc.id,
-        ...doc.data(),
-      } as SantriWithAttendance)
+    ({
+      id: doc.id,
+      ...doc.data(),
+    } as SantriWithAttendance)
   );
 
   // Initialize report data
