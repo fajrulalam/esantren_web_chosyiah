@@ -367,8 +367,13 @@ export default function AttendanceScreen({ params }: { params: Promise<{ session
     // Build the summary message
     let summary = `*LAPORAN KEHADIRAN SANTRI*\n\n`;
     summary += `*Kegiatan:* ${currentSession.attendanceType}\n`;
-    summary += `*Waktu:* ${formatDateTimeForWhatsApp(sessionDate)}\n\n`;
-    summary += `*Ringkasan:*\n`;
+    summary += `*Waktu:* ${formatDateTimeForWhatsApp(sessionDate)}\n`;
+    const pj = currentSession.penanggungJawab;
+    if (pj && pj.length > 0) {
+      const names = pj.map(p => p.name).join(', ');
+      summary += `*Penanggung Jawab:* ${names}\n`;
+    }
+    summary += `\n*Ringkasan:*\n`;
     summary += `✅ Hadir: ${presentCount} santri\n`;
     summary += `🤒 Sakit: ${sickCount} santri\n`;
     summary += `🏠 Pulang: ${pulangCount} santri\n`;
