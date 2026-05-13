@@ -7,13 +7,13 @@ import { getStorage } from "firebase/storage";
 
 // Primary Firebase configuration (e-santren)
 const primaryFirebaseConfig = {
-  apiKey: "AIzaSyCyU6tlP6wQawmZd4jOwXmbX6VDQNSpC0E",
+  apiKey: "AIzaSyBrdjIPSIhnQjZuiQ1DsRNFUngs0vXIF_4",
   authDomain: "e-santren.firebaseapp.com",
   projectId: "e-santren",
   storageBucket: "e-santren.appspot.com",
   messagingSenderId: "385003370337",
-  appId: "1:385003370337:web:0dd74d0aee02434ed47720",
-  measurementId: "G-5RVGD6Z9H1"
+  appId: "1:385003370337:web:27b8ab5724915905d47720",
+  measurementId: "G-TT5EJPY418"
 };
 
 // Secondary Firebase configuration (inventory system)

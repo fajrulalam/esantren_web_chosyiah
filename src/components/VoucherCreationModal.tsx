@@ -130,7 +130,7 @@ export default function VoucherCreationModal({ isOpen, onClose, editingGroup, st
 
   // Generate unique 6-digit voucher ID
   const generateVoucherId = async (): Promise<string> => {
-    const generateId = () => Math.floor(100000 + Math.random() * 900000).toString();
+    const generateId = () => Array.from({length: 4}, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
     
     let attempts = 0;
     const maxAttempts = 100;
