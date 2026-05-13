@@ -28,6 +28,7 @@ interface VoucherGroup {
   isActive: boolean;
   totalVouchers: number;
   createdAt: any;
+  sekaliPakai?: boolean;
 }
 
 interface Voucher {
@@ -44,6 +45,9 @@ interface Voucher {
   kamar: string;
   semester: string;
   createdAt: any;
+  sekaliPakai?: boolean;
+  valueUsed?: number;
+  valueRemaining?: number;
 }
 
 interface VoucherGroupDetailsModalProps {
@@ -159,6 +163,11 @@ export default function VoucherGroupDetailsModal({
     
     if (expireDate < now) {
       return { status: 'EXPIRED', color: 'bg-red-100 text-red-800' };
+    }
+    
+    // For continuous vouchers, check if fully used
+    if (voucher.sekaliPakai === false && voucher.valueRemaining === 0) {
+      return { status: 'FULLY USED', color: 'bg-green-100 text-green-800' };
     }
     
     return { status: 'ACTIVE', color: 'bg-blue-100 text-blue-800' };
@@ -373,8 +382,15 @@ export default function VoucherGroupDetailsModal({
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                   {voucher.semester}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                                  {formatCurrency(voucher.value)}
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm font-medium text-green-600">
+                                    {formatCurrency(voucher.value)}
+                                  </div>
+                                  {voucher.sekaliPakai === false && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      Sisa: <span className="font-semibold text-blue-600">{formatCurrency(voucher.valueRemaining ?? voucher.value)}</span>
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusInfo.color}`}>
@@ -450,7 +466,15 @@ export default function VoucherGroupDetailsModal({
                           {formatDate(voucherGroup.expireDate)}
                         </div>
                       </div>
-                      <div className="md:col-span-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Penggunaan
+                        </label>
+                        <div className="text-sm text-gray-900 bg-white p-3 rounded border font-medium">
+                          {voucherGroup.sekaliPakai === false ? 'Bisa Berkali-kali' : 'Sekali Pakai'}
+                        </div>
+                      </div>
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Status
                         </label>

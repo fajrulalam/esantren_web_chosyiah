@@ -29,6 +29,7 @@ interface VoucherGroup {
   isActive: boolean;
   totalVouchers: number;
   createdAt: any;
+  sekaliPakai?: boolean;
 }
 
 interface SantriMember {
@@ -57,6 +58,7 @@ export default function VoucherCreationModal({ isOpen, onClose, editingGroup, st
   const [activeDate, setActiveDate] = useState('');
   const [expireDate, setExpireDate] = useState('');
   const [startActiveNow, setStartActiveNow] = useState(false);
+  const [sekaliPakai, setSekaliPakai] = useState(true);
   
   // Step 2 data
   const [santriMembers, setSantriMembers] = useState<SantriMember[]>([]);
@@ -79,6 +81,7 @@ export default function VoucherCreationModal({ isOpen, onClose, editingGroup, st
       if (editingGroup) {
         setVoucherName(editingGroup.voucherName);
         setValue(editingGroup.value.toString());
+        setSekaliPakai(editingGroup.sekaliPakai !== false); // default to true if undefined
         
         const activeDateTime = editingGroup.activeDate.toDate();
         const expireDateTime = editingGroup.expireDate.toDate();
@@ -92,6 +95,7 @@ export default function VoucherCreationModal({ isOpen, onClose, editingGroup, st
         setActiveDate('');
         setExpireDate('');
         setStartActiveNow(false);
+        setSekaliPakai(true);
       }
     }
   }, [editingGroup, isOpen, startFromStep2]);
@@ -362,11 +366,12 @@ export default function VoucherCreationModal({ isOpen, onClose, editingGroup, st
       expireDate: Timestamp.fromDate(expireDateTime),
       isActive: true,
       totalVouchers: selectedMembers.size,
+      sekaliPakai,
       createdAt: serverTimestamp()
     });
     
     // Create individual vouchers
-    await createVouchers(voucherGroupId, numericValue, activeDateTime, expireDateTime);
+    await createVouchers(voucherGroupId, numericValue, activeDateTime, expireDateTime, sekaliPakai);
   };
 
   // Update existing voucher group
@@ -384,23 +389,25 @@ export default function VoucherCreationModal({ isOpen, onClose, editingGroup, st
       value: numericValue,
       activeDate: Timestamp.fromDate(activeDateTime),
       expireDate: Timestamp.fromDate(expireDateTime),
-      totalVouchers: selectedMembers.size
+      totalVouchers: selectedMembers.size,
+      sekaliPakai
     });
     
     // Handle member changes
-    await handleMemberChanges(editingGroup.voucherGroupId, numericValue, activeDateTime, expireDateTime);
+    await handleMemberChanges(editingGroup.voucherGroupId, numericValue, activeDateTime, expireDateTime, sekaliPakai);
     
     // Update existing vouchers with new settings
     await updateExistingVouchers(editingGroup.voucherGroupId, {
       voucherName,
       value: numericValue,
       activeDate: Timestamp.fromDate(activeDateTime),
-      expireDate: Timestamp.fromDate(expireDateTime)
+      expireDate: Timestamp.fromDate(expireDateTime),
+      sekaliPakai
     });
   };
 
   // Handle member additions and removals
-  const handleMemberChanges = async (voucherGroupId: string, value: number, activeDate: Date, expireDate: Date) => {
+  const handleMemberChanges = async (voucherGroupId: string, value: number, activeDate: Date, expireDate: Date, sekaliPakai: boolean) => {
     const currentSelected = selectedMembers;
     const previousSelected = existingVoucherUserIds;
     
@@ -412,7 +419,7 @@ export default function VoucherCreationModal({ isOpen, onClose, editingGroup, st
     
     // Add new members
     if (toAdd.size > 0) {
-      await createVouchersForUsers(Array.from(toAdd), voucherGroupId, value, activeDate, expireDate);
+      await createVouchersForUsers(Array.from(toAdd), voucherGroupId, value, activeDate, expireDate, sekaliPakai);
     }
     
     // Remove members
@@ -422,13 +429,13 @@ export default function VoucherCreationModal({ isOpen, onClose, editingGroup, st
   };
 
   // Create vouchers for selected members
-  const createVouchers = async (voucherGroupId: string, value: number, activeDate: Date, expireDate: Date) => {
+  const createVouchers = async (voucherGroupId: string, value: number, activeDate: Date, expireDate: Date, sekaliPakai: boolean) => {
     const selectedMemberIds = Array.from(selectedMembers);
-    await createVouchersForUsers(selectedMemberIds, voucherGroupId, value, activeDate, expireDate);
+    await createVouchersForUsers(selectedMemberIds, voucherGroupId, value, activeDate, expireDate, sekaliPakai);
   };
 
   // Create vouchers for specific users
-  const createVouchersForUsers = async (userIds: string[], voucherGroupId: string, value: number, activeDate: Date, expireDate: Date) => {
+  const createVouchersForUsers = async (userIds: string[], voucherGroupId: string, value: number, activeDate: Date, expireDate: Date, sekaliPakai: boolean) => {
     const batch = writeBatch(db);
     const batchSize = 500; // Firestore batch limit
     
@@ -451,6 +458,9 @@ export default function VoucherCreationModal({ isOpen, onClose, editingGroup, st
           expireDate: Timestamp.fromDate(expireDate),
           isActive: true,
           isClaimed: false,
+          sekaliPakai,
+          valueUsed: 0,
+          valueRemaining: value,
           userId: member.id,
           nama: member.nama,
           kamar: member.kamar,
@@ -610,6 +620,29 @@ export default function VoucherCreationModal({ isOpen, onClose, editingGroup, st
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Penggunaan Voucher
+                </label>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="sekaliPakai"
+                    checked={sekaliPakai}
+                    onChange={(e) => setSekaliPakai(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                  />
+                  <label htmlFor="sekaliPakai" className="ml-2 text-sm text-gray-700 font-medium cursor-pointer">
+                    Sekali Pakai (Single Use)
+                  </label>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  {sekaliPakai 
+                    ? "Voucher hanya dapat digunakan satu kali secara penuh." 
+                    : "Voucher dapat digunakan berkali-kali hingga saldo habis."}
+                </p>
               </div>
             </div>
           )}

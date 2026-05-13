@@ -19,6 +19,7 @@ interface VoucherGroup {
   isActive: boolean;
   totalVouchers: number;
   createdAt: any;
+  sekaliPakai?: boolean;
 }
 
 export default function VoucherAsramaPage() {
@@ -215,6 +216,11 @@ export default function VoucherAsramaPage() {
                       <div className="text-sm font-semibold text-green-600">
                         {formatCurrency(group.value)}
                       </div>
+                      {group.sekaliPakai === false && (
+                        <div className="text-[10px] text-gray-500 mt-0.5">
+                          Bisa Berkali-kali
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">

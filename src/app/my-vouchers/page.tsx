@@ -31,10 +31,12 @@ interface Voucher {
   isActive: boolean;
   isClaimed: boolean;
   userId: string;
-  nama: string;
   kamar: string;
   semester: string;
   createdAt: any;
+  sekaliPakai?: boolean;
+  valueUsed?: number;
+  valueRemaining?: number;
 }
 
 export default function MyVouchersPage() {
@@ -146,7 +148,7 @@ export default function MyVouchersPage() {
 
   // Get voucher status with styling
   const getVoucherStatus = (voucher: Voucher) => {
-    if (voucher.isClaimed) {
+    if (voucher.isClaimed || (voucher.sekaliPakai === false && voucher.valueRemaining === 0)) {
       return {
         status: 'Terpakai',
         bgColor: 'bg-gray-100',
@@ -248,7 +250,7 @@ export default function MyVouchersPage() {
               return (
                 <div
                   key={voucher.id}
-                  className={`relative ${status.cardBg} rounded-xl border-2 ${status.borderColor} shadow-lg overflow-hidden transform transition-all duration-300 ${voucher.isClaimed ? 'opacity-75 grayscale' : 'hover:scale-[1.02]'}`}
+                  className={`relative ${status.cardBg} rounded-xl border-2 ${status.borderColor} shadow-lg overflow-hidden transform transition-all duration-300 ${status.status === 'Terpakai' ? 'opacity-75 grayscale' : 'hover:scale-[1.02]'}`}
                 >
                   {/* Gift Card Design Elements */}
                   <div className="absolute top-0 right-0 w-20 h-20 opacity-10">
@@ -284,10 +286,17 @@ export default function MyVouchersPage() {
 
                       {/* Right Side - Value */}
                       <div className="text-right">
-                        <div className="text-xs font-medium text-gray-500 mb-1">NOMINAL</div>
-                        <div className="text-2xl font-black text-green-600">
-                          {formatCurrency(voucher.value)}
+                        <div className="text-xs font-medium text-gray-500 mb-1">
+                          {voucher.sekaliPakai === false ? 'SISA SALDO' : 'NOMINAL'}
                         </div>
+                        <div className="text-2xl font-black text-green-600">
+                          {formatCurrency(voucher.sekaliPakai === false ? (voucher.valueRemaining ?? voucher.value) : voucher.value)}
+                        </div>
+                        {voucher.sekaliPakai === false && (
+                          <div className="text-[10px] text-gray-400 mt-1 font-medium">
+                            Total: {formatCurrency(voucher.value)}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -314,7 +323,7 @@ export default function MyVouchersPage() {
                     </div>
 
                     {/* Special Effects for Different States */}
-                    {voucher.isClaimed && (
+                    {status.status === 'Terpakai' && (
                       <div className="absolute inset-0 flex items-center justify-center bg-gray-900/20 rounded-xl">
                         <div className="transform -rotate-12 bg-gray-700 text-white px-6 py-2 rounded-lg font-bold text-lg shadow-xl">
                           TERPAKAI
@@ -322,7 +331,7 @@ export default function MyVouchersPage() {
                       </div>
                     )}
 
-                    {isExpired(voucher.expireDate) && !voucher.isClaimed && (
+                    {status.status === 'Kedaluwarsa' && (
                       <div className="absolute inset-0 flex items-center justify-center bg-red-900/20 rounded-xl">
                         <div className="transform rotate-12 bg-red-600 text-white px-4 py-2 rounded-lg font-bold shadow-xl">
                           KEDALUWARSA
