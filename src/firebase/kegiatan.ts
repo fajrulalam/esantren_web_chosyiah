@@ -1,7 +1,3 @@
-/**
- * Firestore service for Kegiatan (Daily Activities) feature
- * Handles CRUD operations for daily activity tracking
- */
 
 import {
     collection,
@@ -13,6 +9,8 @@ import {
     where,
     serverTimestamp,
     orderBy,
+    Timestamp,
+    writeBatch
 } from "firebase/firestore";
 import { db } from "./config";
 import { KegiatanData, KegiatanFormData, Person } from "@/types/kegiatan";
@@ -32,12 +30,11 @@ export async function getAllPeople(): Promise<Person[]> {
         const people: Person[] = [];
         const allowedKodeAsrama = ["DU11_Chosyiah", "DU11_ChosyiahJadid"];
 
-        // Fetch active Santri from allowed asrama who are currently present
+        // Fetch active Santri from allowed asrama
         const santriQuery = query(
             collection(db, SANTRI_COLLECTION),
             where("statusAktif", "==", "Aktif"),
-            where("kodeAsrama", "in", allowedKodeAsrama),
-            where("statusKehadiran", "==", "Ada")
+            where("kodeAsrama", "in", allowedKodeAsrama)
         );
         const santriSnapshot = await getDocs(santriQuery);
         santriSnapshot.forEach((doc) => {
@@ -140,6 +137,7 @@ export async function saveKegiatan(
             mengajarNgaji: data.mengajarNgaji,
             mengajarPegon: data.mengajarPegon,
             customActivities: data.customActivities, // Add customActivities
+            luarAsramaActivities: data.luarAsramaActivities || [], // Add luarAsramaActivities
             updatedByUid: userId,
             updatedAt: serverTimestamp() as any,
         };
@@ -197,6 +195,41 @@ export async function getKegiatanByMonth(
 }
 
 /**
+ * Get all kegiatan data for a specific date range
+ * @param startDate - Start date YYYY-MM-DD
+ * @param endDate - End date YYYY-MM-DD
+ */
+export async function getKegiatanByDateRange(
+    startDate: string,
+    endDate: string
+): Promise<KegiatanData[]> {
+    try {
+        const kegiatanQuery = query(
+            collection(db, KEGIATAN_COLLECTION),
+            where("date", ">=", startDate),
+            where("date", "<=", endDate),
+            orderBy("date", "asc")
+        );
+
+        const querySnapshot = await getDocs(kegiatanQuery);
+        const activities: KegiatanData[] = [];
+
+        querySnapshot.forEach((doc) => {
+            const data = doc.data() as KegiatanData;
+            // Ensure arrays exist
+            if (!data.luarAsramaActivities) data.luarAsramaActivities = [];
+            if (!data.customActivities) data.customActivities = [];
+            activities.push(data);
+        });
+
+        return activities;
+    } catch (error) {
+        console.error("Error fetching range kegiatan:", error);
+        throw new Error("Gagal memuat data kegiatan rentang tanggal");
+    }
+}
+
+/**
  * Copy yesterday's kegiatan to current date
  * @param currentDate - Current date in YYYY-MM-DD format
  * @param userId - Current user ID
@@ -231,6 +264,7 @@ export async function copyYesterdayKegiatan(
             mengajarNgaji: yesterdayData.mengajarNgaji,
             mengajarPegon: yesterdayData.mengajarPegon,
             customActivities: yesterdayData.customActivities,
+            luarAsramaActivities: yesterdayData.luarAsramaActivities || [],
         };
     } catch (error) {
         console.error("Error copying yesterday's kegiatan:", error);
@@ -252,5 +286,87 @@ export async function getKegiatanDatesInMonth(
     } catch (error) {
         console.error("Error fetching kegiatan dates:", error);
         return [];
+    }
+}
+
+/**
+ * ADMIN UTILITY: Migrate person name in historical data
+ * Updates all instances of oldName to newName in KegiatanCollection
+ * @param oldName - Old name to replace
+ * @param newName - New name to use
+ * @returns number - Count of documents updated
+ */
+export async function migratePersonName(oldName: string, newName: string): Promise<number> {
+    try {
+        console.log(`[Migration] Starting migration from "${oldName}" to "${newName}"...`);
+        const querySnapshot = await getDocs(collection(db, KEGIATAN_COLLECTION));
+        let updatedCount = 0;
+        const batch = writeBatch(db); // Note: batch limit is 500. Assuming < 500 docs for now or just commit per doc if large.
+
+        // Handling > 500 docs with Batches would require chunking. 
+        // For simplicity and robustness in this quick fix, let's just do individual updates or one big batch if small.
+        // Let's iterate and update individually to be safe against batch limits for now unless it's huge.
+
+        const updates: Promise<void>[] = [];
+
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data() as KegiatanData;
+            let isModified = false;
+
+            // Helper to update person
+            const updatePerson = (p: Person | null) => {
+                if (p && p.name === oldName) {
+                    p.name = newName;
+                    isModified = true;
+                }
+            };
+
+            // Check single fields
+            if (data.imamSubuh && data.imamSubuh.name === oldName) {
+                data.imamSubuh.name = newName;
+                isModified = true;
+            }
+            if (data.imamMaghrib && data.imamMaghrib.name === oldName) {
+                data.imamMaghrib.name = newName;
+                isModified = true;
+            }
+
+            // Check arrays
+            data.mengajarNgaji.forEach(p => updatePerson(p));
+            data.mengajarPegon.forEach(p => updatePerson(p));
+
+            // Check Custom Activities
+            if (data.customActivities) {
+                data.customActivities.forEach(act => {
+                    act.people.forEach(p => updatePerson(p));
+                });
+            }
+
+            // Check Luar Asrama Activities
+            if (data.luarAsramaActivities) {
+                data.luarAsramaActivities.forEach(act => {
+                    if (Array.isArray(act.partTimer)) {
+                        act.partTimer.forEach(p => updatePerson(p));
+                    } else if (act.partTimer && (act.partTimer as any).name === oldName) {
+                        // Type assertion just in case legacy data has single object
+                        (act.partTimer as any).name = newName;
+                        isModified = true;
+                    }
+                });
+            }
+
+            if (isModified) {
+                // We create a promise to update this doc
+                updates.push(setDoc(docSnap.ref, data, { merge: true }));
+                updatedCount++;
+            }
+        });
+
+        await Promise.all(updates);
+        console.log(`[Migration] Completed. Updated ${updatedCount} documents.`);
+        return updatedCount;
+    } catch (error) {
+        console.error("Error migrating person name:", error);
+        throw new Error("Gagal migrasi nama orang");
     }
 }

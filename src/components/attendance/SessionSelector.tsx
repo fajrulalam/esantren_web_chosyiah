@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getActiveSessions, createAttendanceSession, getAttendanceTypes, deleteAttendanceSession } from '@/firebase/attendance';
+import { getAllPeople } from '@/firebase/kegiatan';
+import { Person } from '@/types/kegiatan';
 import {
   collection,
   addDoc,
@@ -16,7 +18,7 @@ import { getAuth } from 'firebase/auth';
 import { db } from '@/firebase/config';
 import { format } from 'date-fns';
 import { AttendanceRecord, AttendanceType } from '@/types/attendance';
-import {Santri} from "@/types/santri";
+import { Santri } from "@/types/santri";
 
 interface SessionSelectorProps {
   kodeAsrama: string;
@@ -68,6 +70,10 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
   const [selectedTypeToDelete, setSelectedTypeToDelete] = useState<AttendanceType | null>(null);
   const [isDeletingType, setIsDeletingType] = useState(false);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const [penanggungJawab, setPenanggungJawab] = useState<Person[]>([]);
+  const [allPeople, setAllPeople] = useState<Person[]>([]);
+  const [loadingPeople, setLoadingPeople] = useState(false);
+  const [peopleSearchQuery, setPeopleSearchQuery] = useState('');
 
   // Load attendance types
   useEffect(() => {
@@ -82,7 +88,23 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
 
     loadAttendanceTypes();
   }, []);
-  
+
+  // Load people for Penanggung Jawab selector
+  useEffect(() => {
+    const loadPeople = async () => {
+      setLoadingPeople(true);
+      try {
+        const people = await getAllPeople();
+        setAllPeople(people);
+      } catch (error) {
+        console.error("Error loading people:", error);
+      } finally {
+        setLoadingPeople(false);
+      }
+    };
+    loadPeople();
+  }, []);
+
   // Fetch santris when add modal opens
   useEffect(() => {
     if (showAddTypeModal) {
@@ -93,12 +115,12 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       setIsSelectAll(false);
     }
   }, [showAddTypeModal, kodeAsrama]);
-  
+
   // Fetch santris when edit modal opens and set selected santris
   useEffect(() => {
     if (showEditTypeModal) {
       fetchSantris();
-      
+
       // Set selected santris based on the type being edited
       if (editTypeForm.originalSantriIds && editTypeForm.originalSantriIds.length > 0) {
         setSelectedSantriIds(new Set(editTypeForm.originalSantriIds));
@@ -115,7 +137,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
   useEffect(() => {
     const loadSessions = async () => {
       if (!kodeAsrama) return;
-      
+
       setIsLoading(true);
       try {
         const activeSessions = await getActiveSessions(kodeAsrama);
@@ -133,50 +155,37 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
   // Handle creating a new session
   const handleCreateSession = async () => {
     if (!newSessionType.trim()) return;
-    
+
     setIsCreatingSession(true);
     try {
-      // Use the state variable as the primary source of truth
-      // If that's empty, check DOM elements as fallbacks
       let typeId = selectedTypeId;
-      
+
       if (!typeId) {
-        // Fallback 1: Check hidden input 
         const hiddenInput = document.getElementById('selected-type-id') as HTMLInputElement;
-        // Fallback 2: Check input element's data attribute
         const inputEl = document.getElementById('session-type-input') as HTMLInputElement;
-        
         typeId = hiddenInput?.value || inputEl?.dataset?.typeId || undefined;
       }
-      
-      // Debug logging
-      console.log("Type ID from state:", selectedTypeId);
-      console.log("Final type ID being used:", typeId);
-      
-      // Log what type of creation is happening (from selection or manual input)
-      console.log("Creating session from:", typeId ? "SELECTED TYPE" : "MANUAL INPUT", 
-        { name: newSessionType, typeId: typeId || "none" });
-      
-      // Create the session, passing the type ID if available
-      const sessionId = await createAttendanceSession(newSessionType, kodeAsrama, teacherId, typeId);
-      
+
+      const sessionId = await createAttendanceSession(
+        newSessionType,
+        kodeAsrama,
+        teacherId,
+        typeId,
+        penanggungJawab
+      );
+
       // Reset all state
       setNewSessionType('');
       setSelectedTypeId(undefined);
       setIsCreatingNew(false);
-      
-      // Clear DOM elements as well (redundant but thorough)
-      const hiddenInput = document.getElementById('selected-type-id') as HTMLInputElement;
-      if (hiddenInput) {
-        hiddenInput.value = '';
-      }
-      
-      const inputEl = document.getElementById('session-type-input') as HTMLInputElement;
-      if (inputEl) {
-        delete inputEl.dataset.typeId;
-      }
+      setPenanggungJawab([]);
+      setPeopleSearchQuery('');
 
-      // Navigate to the new session
+      const hiddenInput = document.getElementById('selected-type-id') as HTMLInputElement;
+      if (hiddenInput) hiddenInput.value = '';
+      const inputEl = document.getElementById('session-type-input') as HTMLInputElement;
+      if (inputEl) delete inputEl.dataset.typeId;
+
       router.push(`/attendance/${sessionId}`);
     } catch (error) {
       console.error("Error creating session:", error);
@@ -190,10 +199,10 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
   const handleSelectType = (typeName: string, typeId: string) => {
     // Store both the name and ID for use when creating the session
     setNewSessionType(typeName);
-    
+
     // Store the type ID in state
     setSelectedTypeId(typeId);
-    
+
     // Create or use an existing hidden input to store the type ID as a backup
     let hiddenInput = document.getElementById('selected-type-id') as HTMLInputElement;
     if (!hiddenInput) {
@@ -203,13 +212,13 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       document.body.appendChild(hiddenInput);
     }
     hiddenInput.value = typeId;
-    
+
     // Also store the ID as a data attribute on the visible input element as a backup
     const inputEl = document.getElementById('session-type-input') as HTMLInputElement;
     if (inputEl) {
       inputEl.dataset.typeId = typeId;
     }
-    
+
     console.log(`Selected attendance type: ${typeName} (ID: ${typeId})`);
     setIsCreatingNew(true);
   };
@@ -218,7 +227,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
   const formatTime = (date: Date) => {
     return format(date, 'HH:mm');
   };
-  
+
   // Fetch santris function
   const fetchSantris = async () => {
     setIsLoadingSantris(true);
@@ -226,11 +235,11 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       const santriRef = collection(db, "SantriCollection");
       // Get all santris from the current asrama
       const q = query(
-        santriRef, 
+        santriRef,
         where("kodeAsrama", "==", kodeAsrama)
       );
       const querySnapshot = await getDocs(q);
-      
+
       const santriData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         nama: doc.data().nama || '',
@@ -242,9 +251,9 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
         semester: doc.data().kelas || '',
         kodeAsrama: doc.data().kodeAsrama
       }));
-      
+
       setSantris(santriData);
-      
+
       // Apply initial filters
       applyFilters(santriData, filters);
     } catch (error) {
@@ -253,19 +262,19 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       setIsLoadingSantris(false);
     }
   };
-  
+
   // Apply filters
   const applyFilters = (data: Santri[], currentFilters: typeof filters) => {
     let filtered = [...data];
-    
+
     if (currentFilters.statusAktif) {
       filtered = filtered.filter(santri => santri.statusAktif === currentFilters.statusAktif);
     }
-    
+
     if (currentFilters.kamar) {
       filtered = filtered.filter(santri => santri.kamar === currentFilters.kamar);
     }
-    
+
     if (currentFilters.jenjangPendidikan) {
       filtered = filtered.filter(santri => santri.jenjangPendidikan === currentFilters.jenjangPendidikan);
     }
@@ -273,11 +282,11 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
     if (currentFilters.semester) {
       filtered = filtered.filter(santri => santri.semester === currentFilters.semester);
     }
-    
+
     setFilteredSantris(filtered);
     setIsSelectAll(false);
   };
-  
+
   // Handle filter changes
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -285,22 +294,22 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
     setFilters(newFilters);
     applyFilters(santris, newFilters);
   };
-  
+
   // Check if selections have changed from original
   const checkForChanges = (currentSelection: Set<string>) => {
     if (!showEditTypeModal) return; // Only check in edit mode
-    
+
     const originalIds = new Set(editTypeForm.originalSantriIds);
-    
+
     // If sizes are different, there are changes
     if (currentSelection.size !== originalIds.size) {
       setHasChanges(true);
       return;
     }
-    
+
     // Check if any IDs are different
     let changed = false;
-    
+
     // Check for additions (in current but not in original)
     for (const id of currentSelection) {
       if (!originalIds.has(id)) {
@@ -308,7 +317,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
         break;
       }
     }
-    
+
     // Check for removals (in original but not in current)
     if (!changed) {
       for (const id of originalIds) {
@@ -318,10 +327,10 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
         }
       }
     }
-    
+
     setHasChanges(changed);
   };
-  
+
   // Handle select all
   const handleSelectAll = () => {
     if (isSelectAll) {
@@ -332,14 +341,14 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       setSelectedSantriIds(newSelectedIds);
     }
     setIsSelectAll(!isSelectAll);
-    
+
     // Check for changes in edit mode
     if (showEditTypeModal) {
       const newSelectedIds = isSelectAll ? new Set() : new Set(filteredSantris.map(s => s.id));
       checkForChanges(newSelectedIds);
     }
   };
-  
+
   // Handle individual selection
   const handleSelectSantri = (santriId: string) => {
     const newSelectedIds = new Set(selectedSantriIds);
@@ -350,17 +359,17 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
     }
     setSelectedSantriIds(newSelectedIds);
     setIsSelectAll(newSelectedIds.size === filteredSantris.length && filteredSantris.length > 0);
-    
+
     // Check for changes in edit mode
     if (showEditTypeModal) {
       checkForChanges(newSelectedIds);
     }
   };
-  
+
   // Handle adding a new attendance type
   const handleAddAttendanceType = async () => {
     if (!newTypeForm.name.trim()) return;
-    
+
     setIsAddingType(true);
     try {
       const auth = getAuth();
@@ -383,7 +392,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       };
 
       await addDoc(collection(db, "AttendanceTypes"), newType);
-      
+
       // Reset form
       setNewTypeForm({
         name: '',
@@ -391,10 +400,10 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       });
       setSelectedSantriIds(new Set());
       setIsSelectAll(false);
-      
+
       // Close modal
       setShowAddTypeModal(false);
-      
+
       // Reload types
       const types = await getAttendanceTypes(true);
       setAttendanceTypes(types);
@@ -405,14 +414,14 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       setIsAddingType(false);
     }
   };
-  
+
   // Handle deleting a session
   const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent navigation
-    
+
     const confirmation = window.confirm("Apakah Anda yakin ingin menghapus sesi presensi ini? Tindakan ini tidak dapat dibatalkan.");
     if (!confirmation) return;
-    
+
     setIsDeletingSession(true);
     try {
       const success = await deleteAttendanceSession(sessionId);
@@ -429,7 +438,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       setIsDeletingSession(false);
     }
   };
-  
+
   // Handle type long press to show edit modal
   const handleTypeLongPress = (type: AttendanceType) => {
     longPressTimer.current = setTimeout(() => {
@@ -440,15 +449,15 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
         description: type.description || '',
         originalSantriIds: type.listOfSantriIds || []
       });
-      
+
       // Initialize selected santri IDs with existing ones
       setSelectedSantriIds(new Set(type.listOfSantriIds || []));
-      
+
       // Show edit modal instead of delete modal
       setShowEditTypeModal(true);
     }, 700);
   };
-  
+
   // Handle type press end to cancel long press
   const handleTypePressEnd = () => {
     if (longPressTimer.current) {
@@ -456,7 +465,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       longPressTimer.current = null;
     }
   };
-  
+
   // Cleanup on component unmount
   useEffect(() => {
     return () => {
@@ -465,11 +474,11 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       }
     };
   }, []);
-  
+
   // Handle updating an attendance type
   const handleUpdateAttendanceType = async () => {
     if (!editTypeForm.id) return;
-    
+
     setIsUpdatingType(true);
     try {
       const auth = getAuth();
@@ -488,10 +497,10 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
       });
-      
+
       // Close modal
       setShowEditTypeModal(false);
-      
+
       // Reload types
       const types = await getAttendanceTypes(true);
       setAttendanceTypes(types);
@@ -502,22 +511,22 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       setIsUpdatingType(false);
     }
   };
-  
+
   // Handle deleting an attendance type (from edit modal)
   const handleDeleteTypeFromEditModal = async () => {
     if (!editTypeForm.id) return;
-    
+
     const confirmation = window.confirm(`Apakah Anda yakin ingin menghapus jenis presensi "${editTypeForm.name}"? Tindakan ini tidak dapat dibatalkan.`);
     if (!confirmation) return;
-    
+
     setIsDeletingType(true);
     try {
       // Delete from Firestore
       await deleteDoc(doc(db, "AttendanceTypes", editTypeForm.id));
-      
+
       // Update local state
       setAttendanceTypes(attendanceTypes.filter(type => type.id !== editTypeForm.id));
-      
+
       // Close modal
       setShowEditTypeModal(false);
     } catch (error) {
@@ -527,14 +536,14 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       setIsDeletingType(false);
     }
   };
-  
+
   // Handle deleting an attendance type
   const handleDeleteAttendanceType = async () => {
     if (!selectedTypeToDelete) return;
-    
+
     // Debug info to see the structure of the type
     console.log("Type to delete:", selectedTypeToDelete);
-    
+
     // Check if the type has an ID
     if (!selectedTypeToDelete.id) {
       console.error("Cannot delete type without ID");
@@ -544,15 +553,15 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
       setIsDeletingType(false);
       return;
     }
-    
+
     setIsDeletingType(true);
     try {
       // Delete from Firestore
       await deleteDoc(doc(db, "AttendanceTypes", selectedTypeToDelete.id));
-      
+
       // Update local state
       setAttendanceTypes(attendanceTypes.filter(type => type.id !== selectedTypeToDelete.id));
-      
+
       // Close modal
       setShowDeleteTypeModal(false);
       setSelectedTypeToDelete(null);
@@ -573,7 +582,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
         <div className="mb-6">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Jadwal Presensi</h3>
-            <button 
+            <button
               onClick={() => setShowAddTypeModal(true)}
               className="w-7 h-7 flex items-center justify-center rounded-full bg-gradient-to-br 
                        from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800
@@ -709,8 +718,86 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                   <option key={type.id || `type-option-${index}`} value={type.name} />
                 ))}
               </datalist>
+
+              {/* Penanggung Jawab Selector */}
+              <div className="mb-4">
+                <label className="block mb-2 font-medium text-gray-800 dark:text-gray-200">
+                  Penanggung Jawab <span className="text-sm font-normal text-gray-500 dark:text-gray-400">(Opsional)</span>
+                </label>
+                {loadingPeople ? (
+                  <p className="text-sm text-gray-400 dark:text-gray-500">Memuat daftar santri/pengurus...</p>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={peopleSearchQuery}
+                      onChange={(e) => setPeopleSearchQuery(e.target.value)}
+                      placeholder="Cari nama santri/pengurus..."
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                                 bg-white dark:bg-gray-900
+                                 shadow-[inset_2px_2px_5px_rgba(0,0,0,0.05),inset_-2px_-2px_5px_rgba(255,255,255,0.2)]
+                                 dark:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.2)]
+                                 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 focus:border-transparent text-sm"
+                    />
+                    {/* Dropdown list */}
+                    {peopleSearchQuery.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {allPeople
+                          .filter(p =>
+                            p.name.toLowerCase().includes(peopleSearchQuery.toLowerCase()) &&
+                            !penanggungJawab.some(pj => pj.uid === p.uid)
+                          )
+                          .slice(0, 10)
+                          .map(person => (
+                            <button
+                              key={person.uid}
+                              type="button"
+                              onClick={() => {
+                                setPenanggungJawab(prev => [...prev, person]);
+                                setPeopleSearchQuery('');
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-gray-800 dark:text-gray-200 flex items-center gap-2"
+                            >
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${person.role === 'pengurus' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'}`}>
+                                {person.role === 'pengurus' ? 'Pengurus' : 'Santri'}
+                              </span>
+                              {person.name}
+                            </button>
+                          ))}
+                        {allPeople.filter(p =>
+                          p.name.toLowerCase().includes(peopleSearchQuery.toLowerCase()) &&
+                          !penanggungJawab.some(pj => pj.uid === p.uid)
+                        ).length === 0 && (
+                            <p className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">Tidak ditemukan</p>
+                          )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Selected chips */}
+                {penanggungJawab.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {penanggungJawab.map(person => (
+                      <span
+                        key={person.uid}
+                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-800/60 text-indigo-800 dark:text-indigo-200 text-sm"
+                      >
+                        {person.name}
+                        <button
+                          type="button"
+                          onClick={() => setPenanggungJawab(prev => prev.filter(p => p.uid !== person.uid))}
+                          className="ml-1 text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-100 font-bold leading-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="form-actions flex gap-3">
-                <button 
+                <button
                   onClick={handleCreateSession}
                   className="px-5 py-3 bg-gradient-to-br from-indigo-500 to-indigo-600 
                             text-white font-medium rounded-lg 
@@ -722,7 +809,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                 >
                   {isCreatingSession ? 'Membuat Sesi...' : 'Mulai Sesi'}
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     setIsCreatingNew(false);
                     setNewSessionType('');
@@ -764,13 +851,13 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                          shadow-[5px_5px_15px_rgba(0,0,0,0.1),-5px_-5px_15px_rgba(255,255,255,0.1)]
                          dark:shadow-[5px_5px_15px_rgba(0,0,0,0.3),-5px_-5px_15px_rgba(255,255,255,0.05)]">
             <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Tambah Jenis Presensi</h3>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Nama</label>
               <input
                 type="text"
                 value={newTypeForm.name}
-                onChange={(e) => setNewTypeForm({...newTypeForm, name: e.target.value})}
+                onChange={(e) => setNewTypeForm({ ...newTypeForm, name: e.target.value })}
                 placeholder="Contoh: Subuh, Maghrib, Ro'an"
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
                          bg-white dark:bg-gray-900 
@@ -780,12 +867,12 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                 autoFocus
               />
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Deskripsi (Opsional)</label>
               <textarea
                 value={newTypeForm.description}
-                onChange={(e) => setNewTypeForm({...newTypeForm, description: e.target.value})}
+                onChange={(e) => setNewTypeForm({ ...newTypeForm, description: e.target.value })}
                 placeholder="Deskripsi singkat"
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
                          bg-white dark:bg-gray-900 
@@ -794,11 +881,11 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                          focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 focus:border-transparent"
               />
             </div>
-            
+
             {/* Santri selection section */}
             <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
               <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-3">Pilih Santri untuk Presensi Ini</h4>
-              
+
               {/* Filters */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
                 <div>
@@ -836,7 +923,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                     ))}
                   </select>
                 </div>
-                
+
                 <div>
                   <label htmlFor="kamar" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                     Kamar
@@ -854,7 +941,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                     ))}
                   </select>
                 </div>
-                
+
                 <div>
                   <label htmlFor="semester" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                     Semester/Kelas
@@ -873,7 +960,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                   </select>
                 </div>
               </div>
-              
+
               {/* Santri list */}
               <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
                 <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center">
@@ -884,7 +971,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                     onChange={handleSelectAll}
                   />
                   <span className="ml-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-                    {isSelectAll 
+                    {isSelectAll
                       ? `Semua Terpilih (${filteredSantris.length})`
                       : selectedSantriIds.size > 0
                         ? `${selectedSantriIds.size} Terpilih dari ${filteredSantris.length}`
@@ -892,7 +979,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                     }
                   </span>
                 </div>
-                
+
                 <div className="max-h-60 overflow-y-auto">
                   {isLoadingSantris ? (
                     <div className="flex flex-col justify-center items-center py-8 space-y-2">
@@ -933,17 +1020,16 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                         </thead>
                         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                           {filteredSantris.map((santri) => (
-                            <tr 
+                            <tr
                               key={santri.id}
-                              className={selectedSantriIds.has(santri.id) 
-                                ? "bg-blue-50 dark:bg-blue-900/30" 
+                              className={selectedSantriIds.has(santri.id)
+                                ? "bg-blue-50 dark:bg-blue-900/30"
                                 : "hover:bg-gray-50 dark:hover:bg-gray-800"}
                             >
-                              <td className={`px-2 py-2 whitespace-nowrap sticky left-0 z-10 ${
-                                selectedSantriIds.has(santri.id) 
-                                  ? "bg-blue-50 dark:bg-blue-900/30" 
-                                  : "bg-white dark:bg-gray-900"
-                              }`}>
+                              <td className={`px-2 py-2 whitespace-nowrap sticky left-0 z-10 ${selectedSantriIds.has(santri.id)
+                                ? "bg-blue-50 dark:bg-blue-900/30"
+                                : "bg-white dark:bg-gray-900"
+                                }`}>
                                 <input
                                   type="checkbox"
                                   className="h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
@@ -951,19 +1037,18 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                                   onChange={() => handleSelectSantri(santri.id)}
                                 />
                               </td>
-                              <td className={`px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white sticky left-8 z-10 ${
-                                selectedSantriIds.has(santri.id) 
-                                  ? "bg-blue-50 dark:bg-blue-900/30" 
-                                  : "bg-white dark:bg-gray-900"
-                              }`}>
+                              <td className={`px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white sticky left-8 z-10 ${selectedSantriIds.has(santri.id)
+                                ? "bg-blue-50 dark:bg-blue-900/30"
+                                : "bg-white dark:bg-gray-900"
+                                }`}>
                                 {santri.nama}
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-xs">
                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                  ${santri.statusAktif === 'Aktif' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' : 
-                                  santri.statusAktif === 'Boyong' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400' : 
-                                  santri.statusAktif === 'Lulus' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400' :
-                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+                                  ${santri.statusAktif === 'Aktif' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' :
+                                    santri.statusAktif === 'Boyong' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400' :
+                                      santri.statusAktif === 'Lulus' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400' :
+                                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                                   {santri.statusAktif}
                                 </span>
                               </td>
@@ -987,20 +1072,20 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                   )}
                 </div>
               </div>
-              
+
               <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                {selectedSantriIds.size === 0 
+                {selectedSantriIds.size === 0
                   ? 'Jika tidak ada santri dipilih, presensi akan menampilkan semua santri Aktif'
                   : `${selectedSantriIds.size} santri akan ditampilkan di presensi ini`
                 }
               </div>
             </div>
-            
+
             <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <button 
+              <button
                 onClick={() => {
                   setShowAddTypeModal(false);
-                  setNewTypeForm({name: '', description: ''});
+                  setNewTypeForm({ name: '', description: '' });
                   setSelectedSantriIds(new Set());
                 }}
                 className="px-4 py-2 bg-gradient-to-br from-gray-200 to-gray-300 
@@ -1014,7 +1099,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
               >
                 Batal
               </button>
-              <button 
+              <button
                 onClick={handleAddAttendanceType}
                 disabled={isAddingType || !newTypeForm.name.trim()}
                 className="px-4 py-2 bg-gradient-to-br from-indigo-500 to-indigo-600 
@@ -1030,7 +1115,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
           </div>
         </div>
       )}
-      
+
       {/* Edit Attendance Type Modal */}
       {showEditTypeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -1039,14 +1124,14 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                          shadow-[5px_5px_15px_rgba(0,0,0,0.1),-5px_-5px_15px_rgba(255,255,255,0.1)]
                          dark:shadow-[5px_5px_15px_rgba(0,0,0,0.3),-5px_-5px_15px_rgba(255,255,255,0.05)]">
             <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Edit Jenis Presensi</h3>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Nama</label>
               <input
                 type="text"
                 value={editTypeForm.name}
                 onChange={(e) => {
-                  setEditTypeForm({...editTypeForm, name: e.target.value});
+                  setEditTypeForm({ ...editTypeForm, name: e.target.value });
                   setHasChanges(true);
                 }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
@@ -1057,13 +1142,13 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                 autoFocus
               />
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Deskripsi (Opsional)</label>
               <textarea
                 value={editTypeForm.description}
                 onChange={(e) => {
-                  setEditTypeForm({...editTypeForm, description: e.target.value});
+                  setEditTypeForm({ ...editTypeForm, description: e.target.value });
                   setHasChanges(true);
                 }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
@@ -1073,11 +1158,11 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                          focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 focus:border-transparent"
               />
             </div>
-            
+
             {/* Santri selection section */}
             <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
               <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-3">Pilih Santri untuk Presensi Ini</h4>
-              
+
               {/* Filters */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div>
@@ -1097,7 +1182,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                     <option value="Lulus">Lulus</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label htmlFor="jenjangPendidikan" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                     Jenjang Pendidikan
@@ -1118,7 +1203,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                       ))}
                   </select>
                 </div>
-                
+
                 <div>
                   <label htmlFor="kamar" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                     Kamar
@@ -1136,7 +1221,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                     ))}
                   </select>
                 </div>
-                
+
                 <div>
                   <label htmlFor="semester" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                     Semester/Kelas
@@ -1158,7 +1243,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                   </select>
                 </div>
               </div>
-              
+
               {/* Santri list */}
               <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
                 <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center">
@@ -1169,7 +1254,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                     onChange={handleSelectAll}
                   />
                   <span className="ml-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-                    {isSelectAll 
+                    {isSelectAll
                       ? `Semua Terpilih (${filteredSantris.length})`
                       : selectedSantriIds.size > 0
                         ? `${selectedSantriIds.size} Terpilih dari ${filteredSantris.length}`
@@ -1177,7 +1262,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                     }
                   </span>
                 </div>
-                
+
                 <div className="max-h-60 overflow-y-auto">
                   {isLoadingSantris ? (
                     <div className="flex flex-col justify-center items-center py-8 space-y-2">
@@ -1218,17 +1303,16 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                         </thead>
                         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                           {filteredSantris.map((santri) => (
-                            <tr 
+                            <tr
                               key={santri.id}
-                              className={selectedSantriIds.has(santri.id) 
-                                ? "bg-blue-50 dark:bg-blue-900/30" 
+                              className={selectedSantriIds.has(santri.id)
+                                ? "bg-blue-50 dark:bg-blue-900/30"
                                 : "hover:bg-gray-50 dark:hover:bg-gray-800"}
                             >
-                              <td className={`px-2 py-2 whitespace-nowrap sticky left-0 z-10 ${
-                                selectedSantriIds.has(santri.id) 
-                                  ? "bg-blue-50 dark:bg-blue-900/30" 
-                                  : "bg-white dark:bg-gray-900"
-                              }`}>
+                              <td className={`px-2 py-2 whitespace-nowrap sticky left-0 z-10 ${selectedSantriIds.has(santri.id)
+                                ? "bg-blue-50 dark:bg-blue-900/30"
+                                : "bg-white dark:bg-gray-900"
+                                }`}>
                                 <input
                                   type="checkbox"
                                   className="h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
@@ -1236,11 +1320,10 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                                   onChange={() => handleSelectSantri(santri.id)}
                                 />
                               </td>
-                              <td className={`px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white sticky left-8 z-10 ${
-                                selectedSantriIds.has(santri.id) 
-                                  ? "bg-blue-50 dark:bg-blue-900/30" 
-                                  : "bg-white dark:bg-gray-900"
-                              }`}>
+                              <td className={`px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white sticky left-8 z-10 ${selectedSantriIds.has(santri.id)
+                                ? "bg-blue-50 dark:bg-blue-900/30"
+                                : "bg-white dark:bg-gray-900"
+                                }`}>
                                 {santri.nama}
                                 {editTypeForm.originalSantriIds.includes(santri.id) && (
                                   <span className="ml-1 text-blue-500 text-xs" title="Sudah termasuk sebelumnya">●</span>
@@ -1248,10 +1331,10 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-xs">
                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                  ${santri.statusAktif === 'Aktif' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' : 
-                                  santri.statusAktif === 'Boyong' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400' : 
-                                  santri.statusAktif === 'Lulus' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400' :
-                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+                                  ${santri.statusAktif === 'Aktif' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' :
+                                    santri.statusAktif === 'Boyong' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400' :
+                                      santri.statusAktif === 'Lulus' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400' :
+                                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                                   {santri.statusAktif}
                                 </span>
                               </td>
@@ -1275,17 +1358,17 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                   )}
                 </div>
               </div>
-              
+
               <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                {selectedSantriIds.size === 0 
+                {selectedSantriIds.size === 0
                   ? 'Jika tidak ada santri dipilih, presensi akan menampilkan semua santri Aktif'
                   : `${selectedSantriIds.size} santri akan ditampilkan di presensi ini`
                 }
               </div>
             </div>
-            
+
             <div className="flex justify-between mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <button 
+              <button
                 onClick={handleDeleteTypeFromEditModal}
                 className="px-4 py-2 bg-gradient-to-br from-red-500 to-red-600 
                           text-white font-medium rounded-lg
@@ -1296,9 +1379,9 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
               >
                 Hapus
               </button>
-              
+
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={() => setShowEditTypeModal(false)}
                   className="px-4 py-2 bg-gradient-to-br from-gray-200 to-gray-300 
                             dark:from-gray-700 dark:to-gray-800
@@ -1311,7 +1394,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                 >
                   Batal
                 </button>
-                <button 
+                <button
                   onClick={handleUpdateAttendanceType}
                   disabled={isUpdatingType || !editTypeForm.name.trim() || !hasChanges}
                   className="px-4 py-2 bg-gradient-to-br from-indigo-500 to-indigo-600 
@@ -1328,7 +1411,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
           </div>
         </div>
       )}
-      
+
       {/* Delete Attendance Type Modal */}
       {showDeleteTypeModal && selectedTypeToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -1337,13 +1420,13 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                          shadow-[5px_5px_15px_rgba(0,0,0,0.1),-5px_-5px_15px_rgba(255,255,255,0.1)]
                          dark:shadow-[5px_5px_15px_rgba(0,0,0,0.3),-5px_-5px_15px_rgba(255,255,255,0.05)]">
             <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Hapus Jenis Presensi</h3>
-            
+
             <p className="mb-6 text-gray-600 dark:text-gray-300">
               Apakah Anda yakin ingin menghapus jenis presensi "{selectedTypeToDelete.name}"? Tindakan ini tidak dapat dibatalkan.
             </p>
-            
+
             <div className="flex gap-3">
-              <button 
+              <button
                 onClick={handleDeleteAttendanceType}
                 disabled={isDeletingType}
                 className="px-4 py-2 bg-gradient-to-br from-red-500 to-red-600 
@@ -1355,7 +1438,7 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
               >
                 {isDeletingType ? 'Menghapus...' : 'Ya, Hapus'}
               </button>
-              <button 
+              <button
                 onClick={() => {
                   setShowDeleteTypeModal(false);
                   setSelectedTypeToDelete(null);

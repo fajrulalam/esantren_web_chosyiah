@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useAuth } from "@/firebase/auth";
 import { useRouter } from "next/navigation";
 import { IzinSakitPulang } from "@/types/izinSakitPulang";
@@ -10,14 +10,15 @@ import { Timestamp } from "firebase/firestore";
 import Link from "next/link";
 import { ArrowLeftIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import "react-datepicker/dist/react-datepicker.css";
-import { 
-  updateIzinApplicationStatus, 
+import {
+  updateIzinApplicationStatus,
   updateNdalemApprovalStatus,
   verifySantriReturn,
   verifySantriRecovered
 } from "@/firebase/izinSakitPulang";
 
-export default function IzinAdminDetailPage({ params }: { params: { id: string } }) {
+export default function IzinAdminDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const { user, loading } = useAuth();
   const router = useRouter();
   const [application, setApplication] = useState<IzinSakitPulang & { santriName?: string } | null>(null);
@@ -34,48 +35,48 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
   useEffect(() => {
     const fetchApplicationData = async () => {
       if (loading) return;
-      
+
       if (!user || (user.role !== "pengurus" && user.role !== "pengasuh" && user.role !== "superAdmin")) {
         router.push("/");
         return;
       }
-      
+
       try {
-        const applicationRef = doc(db, "SakitDanPulangCollection", params.id);
+        const applicationRef = doc(db, "SakitDanPulangCollection", id);
         const applicationSnap = await getDoc(applicationRef);
-        
+
         if (!applicationSnap.exists()) {
           setError("Permohonan tidak ditemukan.");
           setIsLoading(false);
           return;
         }
-        
+
         const applicationData = applicationSnap.data() as any;
-        
+
         // Fetch santri name
         try {
           const santriRef = doc(db, "SantriCollection", applicationData.santriId);
           const santriSnap = await getDoc(santriRef);
-          
+
           let santriName = "Santri";
           if (santriSnap.exists()) {
             santriName = santriSnap.data().nama || "Santri";
           }
-          
+
           setApplication({
-            id: params.id,
+            id: id,
             ...applicationData,
             santriName
           });
         } catch (err) {
           console.error("Error fetching santri data:", err);
           setApplication({
-            id: params.id,
+            id: id,
             ...applicationData,
             santriName: "Santri"
           });
         }
-        
+
         setIsLoading(false);
       } catch (err) {
         console.error("Error fetching application data:", err);
@@ -85,7 +86,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
     };
 
     fetchApplicationData();
-  }, [params.id, user, loading, router]);
+  }, [id, user, loading, router]);
 
   // Format timestamp to readable date
   const formatDate = (timestamp: Timestamp) => {
@@ -102,91 +103,91 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
   // Check if user can approve/reject as ustadzah
   const canApproveAsUstadzah = () => {
     if (!application) return false;
-    
+
     // Must be pengurus, pengasuh, or superAdmin
     if (user?.role !== "pengurus" && user?.role !== "pengasuh" && user?.role !== "superAdmin") {
       return false;
     }
-    
+
     // Check if already approved/rejected
     if (application.sudahDapatIzinUstadzah !== null) {
       return false;
     }
-    
+
     // Check if status is correct
-    return application.status === "Menunggu Persetujuan Ustadzah" || 
-           application.status === "Menunggu Diperiksa Ustadzah";
+    return application.status === "Menunggu Persetujuan Ustadzah" ||
+      application.status === "Menunggu Diperiksa Ustadzah";
   };
-  
+
   // Check if user can approve/reject as ndalem
   const canApproveAsNdalem = () => {
     if (!application) return false;
-    
+
     // Only pengasuh or superAdmin can approve as ndalem
     if (user?.role !== "pengasuh" && user?.role !== "superAdmin") {
       return false;
     }
-    
+
     // Must be Izin Pulang
     if (application.izinType !== "Pulang") {
       return false;
     }
-    
+
     // Check if already approved by ustadzah
     if (application.sudahDapatIzinUstadzah !== true) {
       return false;
     }
-    
+
     // Check if already approved/rejected by ndalem
-    if ((application as any).sudahDapatIzinNdalem !== undefined && 
-        (application as any).sudahDapatIzinNdalem !== null) {
+    if ((application as any).sudahDapatIzinNdalem !== undefined &&
+      (application as any).sudahDapatIzinNdalem !== null) {
       return false;
     }
-    
+
     // Check if status is correct
     return application.status === "Menunggu Persetujuan Ndalem";
   };
-  
+
   // Check if user can verify santri return from pulang
   const canVerifySantriReturn = () => {
     if (!application) return false;
-    
+
     // Must be pengasuh or superAdmin
     if (user?.role !== "pengasuh" && user?.role !== "superAdmin" && user?.role !== "pengurus") {
       return false;
     }
-    
+
     // Must be Izin Pulang with both approvals
     if (application.izinType !== "Pulang" ||
-        application.sudahDapatIzinUstadzah !== true ||
-        (application as any).sudahDapatIzinNdalem !== true) {
+      application.sudahDapatIzinUstadzah !== true ||
+      (application as any).sudahDapatIzinNdalem !== true) {
       return false;
     }
-    
+
     // Check if already marked as returned
     if ((application as any).sudahKembali === true) {
       return false;
     }
-    
+
     // Check if status is correct
     return application.status === "Proses Pulang";
   };
-  
+
   // Check if user can verify santri recovery from sickness
   const canVerifySantriRecovery = () => {
     if (!application) return false;
-    
+
     // Must be pengurus, pengasuh or superAdmin
     if (user?.role !== "pengasuh" && user?.role !== "superAdmin" && user?.role !== "pengurus") {
       return false;
     }
-    
+
     // Must be Izin Sakit with approval
-    if (application.izinType !== "Sakit" || 
-        application.sudahDapatIzinUstadzah !== true) {
+    if (application.izinType !== "Sakit" ||
+      application.sudahDapatIzinUstadzah !== true) {
       return false;
     }
-    
+
     // Check if status is correct (not already recovered)
     return application.status === "Dalam Masa Sakit";
   };
@@ -194,12 +195,12 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
   // Handle approve action
   const handleApprove = async () => {
     if (!application || !user) return;
-    
+
     setProcessingAction(true);
-    
+
     try {
       let success;
-      
+
       if (actionType === "ustadzah") {
         success = await updateIzinApplicationStatus(
           application.id,
@@ -213,7 +214,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
           user
         );
       }
-      
+
       if (success) {
         // Redirect back to admin page
         router.push("/izin-admin");
@@ -228,12 +229,12 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
   // Handle reject action
   const handleReject = async () => {
     if (!application || !user) return;
-    
+
     setProcessingAction(true);
-    
+
     try {
       let success;
-      
+
       if (actionType === "ustadzah") {
         success = await updateIzinApplicationStatus(
           application.id,
@@ -249,7 +250,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
           rejectionReason || undefined
         );
       }
-      
+
       if (success) {
         // Redirect back to admin page
         router.push("/izin-admin");
@@ -267,20 +268,20 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
     setRejectionReason("");
     setShowRejectModal(true);
   };
-  
+
   // Handle verifying santri return
   const handleVerifyReturn = async () => {
     if (!application || !user) return;
-    
+
     setProcessingAction(true);
-    
+
     try {
       const success = await verifySantriReturn(
         application.id,
         user,
         returnDate
       );
-      
+
       if (success) {
         // Redirect back to admin page or refresh current view
         router.push("/izin-admin");
@@ -291,19 +292,19 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
       setProcessingAction(false);
     }
   };
-  
+
   // Handle verifying santri recovery
   const handleVerifyRecovery = async () => {
     if (!application || !user) return;
-    
+
     setProcessingAction(true);
-    
+
     try {
       const success = await verifySantriRecovered(
         application.id,
         user
       );
-      
+
       if (success) {
         // Redirect back to admin page or refresh current view
         router.push("/izin-admin");
@@ -392,27 +393,27 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
         </div>
       );
     }
-    
+
     return null;
   };
 
   return (
     <div className="container mx-auto px-4 py-8 dark:bg-gray-900">
       <div className="mb-8">
-        <Link 
-          href="/izin-admin" 
+        <Link
+          href="/izin-admin"
           className="inline-flex items-center text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
         >
           <ArrowLeftIcon className="h-4 w-4 mr-1" /> Kembali ke Daftar Permohonan
         </Link>
       </div>
-      
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-400 px-4 py-3 rounded mb-4" role="alert">
           <p>{error}</p>
         </div>
       )}
-      
+
       {processingAction && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl flex flex-col items-center">
@@ -421,7 +422,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
           </div>
         </div>
       )}
-      
+
       {showRejectModal && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-lg w-full">
@@ -454,7 +455,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
           </div>
         </div>
       )}
-      
+
       {showReturnModal && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-lg w-full">
@@ -465,7 +466,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                 Tanggal rencana kembali: {application ? formatDate((application as any).rencanaTanggalKembali) : '-'}
               </p>
-              
+
               <label htmlFor="returnDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Tanggal Kembali Aktual
               </label>
@@ -473,22 +474,21 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
                 type="datetime-local"
                 id="returnDate"
                 className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md"
-                value={returnDate.toISOString().slice(0, 16)} 
+                value={returnDate.toISOString().slice(0, 16)}
                 onChange={(e) => {
                   if (e.target.value) {
                     setReturnDate(new Date(e.target.value));
                   }
                 }}
               />
-              
+
               {application && returnDate && (application as any).rencanaTanggalKembali && (
-                <div className={`mt-2 text-sm ${
-                  returnDate.getTime() <= (application as any).rencanaTanggalKembali.toDate().getTime() 
-                  ? 'text-green-600 dark:text-green-400' 
-                  : 'text-red-600 dark:text-red-400'
-                }`}>
-                  {returnDate.getTime() <= (application as any).rencanaTanggalKembali.toDate().getTime() 
-                    ? 'Santri kembali tepat waktu' 
+                <div className={`mt-2 text-sm ${returnDate.getTime() <= (application as any).rencanaTanggalKembali.toDate().getTime()
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-red-600 dark:text-red-400'
+                  }`}>
+                  {returnDate.getTime() <= (application as any).rencanaTanggalKembali.toDate().getTime()
+                    ? 'Santri kembali tepat waktu'
                     : 'Santri terlambat kembali'
                   }
                 </div>
@@ -511,7 +511,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
           </div>
         </div>
       )}
-      
+
       {isLoading ? (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 dark:border-indigo-400 mx-auto"></div>
@@ -530,17 +530,16 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
                 </p>
               </div>
               <div>
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  application.status.includes("Menunggu") ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100" :
-                  application.status.includes("Ditolak") ? "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100" :
-                  "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
-                }`}>
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${application.status.includes("Menunggu") ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100" :
+                    application.status.includes("Ditolak") ? "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100" :
+                      "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
+                  }`}>
                   {application.status}
                 </span>
               </div>
             </div>
           </div>
-          
+
           <div className="border-t border-gray-200 dark:border-gray-700">
             <dl>
               {/* Common Fields */}
@@ -550,14 +549,14 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
                   Izin {application.izinType}
                 </dd>
               </div>
-              
+
               <div className="bg-white dark:bg-gray-800 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Tanggal Dibuat</dt>
                 <dd className="mt-1 text-sm text-gray-900 dark:text-gray-200 sm:mt-0 sm:col-span-2">
                   {formatDate(application.timestamp)}
                 </dd>
               </div>
-              
+
               {/* Izin Type-specific Fields */}
               {application.izinType === "Sakit" ? (
                 <>
@@ -576,21 +575,21 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
                       {(application as any).alasan}
                     </dd>
                   </div>
-                  
+
                   <div className="bg-white dark:bg-gray-800 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Tanggal Pulang</dt>
                     <dd className="mt-1 text-sm text-gray-900 dark:text-gray-200 sm:mt-0 sm:col-span-2">
                       {formatDate((application as any).tglPulang)}
                     </dd>
                   </div>
-                  
+
                   <div className="bg-gray-50 dark:bg-gray-700 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Rencana Tanggal Kembali</dt>
                     <dd className="mt-1 text-sm text-gray-900 dark:text-gray-200 sm:mt-0 sm:col-span-2">
                       {formatDate((application as any).rencanaTanggalKembali)}
                     </dd>
                   </div>
-                  
+
                   {(application as any).pemberiIzin && (
                     <div className="bg-white dark:bg-gray-800 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                       <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Pemberi Izin</dt>
@@ -601,7 +600,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
                   )}
                 </>
               )}
-              
+
               {/* Status Fields */}
               <div className={`${application.izinType === "Pulang" ? "bg-gray-50 dark:bg-gray-700" : "bg-gray-50 dark:bg-gray-700"} px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6`}>
                 <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status Persetujuan Ustadzah</dt>
@@ -613,7 +612,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
                   ) : (
                     <span className="text-red-600 dark:text-red-400 font-medium">Ditolak</span>
                   )}
-                  
+
                   {/* Show approver info if available */}
                   {(application as any).approvedBy && (
                     <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -622,7 +621,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
                       Pada: {formatDate((application as any).approvedBy.timestamp)}
                     </div>
                   )}
-                  
+
                   {/* Show rejection reason if available */}
                   {(application as any).rejectionReason && (
                     <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 rounded-md text-sm text-red-800 dark:text-red-300">
@@ -631,7 +630,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
                   )}
                 </dd>
               </div>
-              
+
               {application.izinType === "Pulang" && (
                 <div className={`${(application as any).ndalemApproval ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-700"} px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6`}>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status Persetujuan Ndalem</dt>
@@ -643,7 +642,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
                     ) : (
                       <span className="text-red-600 dark:text-red-400 font-medium">Ditolak</span>
                     )}
-                    
+
                     {/* Show ndalem approver info if available */}
                     {(application as any).ndalemApproval && (
                       <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -652,7 +651,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
                         Pada: {formatDate((application as any).ndalemApproval.timestamp)}
                       </div>
                     )}
-                    
+
                     {/* Show ndalem rejection reason if available */}
                     {(application as any).ndalemRejectionReason && (
                       <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 rounded-md text-sm text-red-800 dark:text-red-300">
@@ -664,7 +663,7 @@ export default function IzinAdminDetailPage({ params }: { params: { id: string }
               )}
             </dl>
           </div>
-          
+
           {/* Action buttons for approval/rejection/verification */}
           <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700 text-right sm:px-6 border-t border-gray-200 dark:border-gray-700">
             {renderActionButtons()}
