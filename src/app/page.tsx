@@ -179,29 +179,8 @@ export default function Home() {
             <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
                 <h2 className="text-3xl md:text-4xl font-bold text-amber-900 dark:text-amber-400 text-center mb-12">Lokasi Strategis & Mudah Diakses</h2>
                 <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center">
-                    {/* Location Image with Map Link and Top Horizontal Legend */}
+                    {/* Location Image with Map Link */}
                     <div className="md:w-1/2 w-full flex flex-col gap-4">
-                        {/* Map Legends (Horizontal, Above Map) */}
-                        <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-4 rounded-xl border border-amber-100 dark:border-gray-700 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <span className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400 border-b sm:border-b-0 sm:border-r border-amber-100 dark:border-gray-800 pb-1 sm:pb-0 sm:pr-4 flex-shrink-0">
-                                Keterangan Peta
-                            </span>
-                            <div className="flex flex-wrap items-center gap-y-2 text-xs sm:text-sm">
-                                <div className="flex items-center gap-2 flex-shrink-0 mr-6">
-                                    <span className="w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-emerald-100 dark:ring-emerald-950/50 flex-shrink-0" />
-                                    <span className="text-amber-955 dark:text-amber-300 font-semibold leading-tight flex-shrink-0">Asrama Chosyi'ah</span>
-                                </div>
-                                <div className="flex items-center gap-2 flex-shrink-0 mr-6">
-                                    <span className="w-3 h-3 rounded-full bg-blue-500 ring-4 ring-blue-100 dark:ring-blue-950/50 flex-shrink-0" />
-                                    <span className="text-amber-955 dark:text-amber-300 font-semibold leading-tight flex-shrink-0">Fakultas Sains & Teknologi</span>
-                                </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                    <span className="w-3 h-3 rounded-full bg-rose-500 ring-4 ring-rose-100 dark:ring-rose-950/50 flex-shrink-0" />
-                                    <span className="text-amber-955 dark:text-amber-300 font-semibold leading-tight flex-shrink-0">Kampus Utama</span>
-                                </div>
-                            </div>
-                        </div>
-
                         {/* Map Image */}
                         <a
                             href="https://www.google.com/maps/place/Asrama+XI+-+Muzamzamah+Qhosyi'ah+Putri/@-7.5449877,112.2782183,19.69z/data=!4m6!3m5!1s0x2e786ada431d1f53:0x15df885880cd6a3b!8m2!3d-7.5454383!4d112.2781408!16s%2Fg%2F11bzsy9hbg?entry=ttu&g_ep=EgoyMDI1MDMzMC4wIKXMDSoASAFQAw%3D%3D"
@@ -212,7 +191,7 @@ export default function Home() {
                         >
                             <div className="relative w-full rounded-2xl overflow-hidden shadow-md border border-amber-100 dark:border-gray-700" style={{ aspectRatio: '1618/1080' }}>
                                 <Image
-                                    src="/arial-view-chosyiah.jpg"
+                                    src="/arial-view-chosyiah-final.jpg"
                                     alt="Peta Lokasi Asrama Chosyi'ah"
                                     fill
                                     style={{ objectFit: 'cover' }}

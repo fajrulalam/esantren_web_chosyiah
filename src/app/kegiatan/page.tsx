@@ -19,6 +19,7 @@ import {
 } from "@/firebase/kegiatan";
 import { getAttendanceSessionsForDate } from "@/firebase/attendance";
 import { Person, KegiatanFormData, LuarAsramaActivity } from "@/types/kegiatan";
+import { KODE_ASRAMA } from "@/constants";
 import PersonSelector from "@/components/kegiatan/PersonSelector";
 import ActivitySelector from "@/components/kegiatan/ActivitySelector";
 import { generateDalamAsramaPDF, generateLuarAsramaPDF } from "@/utils/pdfGenerator";
@@ -32,6 +33,94 @@ import {
     TrashIcon,
     XMarkIcon,
 } from "@heroicons/react/24/outline";
+
+// Helpers to generate WhatsApp report text
+const formatDateDisplayShort = (dateStr: string): string => {
+    if (!dateStr) return "";
+    const [year, month, day] = dateStr.split("-");
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    return date.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+    });
+};
+
+const getDalamAsramaSummaryText = (activities: any[], startDate: string, endDate: string) => {
+    const summary: { [uid: string]: { name: string; count: number } } = {};
+    
+    const addPerson = (person: any) => {
+        if (!person || !person.uid) return;
+        if (!summary[person.uid]) {
+            summary[person.uid] = { name: person.name, count: 0 };
+        }
+        summary[person.uid].count++;
+    };
+
+    activities.forEach(act => {
+        addPerson(act.imamSubuh);
+        addPerson(act.imamMaghrib);
+        
+        if (Array.isArray(act.mengajarNgaji)) {
+            act.mengajarNgaji.forEach(p => addPerson(p));
+        }
+        if (Array.isArray(act.mengajarPegon)) {
+            act.mengajarPegon.forEach(p => addPerson(p));
+        }
+        if (Array.isArray(act.customActivities)) {
+            act.customActivities.forEach((ca: any) => {
+                if (Array.isArray(ca.people)) {
+                    ca.people.forEach((p: any) => addPerson(p));
+                }
+            });
+        }
+    });
+
+    const sortedList = Object.values(summary).sort((a, b) => b.count - a.count);
+    
+    let text = `*Laporan Kegiatan Dalam Asrama*\n`;
+    text += `Periode: ${formatDateDisplayShort(startDate)} - ${formatDateDisplayShort(endDate)}\n`;
+    text += `Asrama Mahasiswi Chosyi'ah\n\n`;
+    text += `Daftar Kegiatan per Orang:\n`;
+    
+    sortedList.forEach(item => {
+        text += `-(${item.count} Kegiatan) ${item.name}\n`;
+    });
+    
+    return encodeURIComponent(text);
+};
+
+const getLuarAsramaSummaryText = (activities: any[], startDate: string, endDate: string) => {
+    const summary: { [uid: string]: { name: string; count: number } } = {};
+    
+    activities.forEach(dayData => {
+        if (Array.isArray(dayData.luarAsramaActivities)) {
+            dayData.luarAsramaActivities.forEach((act: any) => {
+                const people = Array.isArray(act.partTimer) ? act.partTimer : (act.partTimer ? [act.partTimer] : []);
+                people.forEach((person: any) => {
+                    if (!person || !person.uid) return;
+                    if (!summary[person.uid]) {
+                        summary[person.uid] = { name: person.name, count: 0 };
+                    }
+                    summary[person.uid].count++;
+                });
+            });
+        }
+    });
+
+    const sortedList = Object.values(summary).sort((a, b) => b.count - a.count);
+    
+    let text = `*Laporan Kegiatan Luar Asrama*\n`;
+    text += `Periode: ${formatDateDisplayShort(startDate)} - ${formatDateDisplayShort(endDate)}\n`;
+    text += `Asrama Mahasiswi Chosyi'ah\n\n`;
+    text += `Daftar Kegiatan per Orang:\n`;
+    
+    sortedList.forEach(item => {
+        text += `-(${item.count} Kegiatan) ${item.name}\n`;
+    });
+    
+    return encodeURIComponent(text);
+};
 
 export default function KegiatanPage() {
     const { user, loading: authLoading } = useAuth();
@@ -112,10 +201,54 @@ export default function KegiatanPage() {
 
             try {
                 setLoading(true);
+                
+                // Fetch saved kegiatan data
                 const data = await getKegiatanByDate(selectedDate);
+                
+                // Fetch attendance sessions for this date
+                let attendanceImamSubuh: Person | null = null;
+                let attendanceImamMaghrib: Person | null = null;
+                let attendanceMengajarNgaji: Person[] = [];
+                let attendanceMengajarPegon: Person[] = [];
+
+                try {
+                    const sessions = await getAttendanceSessionsForDate(KODE_ASRAMA, selectedDate);
+                    sessions.forEach(session => {
+                        const pj = session.penanggungJawab || [];
+                        if (pj.length === 0) return;
+                        const name = (session.attendanceType || "").toLowerCase();
+                        if (name.includes("subuh") && !attendanceImamSubuh) {
+                            attendanceImamSubuh = pj[0]; // First person as imam
+                        } else if ((name.includes("maghrib") || name.includes("magrib")) && !attendanceImamMaghrib) {
+                            attendanceImamMaghrib = pj[0];
+                        } else if (name.includes("ngaji") || name.includes("quran") || name.includes("qur'an")) {
+                            attendanceMengajarNgaji = [...attendanceMengajarNgaji, ...pj];
+                        } else if (name.includes("pegon") || name.includes("kitab")) {
+                            attendanceMengajarPegon = [...attendanceMengajarPegon, ...pj];
+                        }
+                    });
+                } catch (e) {
+                    console.error("Error loading attendance sessions:", e);
+                }
+
+                // Helper to merge lists of people uniquely
+                const mergePeople = (listA: Person[], listB: Person[]): Person[] => {
+                    const unique: Person[] = [...listA];
+                    listB.forEach(personB => {
+                        if (!personB) return;
+                        const exists = unique.some(personA => 
+                            (personA.uid && personB.uid && personA.uid === personB.uid) || 
+                            (personA.name && personB.name && personA.name.toLowerCase() === personB.name.toLowerCase())
+                        );
+                        if (!exists) {
+                            unique.push(personB);
+                        }
+                    });
+                    return unique;
+                };
 
                 if (data) {
-                    // Saved kegiatan data exists — load it directly
+                    // Saved kegiatan data exists — load and merge with attendance inputs
                     let loadedLuarActivities = data.luarAsramaActivities || [];
                     loadedLuarActivities = loadedLuarActivities.map(a => ({
                         ...a,
@@ -130,53 +263,29 @@ export default function KegiatanPage() {
                             });
                         }
                     }
+                    
                     setFormData({
                         date: selectedDate,
-                        imamSubuh: data.imamSubuh,
-                        imamMaghrib: data.imamMaghrib,
-                        mengajarNgaji: data.mengajarNgaji,
-                        mengajarPegon: data.mengajarPegon,
+                        imamSubuh: data.imamSubuh || attendanceImamSubuh,
+                        imamMaghrib: data.imamMaghrib || attendanceImamMaghrib,
+                        mengajarNgaji: mergePeople(data.mengajarNgaji || [], attendanceMengajarNgaji),
+                        mengajarPegon: mergePeople(data.mengajarPegon || [], attendanceMengajarPegon),
                         customActivities: data.customActivities || [],
                         luarAsramaActivities: loadedLuarActivities,
                     });
                 } else {
-                    // No saved kegiatan yet — try to auto-populate from attendance sessions
+                    // No saved kegiatan yet — populate directly from attendance sessions
                     const defaultLuarActivities = [
                         { id: Date.now().toString() + Math.random().toString(36).substr(2, 9), name: "", startTime: "", endTime: "", partTimer: [], isCustom: false },
                         { id: Date.now().toString() + Math.random().toString(36).substr(2, 9) + "1", name: "", startTime: "", endTime: "", partTimer: [], isCustom: false }
                     ];
 
-                    let imamSubuh: Person | null = null;
-                    let imamMaghrib: Person | null = null;
-                    let mengajarNgaji: Person[] = [];
-                    let mengajarPegon: Person[] = [];
-
-                    try {
-                        const sessions = await getAttendanceSessionsForDate("DU11_ChosyiahJadid", selectedDate);
-                        sessions.forEach(session => {
-                            const pj = session.penanggungJawab || [];
-                            if (pj.length === 0) return;
-                            const name = (session.attendanceType || "").toLowerCase();
-                            if (name.includes("subuh") && !imamSubuh) {
-                                imamSubuh = pj[0]; // First person as imam
-                            } else if ((name.includes("maghrib") || name.includes("magrib")) && !imamMaghrib) {
-                                imamMaghrib = pj[0];
-                            } else if (name.includes("ngaji") || name.includes("quran") || name.includes("qur'an")) {
-                                mengajarNgaji = [...mengajarNgaji, ...pj];
-                            } else if (name.includes("pegon") || name.includes("kitab")) {
-                                mengajarPegon = [...mengajarPegon, ...pj];
-                            }
-                        });
-                    } catch (e) {
-                        // Silently ignore — attendance data is optional
-                    }
-
                     setFormData({
                         date: selectedDate,
-                        imamSubuh,
-                        imamMaghrib,
-                        mengajarNgaji,
-                        mengajarPegon,
+                        imamSubuh: attendanceImamSubuh,
+                        imamMaghrib: attendanceImamMaghrib,
+                        mengajarNgaji: attendanceMengajarNgaji,
+                        mengajarPegon: attendanceMengajarPegon,
                         customActivities: [],
                         luarAsramaActivities: defaultLuarActivities,
                     });
@@ -262,6 +371,49 @@ export default function KegiatanPage() {
         } catch (error) {
             console.error("Error generating PDF:", error);
             toast.error("Gagal membuat PDF");
+        } finally {
+            setExportingPdf(false);
+        }
+    };
+
+    // Handle WhatsApp Share (includes local PDF download and text listing)
+    const handleWhatsAppShare = async () => {
+        if (!startDate || !endDate) {
+            toast.error("Mohon pilih tanggal mulai dan akhir");
+            return;
+        }
+
+        try {
+            setExportingPdf(true);
+            const activities = await getKegiatanByDateRange(startDate, endDate);
+
+            if (activities.length === 0) {
+                toast.error("Tidak ada data untuk rentang tanggal yang dipilih");
+                return;
+            }
+
+            // 1. Generate and download PDF report locally on device
+            if (exportType === "dalam") {
+                generateDalamAsramaPDF(activities, startDate, endDate, true);
+            } else {
+                generateLuarAsramaPDF(activities, startDate, endDate);
+            }
+
+            // 2. Build summary text message and open WhatsApp Web/App
+            let message = "";
+            if (exportType === "dalam") {
+                message = getDalamAsramaSummaryText(activities, startDate, endDate);
+            } else {
+                message = getLuarAsramaSummaryText(activities, startDate, endDate);
+            }
+
+            const waUrl = `https://api.whatsapp.com/send?text=${message}`;
+            window.open(waUrl, "_blank");
+
+            toast.success("PDF diunduh dan WhatsApp dibuka");
+        } catch (error) {
+            console.error("Error sharing to WhatsApp:", error);
+            toast.error("Gagal membagikan laporan ke WhatsApp");
         } finally {
             setExportingPdf(false);
         }
@@ -641,6 +793,23 @@ export default function KegiatanPage() {
                                 <>
                                     <DocumentArrowDownIcon className="h-5 w-5" />
                                     Export PDF
+                                </>
+                            )}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleWhatsAppShare}
+                            disabled={exportingPdf}
+                            className="w-full sm:w-auto px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-medium h-[42px]"
+                        >
+                            {exportingPdf ? (
+                                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                            ) : (
+                                <>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-white">
+                                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.503-5.733-1.455L0 24zm6.29-4.212l.407.242c1.626.967 3.738 1.48 5.91 1.481 5.922 0 10.74-4.816 10.743-10.74.002-2.877-1.116-5.586-3.149-7.622C18.228 1.109 15.523.012 12.65.012c-5.927 0-10.747 4.818-10.75 10.742-.001 2.188.574 4.321 1.666 6.18l.265.451L2.83 21.17l4.025-.992-.508.21z" />
+                                    </svg>
+                                    Kirim WhatsApp
                                 </>
                             )}
                         </button>

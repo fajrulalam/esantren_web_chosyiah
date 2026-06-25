@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline - Asrama Chosyi'ah</title>
+  <style>
+    body {
+      font-family: 'Nunito', system-ui, -apple-system, sans-serif;
+      background-color: #fffbeb;
+      color: #78350f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    .container {
+      max-width: 500px;
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px -5px rgba(217, 119, 6, 0.1), 0 8px 10px -6px rgba(217, 119, 6, 0.1);
+      border: 1px solid #fef3c7;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 16px;
+      color: #92400e;
+    }
+    p {
+      font-size: 16px;
+      color: #b45309;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      color: #d97706;
+      animation: pulse 2s infinite ease-in-out;
+    }
+    .btn {
+      background-color: #d97706;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .btn:hover {
+      background-color: #b45309;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.95); }
+    }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #111827;
+        color: #f3f4f6;
+      }
+      .container {
+        background: #1f2937;
+        border-color: #374151;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      }
+      h1 {
+        color: #fbbf24;
+      }
+      p {
+        color: #d1d5db;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">🔌</div>
+    <h1>Koneksi Terputus</h1>
+    <p>Sepertinya Anda sedang offline. Silakan periksa koneksi internet Anda untuk kembali mengakses Asrama Mahasiswi Chosyi'ah.</p>
+    <button class="btn" onclick="window.location.reload()">Coba Lagi</button>
+  </div>
+</body>
+</html>
