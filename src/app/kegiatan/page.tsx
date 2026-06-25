@@ -417,13 +417,21 @@ export default function KegiatanPage() {
             const canShare = navigator.canShare && navigator.canShare({ files: [pdfFile] });
 
             if (canShare) {
-                // Mobile native share (opens WhatsApp directly with attachment)
+                // Clipboard copy workaround because target apps (like WhatsApp) ignore 'text' when 'files' are shared
+                try {
+                    await navigator.clipboard.writeText(rawMessage);
+                    toast.success("Teks laporan disalin! Tempel (paste) sebagai caption di WhatsApp.", {
+                        duration: 5000,
+                    });
+                } catch (clipErr) {
+                    console.warn("Failed to copy report text to clipboard:", clipErr);
+                }
+
+                // Mobile native share (opens WhatsApp directly with PDF attachment)
                 await navigator.share({
                     files: [pdfFile],
                     title: "Laporan Kegiatan Asrama",
-                    text: rawMessage,
                 });
-                toast.success("Laporan berhasil dibagikan");
             } else {
                 // Desktop fallback: Trigger local download + open WhatsApp web link
                 doc.save(fileName);
