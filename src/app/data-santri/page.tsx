@@ -96,10 +96,18 @@ export default function DataSantriPage() {
 
   // Get unique values for filter dropdowns
   const uniqueTahunMasuk = [
-    ...new Set(santris.map((santri) => santri.tahunMasuk)),
+    ...new Set(
+      santris
+        .map((santri) => santri.tahunMasuk)
+        .filter((t): t is string => Boolean(t))
+    ),
   ].sort((a, b) => parseInt(b) - parseInt(a));
   const uniqueJenjang = [
-    ...new Set(santris.map((santri) => santri.jenjangPendidikan)),
+    ...new Set(
+      santris
+        .map((santri) => santri.jenjangPendidikan)
+        .filter((j): j is string => Boolean(j))
+    ),
   ].sort();
   const uniqueSemester = [
     ...new Set(
@@ -259,7 +267,7 @@ export default function DataSantriPage() {
           Lunas: 1,
           "Belum Ada Tagihan": 2,
           "Menunggu Verifikasi": 3,
-          "Ada Tunggakan": 4,
+          "Belum Lunas": 4,
         };
 
         const orderA =
@@ -1492,7 +1500,7 @@ export default function DataSantriPage() {
                         ${
                           santri.statusTanggungan === "Lunas"
                             ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400"
-                            : santri.statusTanggungan === "Ada Tunggakan"
+                            : santri.statusTanggungan === "Belum Lunas"
                             ? "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400"
                             : santri.statusTanggungan === "Belum Ada Tagihan"
                             ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400"
