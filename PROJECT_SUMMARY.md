@@ -707,8 +707,8 @@ Wonokerto Selatan, Peterongan
 Kabupaten Jombang, Jawa Timur 61481
 
 **Registration Inquiries:**
-- Ustadzah Rani: 0852-3247-9151
-- Ustadzah Nuril: 0812-3396-8261
+- Ustadzah Alivia: +6285784541496 (WhatsApp)
+- Ustadzah Shafira: +6289678962686 (WhatsApp)
 
 **Phone:** (0321) 866686
 
