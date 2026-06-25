@@ -24,6 +24,8 @@ import PersonSelector from "@/components/kegiatan/PersonSelector";
 import ActivitySelector from "@/components/kegiatan/ActivitySelector";
 import { generateDalamAsramaPDF, generateLuarAsramaPDF } from "@/utils/pdfGenerator";
 import { toast } from "react-hot-toast";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/firebase/config";
 import {
     CalendarIcon,
     DocumentArrowDownIcon,
@@ -62,10 +64,10 @@ const getDalamAsramaSummaryText = (activities: any[], startDate: string, endDate
         addPerson(act.imamMaghrib);
         
         if (Array.isArray(act.mengajarNgaji)) {
-            act.mengajarNgaji.forEach(p => addPerson(p));
+            act.mengajarNgaji.forEach((p: any) => addPerson(p));
         }
         if (Array.isArray(act.mengajarPegon)) {
-            act.mengajarPegon.forEach(p => addPerson(p));
+            act.mengajarPegon.forEach((p: any) => addPerson(p));
         }
         if (Array.isArray(act.customActivities)) {
             act.customActivities.forEach((ca: any) => {
@@ -376,7 +378,7 @@ export default function KegiatanPage() {
         }
     };
 
-    // Handle WhatsApp Share (uses Web Share API on mobile to attach file directly, falls back to local download + wa.me on desktop)
+    // Handle WhatsApp Share (uploads PDF to Firebase Storage and opens WhatsApp with pre-filled message + download link)
     const handleWhatsAppShare = async () => {
         if (!startDate || !endDate) {
             toast.error("Mohon pilih tanggal mulai dan akhir");
@@ -392,17 +394,7 @@ export default function KegiatanPage() {
                 return;
             }
 
-            // 1. Compile the message text (decode URI for native sharing, keeping formatting)
-            let rawMessage = "";
-            let encodedMessage = "";
-            if (exportType === "dalam") {
-                encodedMessage = getDalamAsramaSummaryText(activities, startDate, endDate);
-            } else {
-                encodedMessage = getLuarAsramaSummaryText(activities, startDate, endDate);
-            }
-            rawMessage = decodeURIComponent(encodedMessage);
-
-            // 2. Prepare the PDF document without saving it immediately
+            // 1. Prepare the PDF document without downloading it locally
             const doc = exportType === "dalam"
                 ? generateDalamAsramaPDF(activities, startDate, endDate, true, false)
                 : generateLuarAsramaPDF(activities, startDate, endDate, false);
@@ -411,37 +403,32 @@ export default function KegiatanPage() {
             const fileName = exportType === "dalam"
                 ? `Kegiatan-Dalam-${startDate}-to-${endDate}.pdf`
                 : `Kegiatan-Luar-${startDate}-to-${endDate}.pdf`;
-            const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
 
-            // 3. Check for Web Share API support with files
-            const canShare = navigator.canShare && navigator.canShare({ files: [pdfFile] });
+            // 2. Upload the PDF Blob to Firebase Storage
+            toast.loading("Mengunggah PDF laporan...", { id: "wa-upload" });
+            const fileRef = ref(storage, `reports/${fileName}`);
+            await uploadBytes(fileRef, pdfBlob);
+            const downloadUrl = await getDownloadURL(fileRef);
+            toast.dismiss("wa-upload");
 
-            if (canShare) {
-                // Clipboard copy workaround because target apps (like WhatsApp) ignore 'text' when 'files' are shared
-                try {
-                    await navigator.clipboard.writeText(rawMessage);
-                    toast.success("Teks laporan disalin! Tempel (paste) sebagai caption di WhatsApp.", {
-                        duration: 5000,
-                    });
-                } catch (clipErr) {
-                    console.warn("Failed to copy report text to clipboard:", clipErr);
-                }
-
-                // Mobile native share (opens WhatsApp directly with PDF attachment)
-                await navigator.share({
-                    files: [pdfFile],
-                    title: "Laporan Kegiatan Asrama",
-                });
+            // 3. Compile the message text with the hosted PDF download link
+            let rawMessage = "";
+            if (exportType === "dalam") {
+                rawMessage = decodeURIComponent(getDalamAsramaSummaryText(activities, startDate, endDate));
             } else {
-                // Desktop fallback: Trigger local download + open WhatsApp web link
-                doc.save(fileName);
-                
-                const waUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
-                window.open(waUrl, "_blank");
-
-                toast.success("PDF diunduh. Silakan lampirkan file PDF di WhatsApp.");
+                rawMessage = decodeURIComponent(getLuarAsramaSummaryText(activities, startDate, endDate));
             }
+
+            const fullMessage = `${rawMessage}\n\n*Unduh PDF Laporan:*\n${downloadUrl}`;
+            const encodedFullMessage = encodeURIComponent(fullMessage);
+
+            // 4. Open WhatsApp Web/App with pre-filled text
+            const waUrl = `https://api.whatsapp.com/send?text=${encodedFullMessage}`;
+            window.open(waUrl, "_blank");
+
+            toast.success("WhatsApp berhasil dibuka!");
         } catch (error) {
+            toast.dismiss("wa-upload");
             console.error("Error sharing to WhatsApp:", error);
             toast.error("Gagal membagikan laporan ke WhatsApp");
         } finally {
