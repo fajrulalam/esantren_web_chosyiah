@@ -376,7 +376,7 @@ export default function KegiatanPage() {
         }
     };
 
-    // Handle WhatsApp Share (includes local PDF download and text listing)
+    // Handle WhatsApp Share (uses Web Share API on mobile to attach file directly, falls back to local download + wa.me on desktop)
     const handleWhatsAppShare = async () => {
         if (!startDate || !endDate) {
             toast.error("Mohon pilih tanggal mulai dan akhir");
@@ -392,25 +392,47 @@ export default function KegiatanPage() {
                 return;
             }
 
-            // 1. Generate and download PDF report locally on device
+            // 1. Compile the message text (decode URI for native sharing, keeping formatting)
+            let rawMessage = "";
+            let encodedMessage = "";
             if (exportType === "dalam") {
-                generateDalamAsramaPDF(activities, startDate, endDate, true);
+                encodedMessage = getDalamAsramaSummaryText(activities, startDate, endDate);
             } else {
-                generateLuarAsramaPDF(activities, startDate, endDate);
+                encodedMessage = getLuarAsramaSummaryText(activities, startDate, endDate);
             }
+            rawMessage = decodeURIComponent(encodedMessage);
 
-            // 2. Build summary text message and open WhatsApp Web/App
-            let message = "";
-            if (exportType === "dalam") {
-                message = getDalamAsramaSummaryText(activities, startDate, endDate);
+            // 2. Prepare the PDF document without saving it immediately
+            const doc = exportType === "dalam"
+                ? generateDalamAsramaPDF(activities, startDate, endDate, true, false)
+                : generateLuarAsramaPDF(activities, startDate, endDate, false);
+
+            const pdfBlob = doc.output("blob");
+            const fileName = exportType === "dalam"
+                ? `Kegiatan-Dalam-${startDate}-to-${endDate}.pdf`
+                : `Kegiatan-Luar-${startDate}-to-${endDate}.pdf`;
+            const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+
+            // 3. Check for Web Share API support with files
+            const canShare = navigator.canShare && navigator.canShare({ files: [pdfFile] });
+
+            if (canShare) {
+                // Mobile native share (opens WhatsApp directly with attachment)
+                await navigator.share({
+                    files: [pdfFile],
+                    title: "Laporan Kegiatan Asrama",
+                    text: rawMessage,
+                });
+                toast.success("Laporan berhasil dibagikan");
             } else {
-                message = getLuarAsramaSummaryText(activities, startDate, endDate);
+                // Desktop fallback: Trigger local download + open WhatsApp web link
+                doc.save(fileName);
+                
+                const waUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
+                window.open(waUrl, "_blank");
+
+                toast.success("PDF diunduh. Silakan lampirkan file PDF di WhatsApp.");
             }
-
-            const waUrl = `https://api.whatsapp.com/send?text=${message}`;
-            window.open(waUrl, "_blank");
-
-            toast.success("PDF diunduh dan WhatsApp dibuka");
         } catch (error) {
             console.error("Error sharing to WhatsApp:", error);
             toast.error("Gagal membagikan laporan ke WhatsApp");

@@ -150,8 +150,9 @@ export function generateDalamAsramaPDF(
     activities: KegiatanData[],
     startDate: string,
     endDate: string,
-    includeSummary: boolean = true
-): void {
+    includeSummary: boolean = true,
+    shouldSave: boolean = true
+): jsPDF {
     // Create new PDF document
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -378,7 +379,10 @@ export function generateDalamAsramaPDF(
 
     // Save PDF
     const fileName = `Kegiatan-Dalam-${startDate}-to-${endDate}.pdf`;
-    doc.save(fileName);
+    if (shouldSave) {
+        doc.save(fileName);
+    }
+    return doc;
 }
 
 /**
@@ -387,8 +391,9 @@ export function generateDalamAsramaPDF(
 export function generateLuarAsramaPDF(
     activities: KegiatanData[],
     startDate: string,
-    endDate: string
-): void {
+    endDate: string,
+    shouldSave: boolean = true
+): jsPDF {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -661,5 +666,8 @@ export function generateLuarAsramaPDF(
     }
 
     const fileName = `Kegiatan-Luar-${startDate}-to-${endDate}.pdf`;
-    doc.save(fileName);
+    if (shouldSave) {
+        doc.save(fileName);
+    }
+    return doc;
 }
