@@ -148,6 +148,14 @@ export default function Navbar() {
                                                     Voucher Asrama
                                                 </Link>
                                             )}
+                                            {user.role === 'superAdmin' && (
+                                                <Link
+                                                    href="/debug"
+                                                    className={isActive('/debug') ? activeClass : inactiveClass}
+                                                >
+                                                    Debug
+                                                </Link>
+                                            )}
                                         </>
                                     ) : user.role === 'waliSantri' ? (
                                         <>
@@ -288,6 +296,15 @@ export default function Navbar() {
                                                     onClick={() => setIsMenuOpen(false)}
                                                 >
                                                     Voucher Asrama
+                                                </Link>
+                                            )}
+                                            {user.role === 'superAdmin' && (
+                                                <Link
+                                                    href="/debug"
+                                                    className={`block ${isActive('/debug') ? activeClass : inactiveClass}`}
+                                                    onClick={() => setIsMenuOpen(false)}
+                                                >
+                                                    Debug
                                                 </Link>
                                             )}
                                         </>

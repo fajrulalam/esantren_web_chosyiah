@@ -22,6 +22,7 @@ import { ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/20/solid";
 import SantriModal from "@/components/SantriModal";
 import SantriVerificationModal from "@/components/SantriVerificationModal";
 import CSVImportModal from "@/components/CSVImportModal";
+import DataToolsModal from "@/components/DataToolsModal";
 import ImportProgressPanel from "@/components/ImportProgressPanel";
 import { exportToExcel } from "@/utils/excelExport";
 import { formatName, formatNameForId } from "@/utils/nameFormatter";
@@ -68,6 +69,7 @@ export default function DataSantriPage() {
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDataToolsModalOpen, setIsDataToolsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [selectedSantri, setSelectedSantri] = useState<Santri | undefined>(
@@ -889,11 +891,11 @@ export default function DataSantriPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 dark:bg-gray-900 transition-colors">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
         <h1 className="text-2xl font-bold dark:text-white transition-colors">
           Data Santri
         </h1>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 sm:justify-end">
           {selectedSantriIds.size > 0 && (
             <button
               onClick={handleBulkDelete}
@@ -903,16 +905,16 @@ export default function DataSantriPage() {
             </button>
           )}
           <button
-            onClick={handleExportToExcel}
-            className="bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 border border-green-600 dark:border-green-500 px-4 py-2 rounded-md hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"
+            onClick={() => router.push("/data-santri/denah")}
+            className="bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 px-4 py-2 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors"
           >
-            Export Excel
+            Denah Kamar
           </button>
           <button
-            onClick={handleOpenImportModal}
-            className="bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 border border-orange-600 dark:border-orange-500 px-4 py-2 rounded-md hover:bg-orange-50 dark:hover:bg-orange-900/30 transition-colors"
+            onClick={() => setIsDataToolsModalOpen(true)}
+            className="bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
           >
-            Import CSV
+            Import / Export
           </button>
           <button
             onClick={handleAddSantri}
@@ -1582,6 +1584,14 @@ export default function DataSantriPage() {
           onVerificationComplete={fetchSantris}
         />
       )}
+
+      {/* Data Tools choice modal (Export Excel / Import CSV) */}
+      <DataToolsModal
+        isOpen={isDataToolsModalOpen}
+        onClose={() => setIsDataToolsModalOpen(false)}
+        onExport={handleExportToExcel}
+        onImport={handleOpenImportModal}
+      />
 
       {/* CSV Import Modal - only show when explicitly opened */}
       {isImportModalOpen && (
