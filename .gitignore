@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated data review/output (contains santri PII)
+scripts/output/
+
+# Firebase service account keys — never commit
+scripts/*serviceAccountKey*.json
+scripts/*.serviceaccount.json
+*firebase-adminsdk*.json
+serviceAccountKey.json
