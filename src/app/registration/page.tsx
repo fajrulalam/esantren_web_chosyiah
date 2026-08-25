@@ -6,8 +6,33 @@ import Image from "next/image";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { storage, db } from "@/firebase/config";
-import { KODE_ASRAMA } from "@/constants";
+import { KODE_ASRAMA, PROGRAM_STUDI_LIST } from "@/constants";
 import { formatName, formatNameForId } from "@/utils/nameFormatter";
+import KabupatenSearchSelect from "@/components/registration/KabupatenSearchSelect";
+import AlamatCascadeSelect from "@/components/registration/AlamatCascadeSelect";
+import SearchSelect, {
+  SearchSelectOption,
+} from "@/components/registration/SearchSelect";
+
+const LAINNYA_KODE = "__lainnya__";
+
+const PROGRAM_STUDI_OPTIONS: SearchSelectOption[] = [
+  ...PROGRAM_STUDI_LIST.map((option) => ({
+    kode: option.nama,
+    nama: option.nama,
+    subtitle: `${option.fakultas} · ${option.gelar}`,
+  })),
+  { kode: LAINNYA_KODE, nama: "Lainnya (tidak ada di daftar)" },
+];
+
+// Abbreviations real registrants have actually typed for these programs
+// (found while cleaning up existing SantriCollection data) that plain
+// substring search can't derive from the official name on its own.
+const PROGRAM_STUDI_SYNONYMS: Record<string, string[]> = {
+  "S1 Pendidikan Guru MI": ["pgmi", "pg mi"],
+  "S1 Pendidikan Agama Islam": ["pai"],
+  "S1 Sistem Informasi": ["si"],
+};
 
 // Placeholder image for success page
 const PLACEHOLDER_IMAGE = "/join us.png";
@@ -28,6 +53,7 @@ export default function Registration() {
     paymentOption: "pangkalOnly", // pangkalOnly | pangkalAndSyahriah
   });
 
+  const [isProgramStudiCustom, setIsProgramStudiCustom] = useState(false);
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registrationComplete, setRegistrationComplete] = useState(false);
@@ -383,14 +409,13 @@ export default function Registration() {
                     <label className="block mb-2 text-sm font-medium text-amber-800">
                       Tempat Lahir
                     </label>
-                    <input
-                      type="text"
-                      name="tempatLahir"
-                      className={inputStyle}
+                    <KabupatenSearchSelect
                       value={formData.tempatLahir}
-                      onChange={handleChange}
-                      placeholder="Masukkan tempat lahir"
-                      required
+                      onChange={(nama) =>
+                        setFormData((prev) => ({ ...prev, tempatLahir: nama }))
+                      }
+                      inputClassName={inputStyle}
+                      placeholder="Cari kabupaten/kota..."
                     />
                   </div>
                   <div>
@@ -427,15 +452,15 @@ export default function Registration() {
                   <label className="block mb-2 text-sm font-medium text-amber-800">
                     Alamat Rumah
                   </label>
-                  <textarea
-                    name="alamatRumah"
-                    className={inputStyle}
-                    value={formData.alamatRumah}
-                    onChange={handleChange}
-                    placeholder="Masukkan alamat lengkap"
-                    rows={3}
-                    required
-                  ></textarea>
+                  <AlamatCascadeSelect
+                    inputClassName={inputStyle}
+                    onChange={(composedAddress) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        alamatRumah: composedAddress,
+                      }))
+                    }
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -515,15 +540,47 @@ export default function Registration() {
                   <label className="block mb-2 text-sm font-medium text-amber-800">
                     Program Studi
                   </label>
-                  <input
-                    type="text"
-                    name="programStudi"
-                    className={inputStyle}
-                    value={formData.programStudi}
-                    onChange={handleChange}
-                    placeholder="Masukkan program studi"
-                    required
-                  />
+                  {isProgramStudiCustom ? (
+                    <div>
+                      <input
+                        type="text"
+                        name="programStudi"
+                        className={inputStyle}
+                        value={formData.programStudi}
+                        onChange={handleChange}
+                        placeholder="Tulis nama program studi"
+                        required
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsProgramStudiCustom(false);
+                          setFormData((prev) => ({ ...prev, programStudi: "" }));
+                        }}
+                        className="mt-2 text-sm text-amber-600 hover:text-amber-800 underline"
+                      >
+                        ← Pilih dari daftar
+                      </button>
+                    </div>
+                  ) : (
+                    <SearchSelect
+                      options={PROGRAM_STUDI_OPTIONS}
+                      value={formData.programStudi}
+                      onChange={(kode) => {
+                        if (kode === LAINNYA_KODE) {
+                          setIsProgramStudiCustom(true);
+                          setFormData((prev) => ({ ...prev, programStudi: "" }));
+                        } else {
+                          setFormData((prev) => ({ ...prev, programStudi: kode }));
+                        }
+                      }}
+                      inputClassName={inputStyle}
+                      placeholder="Cari program studi... (mis. PGMI, PAI, SI)"
+                      synonyms={PROGRAM_STUDI_SYNONYMS}
+                      acronymIgnoreWords={["S1", "S2", "Profesi"]}
+                    />
+                  )}
                 </div>
 
                 <div>
