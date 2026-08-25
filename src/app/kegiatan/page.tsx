@@ -510,18 +510,18 @@ export default function KegiatanPage() {
                             <CalendarIcon className="h-5 w-5 inline mr-2" />
                             Tanggal
                         </label>
-                        <div className="flex gap-4 items-center">
+                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center">
                             <input
                                 type="date"
                                 value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                className="w-full sm:flex-1 min-w-0 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                             />
                             <button
                                 type="button"
                                 onClick={handleCopyYesterday}
                                 disabled={loading || loadingPeople}
-                                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap"
+                                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap"
                             >
                                 <ArrowPathIcon className="h-5 w-5" />
                                 Salin Kemarin
@@ -637,8 +637,8 @@ export default function KegiatanPage() {
                     Data Kegiatan Luar Asrama
                 </h2>
 
-                {/* Headers */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-2 px-1">
+                {/* Headers (desktop table-style only; mobile uses inline per-field labels below) */}
+                <div className="hidden md:grid md:grid-cols-12 gap-4 mb-2 px-1">
                     <div className="md:col-span-4 text-sm font-handwriting font-bold">Nama Kegiatan</div>
                     <div className="md:col-span-4 text-sm font-handwriting font-bold">Jam Mulai - Jam Akhir</div>
                     <div className="md:col-span-4 text-sm font-handwriting font-bold">Nama Part-Timer</div>
@@ -649,6 +649,7 @@ export default function KegiatanPage() {
                     {formData.luarAsramaActivities.map((activity, index) => (
                         <div key={activity.id || index} className="grid grid-cols-1 md:grid-cols-12 gap-4 bg-gray-50 p-4 rounded-lg border dark:bg-gray-700/30 dark:border-gray-600 relative group">
                             <div className="md:col-span-4">
+                                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 md:hidden">Nama Kegiatan</label>
                                 {activity.isCustom ? (
                                     <div className="relative">
                                         <input
@@ -690,24 +691,28 @@ export default function KegiatanPage() {
                                     />
                                 )}
                             </div>
-                            <div className="md:col-span-4 flex gap-2 items-center">
-                                <input
-                                    type="time" // Using time input for better UX
-                                    value={activity.startTime}
-                                    onChange={(e) => updateLuarActivity(index, "startTime", e.target.value)}
-                                    className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-500 dark:text-gray-100"
-                                />
-                                <span className="dark:text-gray-100">-</span>
-                                <input
-                                    type="time"
-                                    value={activity.endTime}
-                                    onChange={(e) => updateLuarActivity(index, "endTime", e.target.value)}
-                                    className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-500 dark:text-gray-100"
-                                />
+                            <div className="md:col-span-4">
+                                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 md:hidden">Jam Mulai - Jam Akhir</label>
+                                <div className="flex gap-2 items-center">
+                                    <input
+                                        type="time" // Using time input for better UX
+                                        value={activity.startTime}
+                                        onChange={(e) => updateLuarActivity(index, "startTime", e.target.value)}
+                                        className="w-full min-w-0 px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-500 dark:text-gray-100"
+                                    />
+                                    <span className="dark:text-gray-100 shrink-0">-</span>
+                                    <input
+                                        type="time"
+                                        value={activity.endTime}
+                                        onChange={(e) => updateLuarActivity(index, "endTime", e.target.value)}
+                                        className="w-full min-w-0 px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-500 dark:text-gray-100"
+                                    />
+                                </div>
                             </div>
                             <div className="md:col-span-4">
+                                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 md:hidden">Nama Part-Timer</label>
                                 <PersonSelector
-                                    label="" // Empty label as header handles it
+                                    label="" // Empty label as header handles it (desktop); mobile label is the one above
                                     people={people}
                                     selectedPeople={activity.partTimer}
                                     onSelect={(s) => {
