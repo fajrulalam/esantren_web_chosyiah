@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { useRouter } from 'next/navigation'; // Assuming next/navigation
 import { useAuth } from '@/firebase/auth'; // Assuming this path is correct
 import Link from 'next/link';
@@ -39,40 +39,156 @@ type ImageCarouselProps = {
 
 function ImageCarousel({ images, ariaLabel, altPrefix, aspectRatio, frameClassName = '' }: ImageCarouselProps) {
     const [activeIndex, setActiveIndex] = useState(0);
+    const [trackIndex, setTrackIndex] = useState(images.length > 1 ? 1 : 0);
+    const [dragOffset, setDragOffset] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const [transitionEnabled, setTransitionEnabled] = useState(true);
+    const [hasSwiped, setHasSwiped] = useState(false);
+    const [autoDirection, setAutoDirection] = useState(1);
+    const swipeStartX = useRef<number | null>(null);
+    const loopedImages = images.length > 1
+        ? [images[images.length - 1], ...images, images[0]]
+        : images;
 
     useEffect(() => {
-        const interval = window.setInterval(() => {
-            setActiveIndex((currentIndex) => (currentIndex + 1) % images.length);
+        if (isDragging || hasSwiped || images.length <= 1) return;
+
+        const timeout = window.setTimeout(() => {
+            let nextDirection = autoDirection;
+            let nextIndex = activeIndex + nextDirection;
+
+            if (nextIndex >= images.length || nextIndex < 0) {
+                nextDirection = -nextDirection;
+                nextIndex = activeIndex + nextDirection;
+                setAutoDirection(nextDirection);
+            }
+
+            setActiveIndex(nextIndex);
+            setTrackIndex(nextIndex + 1);
+            setTransitionEnabled(true);
         }, 4000);
 
-        return () => window.clearInterval(interval);
-    }, [images.length]);
+        return () => window.clearTimeout(timeout);
+    }, [activeIndex, autoDirection, hasSwiped, images.length, isDragging]);
+
+    const goToSlide = (nextIndex: number) => {
+        if (images.length <= 1) return;
+
+        setTransitionEnabled(true);
+        if (nextIndex < 0) {
+            setActiveIndex(images.length - 1);
+            setTrackIndex(0);
+        } else if (nextIndex >= images.length) {
+            setActiveIndex(0);
+            setTrackIndex(images.length + 1);
+        } else {
+            setActiveIndex(nextIndex);
+            setTrackIndex(nextIndex + 1);
+        }
+    };
+
+    const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+        if (images.length <= 1 || (event.target as Element).closest('button')) return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+        swipeStartX.current = event.clientX;
+        setIsDragging(true);
+        setDragOffset(0);
+        setTransitionEnabled(false);
+        event.currentTarget.setPointerCapture(event.pointerId);
+    };
+
+    const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+        if (swipeStartX.current === null) return;
+
+        setDragOffset(event.clientX - swipeStartX.current);
+    };
+
+    const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
+        if (swipeStartX.current === null) return;
+
+        const swipeDistance = event.clientX - swipeStartX.current;
+        const swipeThreshold = Math.max(40, event.currentTarget.clientWidth * 0.2);
+        if (Math.abs(swipeDistance) >= swipeThreshold) {
+            setHasSwiped(true);
+            goToSlide(swipeDistance < 0 ? activeIndex + 1 : activeIndex - 1);
+        } else {
+            setTransitionEnabled(true);
+        }
+
+        swipeStartX.current = null;
+        setDragOffset(0);
+        setIsDragging(false);
+    };
+
+    const handlePointerCancel = () => {
+        swipeStartX.current = null;
+        setDragOffset(0);
+        setIsDragging(false);
+        setTransitionEnabled(true);
+    };
+
+    const handleTransitionEnd = () => {
+        if (trackIndex === 0) {
+            setTransitionEnabled(false);
+            setTrackIndex(images.length);
+            window.requestAnimationFrame(() => setTransitionEnabled(true));
+        } else if (trackIndex === images.length + 1) {
+            setTransitionEnabled(false);
+            setTrackIndex(1);
+            window.requestAnimationFrame(() => setTransitionEnabled(true));
+        }
+    };
 
     return (
         <div
-            className={`relative w-full ${frameClassName}`}
-            style={aspectRatio ? { aspectRatio } : undefined}
+            className={`relative w-full overflow-hidden select-none touch-pan-y cursor-grab active:cursor-grabbing ${frameClassName}`}
+            style={{ ...(aspectRatio ? { aspectRatio } : {}), touchAction: 'pan-y' }}
             role="region"
             aria-label={ariaLabel}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
         >
-            {images.map((imageSrc, index) => (
-                <Image
-                    key={imageSrc}
-                    src={imageSrc}
-                    alt={`${altPrefix} ${index + 1}`}
-                    fill
-                    style={{ objectFit: 'cover' }}
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    aria-hidden={index !== activeIndex}
-                    className={`pointer-events-none transition-opacity duration-700 ${index === activeIndex ? 'opacity-100' : 'opacity-0'}`}
-                />
-            ))}
+            <div
+                className={`flex h-full ${transitionEnabled ? 'transition-transform duration-300 ease-out' : ''}`}
+                style={{
+                    width: `${loopedImages.length * 100}%`,
+                    transform: `translate3d(calc(-${trackIndex * (100 / loopedImages.length)}% + ${dragOffset}px), 0, 0)`,
+                }}
+                onTransitionEnd={handleTransitionEnd}
+            >
+                {loopedImages.map((imageSrc, index) => {
+                    const logicalIndex = images.length > 1
+                        ? (index - 1 + images.length) % images.length
+                        : index;
+
+                    return (
+                        <div
+                            key={`${imageSrc}-${index}`}
+                            className="relative h-full shrink-0"
+                            style={{ width: `${100 / loopedImages.length}%` }}
+                        >
+                            <Image
+                                src={imageSrc}
+                                alt={`${altPrefix} ${logicalIndex + 1}`}
+                                fill
+                                style={{ objectFit: 'cover' }}
+                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                aria-hidden={logicalIndex !== activeIndex}
+                                className="pointer-events-none select-none"
+                            />
+                        </div>
+                    );
+                })}
+            </div>
             <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center gap-1.5">
                 {images.map((imageSrc, index) => (
                     <button
                         key={imageSrc}
                         type="button"
-                        onClick={() => setActiveIndex(index)}
+                        onClick={() => goToSlide(index)}
                         aria-label={`Tampilkan ${altPrefix.toLowerCase()} ${index + 1}`}
                         aria-current={index === activeIndex ? 'true' : undefined}
                         className={`h-1.5 rounded-full transition-all ${index === activeIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/70'}`}
