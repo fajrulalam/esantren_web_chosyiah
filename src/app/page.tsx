@@ -1,10 +1,87 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation'; // Assuming next/navigation
 import { useAuth } from '@/firebase/auth'; // Assuming this path is correct
 import Link from 'next/link';
 import Image from 'next/image'; // Using Next.js Image for optimization
+
+const MUSHOLLA_IMAGES = [
+    '/Musholla Chosiyah 1.jpg',
+    '/Musholla Chosiyah 2.jpg',
+    '/Musholla Chosiyah 3.optimized.jpg',
+    '/Musholla Chosiyah 4.optimized.jpg',
+];
+
+const CANTEEN_IMAGES = [
+    '/Loker Canteen 1.optimized.jpg',
+    '/Loker Canteen 2.optimized.jpg',
+];
+
+const BATHROOM_IMAGES = [
+    '/Bathroom Chosiyah 101.jpeg',
+    '/Hallway Chosiyah 1.optimized.jpg',
+];
+
+const FOTO_BERSAMA_IMAGES = [
+    '/Foto Bersama 1.jpg',
+    '/Foto Bersama 2.jpg',
+    '/Foto Bersama 3.jpg',
+];
+
+type ImageCarouselProps = {
+    images: readonly string[];
+    ariaLabel: string;
+    altPrefix: string;
+    aspectRatio?: string;
+    frameClassName?: string;
+};
+
+function ImageCarousel({ images, ariaLabel, altPrefix, aspectRatio, frameClassName = '' }: ImageCarouselProps) {
+    const [activeIndex, setActiveIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            setActiveIndex((currentIndex) => (currentIndex + 1) % images.length);
+        }, 4000);
+
+        return () => window.clearInterval(interval);
+    }, [images.length]);
+
+    return (
+        <div
+            className={`relative w-full ${frameClassName}`}
+            style={aspectRatio ? { aspectRatio } : undefined}
+            role="region"
+            aria-label={ariaLabel}
+        >
+            {images.map((imageSrc, index) => (
+                <Image
+                    key={imageSrc}
+                    src={imageSrc}
+                    alt={`${altPrefix} ${index + 1}`}
+                    fill
+                    style={{ objectFit: 'cover' }}
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    aria-hidden={index !== activeIndex}
+                    className={`pointer-events-none transition-opacity duration-700 ${index === activeIndex ? 'opacity-100' : 'opacity-0'}`}
+                />
+            ))}
+            <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center gap-1.5">
+                {images.map((imageSrc, index) => (
+                    <button
+                        key={imageSrc}
+                        type="button"
+                        onClick={() => setActiveIndex(index)}
+                        aria-label={`Tampilkan ${altPrefix.toLowerCase()} ${index + 1}`}
+                        aria-current={index === activeIndex ? 'true' : undefined}
+                        className={`h-1.5 rounded-full transition-all ${index === activeIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/70'}`}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
 
 // Placeholder hook if useAuth is not available in this context
 // const useAuth = () => ({ user: null, loading: false });
@@ -95,9 +172,9 @@ export default function Home() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mt-16 md:mt-24">
                     {/* Feature Card 1: Room */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1">
-                        <div className="relative h-48 w-full">
+                        <div className="relative w-full" style={{ aspectRatio: '3 / 4' }}>
                             <Image
-                                src="/room.png" // Replace with your actual image path
+                                src="/Room image.jpg"
                                 alt="Kamar Nyaman dan Eksklusif"
                                 fill
                                 style={{ objectFit: 'cover' }}
@@ -113,18 +190,14 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* Feature Card 2: Hallway */}
+                    {/* Feature Card 2: Musholla */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1">
-                        <div className="relative h-48 w-full">
-                            <Image
-                                src="/hallway.png" // Replace with your actual image path
-                                alt="Lingkungan asrama yang tertib"
-                                fill
-                                style={{ objectFit: 'cover' }}
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                                onError={(e) => e.currentTarget.src = 'https://placehold.co/600x400/FFF0DB/92400E?text=Lingkungan+Tertib'} // Placeholder
-                            />
-                        </div>
+                        <ImageCarousel
+                            images={MUSHOLLA_IMAGES}
+                            ariaLabel="Galeri Musholla Chosiyah"
+                            altPrefix="Musholla Chosiyah"
+                            aspectRatio="3 / 4"
+                        />
                         <div className="p-5">
                             <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-2">Lingkungan Belajar Tertib</h3>
                             <p className="text-sm text-amber-700 dark:text-amber-300">
@@ -135,18 +208,14 @@ export default function Home() {
 
                     {/* Feature Card 3: Canteen */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1">
-                        <div className="relative h-48 w-full">
-                            <Image
-                                src="/canteen.jpg" // Replace with your actual image path
-                                alt="Kantin asrama yang sehat"
-                                fill
-                                style={{ objectFit: 'cover' }}
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                                onError={(e) => e.currentTarget.src = 'https://placehold.co/600x400/FFF0DB/92400E?text=Kantin+Sehat'} // Placeholder
-                            />
-                        </div>
+                        <ImageCarousel
+                            images={CANTEEN_IMAGES}
+                            ariaLabel="Galeri Loker Canteen"
+                            altPrefix="Loker Canteen"
+                            aspectRatio="4 / 3"
+                        />
                         <div className="p-5">
-                            <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-2">Makanan Sehat & Halal</h3>
+                            <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-2">Makanan Sehat & Harga Terjangkau</h3>
                             <p className="text-sm text-amber-700 dark:text-amber-300">
                                 Menyediakan makanan bergizi, higienis, dan halal dengan menu bervariasi.
                             </p>
@@ -155,16 +224,12 @@ export default function Home() {
 
                     {/* Feature Card 4: Bathroom */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1">
-                        <div className="relative h-48 w-full">
-                            <Image
-                                src="/bathroom.png" // Replace with your actual image path
-                                alt="Kamar mandi asrama yang bersih"
-                                fill
-                                style={{ objectFit: 'cover' }}
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                                onError={(e) => e.currentTarget.src = 'https://placehold.co/600x400/FFF0DB/92400E?text=Sanitasi+Terjaga'} // Placeholder
-                            />
-                        </div>
+                        <ImageCarousel
+                            images={BATHROOM_IMAGES}
+                            ariaLabel="Galeri kamar mandi dan lorong Chosiyah"
+                            altPrefix="Kamar mandi dan lorong Chosiyah"
+                            aspectRatio="4 / 3"
+                        />
                         <div className="p-5">
                             <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-2">Sanitasi Bersih & Terjaga</h3>
                             <p className="text-sm text-amber-700 dark:text-amber-300">
@@ -178,7 +243,7 @@ export default function Home() {
             {/* Location Section - Simplified Styling */}
             <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
                 <h2 className="text-3xl md:text-4xl font-bold text-amber-900 dark:text-amber-400 text-center mb-12">Lokasi Strategis & Mudah Diakses</h2>
-                <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center">
+                <div className="flex flex-col md:flex-row gap-0 md:gap-12 items-center">
                     {/* Location Image with Map Link */}
                     <div className="md:w-1/2 w-full flex flex-col gap-4">
                         {/* Map Image */}
@@ -191,7 +256,7 @@ export default function Home() {
                         >
                             <div className="relative w-full rounded-2xl overflow-hidden shadow-md border border-amber-100 dark:border-gray-700" style={{ aspectRatio: '1618/1080' }}>
                                 <Image
-                                    src="/arial-view-chosyiah-final.jpg"
+                                    src="/arial-view-chosyiah-final.optimized.jpg"
                                     alt="Peta Lokasi Asrama Chosyi'ah"
                                     fill
                                     style={{ objectFit: 'cover' }}
@@ -324,16 +389,12 @@ export default function Home() {
                         {/* Contact & Image Area */}
                         <div className="order-1 md:order-2 space-y-6">
                             {/* Image */}
-                            <div className="relative h-64 w-full rounded-xl overflow-hidden shadow-lg border border-amber-200 dark:border-gray-700">
-                                <Image
-                                    src="/join us real.png" // Replace with your actual image path
-                                    alt="Santri belajar di Asrama Chosyi'ah"
-                                    fill
-                                    style={{ objectFit: 'cover' }} // Changed to cover for better fit
-                                    sizes="(max-width: 768px) 100vw, 50vw"
-                                    onError={(e) => e.currentTarget.src = 'https://placehold.co/800x500/FFF0DB/92400E?text=Bergabunglah'} // Placeholder
-                                />
-                            </div>
+                            <ImageCarousel
+                                images={FOTO_BERSAMA_IMAGES}
+                                ariaLabel="Galeri foto bersama"
+                                altPrefix="Foto Bersama"
+                                frameClassName="h-64 rounded-xl overflow-hidden shadow-lg border border-amber-200 dark:border-gray-700"
+                            />
 
                             {/* Contact Info Card */}
                             <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm p-5 rounded-xl shadow-md border border-amber-100 dark:border-gray-700">
@@ -416,7 +477,7 @@ export default function Home() {
                             <ul className="space-y-2 text-sm">
                                 <li><a href="#" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Kamar Eksklusif</a></li>
                                 <li><a href="#" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Lingkungan Belajar Tertib</a></li>
-                                <li><a href="#" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Makanan Sehat & Halal</a></li>
+                                <li><a href="#" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Makanan Sehat & Harga Terjangkau</a></li>
                                 <li><a href="#" className="text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition duration-150">Sanitasi Bersih & Terjaga</a></li>
                             </ul>
                         </div>
