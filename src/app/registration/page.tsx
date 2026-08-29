@@ -76,12 +76,12 @@ export default function Registration() {
   };
 
   const handleNext = () => {
-    setStep((prev) => prev + 1);
+    setStep((prev) => Math.min(prev + 1, 3));
     window.scrollTo(0, 0);
   };
 
   const handlePrev = () => {
-    setStep((prev) => prev - 1);
+    setStep((prev) => Math.max(prev - 1, 1));
     window.scrollTo(0, 0);
   };
 
@@ -353,16 +353,20 @@ export default function Registration() {
             {new Date().getFullYear() + 1}
           </p>
 
-          <div className="flex justify-between mb-8">
+          <div className="flex justify-between gap-4 mb-8">
             <div
               className={`w-full h-2 ${
                 step >= 1 ? "bg-amber-500" : "bg-amber-200"
               } rounded-full`}
             ></div>
-            <div className="w-4"></div>
             <div
               className={`w-full h-2 ${
                 step >= 2 ? "bg-amber-500" : "bg-amber-200"
+              } rounded-full`}
+            ></div>
+            <div
+              className={`w-full h-2 ${
+                step >= 3 ? "bg-amber-500" : "bg-amber-200"
               } rounded-full`}
             ></div>
           </div>
@@ -448,21 +452,6 @@ export default function Registration() {
                   />
                 </div>
 
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-amber-800">
-                    Alamat Rumah
-                  </label>
-                  <AlamatCascadeSelect
-                    inputClassName={inputStyle}
-                    onChange={(composedAddress) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        alamatRumah: composedAddress,
-                      }))
-                    }
-                  />
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block mb-2 text-sm font-medium text-amber-800">
@@ -530,7 +519,40 @@ export default function Registration() {
               </div>
             )}
 
-            {step === 2 && (
+            <div className={step === 2 ? "space-y-6" : "hidden"}>
+              <h2 className="text-xl font-bold text-amber-800 mb-4">
+                Alamat Rumah
+              </h2>
+
+              <AlamatCascadeSelect
+                inputClassName={inputStyle}
+                onChange={(composedAddress) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    alamatRumah: composedAddress,
+                  }))
+                }
+              />
+
+              <div className="flex justify-between mt-8">
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  className={`${buttonStyle} bg-white hover:bg-gray-50 active:bg-gray-100`}
+                >
+                  Kembali
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className={buttonStyle}
+                >
+                  Lanjutkan
+                </button>
+              </div>
+            </div>
+
+            {step === 3 && (
               <div className="space-y-6">
                 <h2 className="text-xl font-bold text-amber-800 mb-4">
                   Informasi Pendaftaran
