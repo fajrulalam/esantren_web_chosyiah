@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { query, collection, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { SantriWithAttendance } from '@/types/attendance';
+import { useAuth } from '@/firebase/auth';
 import { overrideReturnStatus } from '@/firebase/attendance';
 import { format } from 'date-fns';
 
@@ -11,6 +12,10 @@ interface LateReturnAlertsProps {
 }
 
 export default function LateReturnAlerts({ kodeAsrama, teacherId }: LateReturnAlertsProps) {
+  const { user, isPreviewing } = useAuth();
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef(false);
   const [lateStudents, setLateStudents] = useState<SantriWithAttendance[]>([]);
   const [isClient, setIsClient] = useState(false);
 
@@ -37,7 +42,8 @@ export default function LateReturnAlerts({ kodeAsrama, teacherId }: LateReturnAl
       // Further filtering in client-side to find late students
       const now = new Date();
       const lateStuds = allStudents.filter(student =>
-        student.statusKepulangan?.rencanaTanggalKembali?.toDate() < now &&
+        !!student.statusKepulangan?.rencanaTanggalKembali &&
+        student.statusKepulangan.rencanaTanggalKembali.toDate() < now &&
         !student.statusKepulangan?.sudahKembali
       );
       
@@ -47,6 +53,16 @@ export default function LateReturnAlerts({ kodeAsrama, teacherId }: LateReturnAl
     return () => unsubscribe();
   }, [kodeAsrama, isClient]);
 
+  async function reportReturn(student: SantriWithAttendance) {
+    if (!student.statusKepulangan || inFlight.current || isPreviewing || user?.role !== "pengurus") return;
+    inFlight.current = true;
+    setSavingId(student.id);
+    setError(null);
+    try { await overrideReturnStatus(student.id, true, teacherId, student.statusKepulangan); }
+    catch (err) { setError(err instanceof Error ? err.message : "Gagal menyimpan laporan kembali."); }
+    finally { setSavingId(null); inFlight.current = false; }
+  }
+
   // Don't render anything on the server or during first render
   if (!isClient || lateStudents.length === 0) return null;
 
@@ -55,6 +71,7 @@ export default function LateReturnAlerts({ kodeAsrama, teacherId }: LateReturnAl
       <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-200 mb-3">
         Santri Terlambat Kembali ({lateStudents.length})
       </h3>
+      {error && <p role="alert" className="mb-3 text-sm text-red-600">{error}</p>}
       <ul className="divide-y divide-amber-200 dark:divide-amber-800">
         {lateStudents.map(student => {
           const plannedReturn = student.statusKepulangan?.rencanaTanggalKembali?.toDate();
@@ -77,12 +94,13 @@ export default function LateReturnAlerts({ kodeAsrama, teacherId }: LateReturnAl
                 </span>
               </div>
               
-              <button
-                onClick={() => overrideReturnStatus(student.id, true, teacherId, student)}
+              {user?.role === "pengurus" && <button
+                disabled={!!savingId || isPreviewing}
+                onClick={() => reportReturn(student)}
                 className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
               >
-                Tandai Sudah Kembali
-              </button>
+                {savingId === student.id ? "Menyimpan..." : "Lapor Kembali"}
+              </button>}
             </li>
           );
         })}

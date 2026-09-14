@@ -12,6 +12,7 @@ interface SearchSelectProps {
   options: SearchSelectOption[];
   value: string; // selected kode, "" if none selected
   onChange: (kode: string, nama: string) => void;
+  id?: string;
   inputClassName: string;
   placeholder?: string;
   disabledPlaceholder?: string;
@@ -88,6 +89,7 @@ export default function SearchSelect({
   options,
   value,
   onChange,
+  id,
   inputClassName,
   placeholder = "Cari...",
   disabledPlaceholder,
@@ -145,6 +147,7 @@ export default function SearchSelect({
   return (
     <div ref={containerRef} className="relative">
       <input
+        id={id}
         type="text"
         className={inputClassName}
         value={isOpen ? searchTerm : selectedNama}

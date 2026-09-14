@@ -52,8 +52,27 @@ export interface IzinSakitPulangBase {
   santriId: string;
   timestamp: Timestamp;
   status: IzinStatus;
-  sudahDapatIzinUstadzah: boolean | null;
+  workflowVersion?: 2;
+  reportedBy?: IzinActor;
+  // Optional legacy fields are retained when reading older records.
+  sudahDapatIzinUstadzah?: boolean | null;
+  returnReportedBy?: IzinActor;
+  recoveryReportedBy?: IzinActor;
+  returnVerifiedBy?: IzinActor;
+  recoveryVerifiedBy?: IzinActor;
+  tanggalSembuh?: Timestamp;
 }
+
+export interface IzinActor {
+  uid: string;
+  name?: string | null;
+  role?: string;
+  timestamp: Timestamp;
+}
+
+export type NewIzinReport =
+  | { izinType: "Sakit"; keluhan: string }
+  | { izinType: "Pulang"; alasan: string; tglPulang: Timestamp; rencanaTanggalKembali: Timestamp };
 
 // Interface for "Izin Pulang" applications
 export interface IzinPulang extends IzinSakitPulangBase {
@@ -61,11 +80,12 @@ export interface IzinPulang extends IzinSakitPulangBase {
   alasan: string;
   tglPulang: Timestamp;
   rencanaTanggalKembali: Timestamp;
-  idPemberiIzin: string | null;
-  pemberiIzin: string | null;
+  idPemberiIzin?: string | null;
+  pemberiIzin?: string | null;
   sudahKembali: boolean | null;
   kembaliSesuaiRencana: boolean | null;
-  sudahDapatIzinNdalem: boolean;
+  sudahDapatIzinNdalem?: boolean;
+  tanggalKembali?: Timestamp;
   jumlahTunggakan: number;
 }
 

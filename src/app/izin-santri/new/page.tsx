@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/firebase/auth";
 import { createIzinApplication } from "@/firebase/izinSakitPulang";
 import { useRouter } from "next/navigation";
-import { IzinType, IzinStatus, ALASAN_PULANG_OPTIONS, KELUHAN_SAKIT_OPTIONS } from "@/types/izinSakitPulang";
+import { IzinType, NewIzinReport, ALASAN_PULANG_OPTIONS, KELUHAN_SAKIT_OPTIONS } from "@/types/izinSakitPulang";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { Timestamp } from "firebase/firestore";
@@ -12,11 +12,11 @@ import Link from "next/link";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 export default function NewIzinPage() {
-  const { user, loading, santriName } = useAuth();
+  const { user, loading, santriName, isPreviewing } = useAuth();
   const router = useRouter();
   
   // Form states
-  const [izinType, setIzinType] = useState<IzinType>("Sakit");
+  const [izinType, setIzinType] = useState<IzinType>("Pulang");
   const [alasan, setAlasan] = useState(ALASAN_PULANG_OPTIONS[0]);
   const [customAlasan, setCustomAlasan] = useState("");
   const [keluhan, setKeluhan] = useState(KELUHAN_SAKIT_OPTIONS[0]);
@@ -30,12 +30,16 @@ export default function NewIzinPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const inFlight = useRef(false);
+  const reportId = useRef<string | undefined>(undefined);
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (inFlight.current || isPreviewing) return;
     
     if (!user || user.role !== "waliSantri" || !user.santriId) {
-      setError("Anda tidak memiliki akses untuk mengirimkan permohonan.");
+      setError("Anda tidak memiliki akses untuk mengirimkan laporan.");
       return;
     }
     
@@ -72,51 +76,43 @@ export default function NewIzinPage() {
       }
     }
     
+    inFlight.current = true;
     setSubmitting(true);
     setError(null);
     
     try {
-      // Create data object based on izin type
-      const izinData = izinType === "Sakit" 
-        ? {
-            izinType: "Sakit" as IzinType,
-            keluhan: finalKeluhan,
-            sudahDapatIzinUstadzah: false,
-            status: "Menunggu Diperiksa Ustadzah" as IzinStatus
-          }
+      const izinData: NewIzinReport = izinType === "Sakit"
+        ? { izinType: "Sakit", keluhan: finalKeluhan.trim() }
         : {
-            izinType: "Pulang" as IzinType,
-            alasan: finalAlasan,
+            izinType: "Pulang", alasan: finalAlasan.trim(),
             tglPulang: Timestamp.fromDate(tglPulang as Date),
             rencanaTanggalKembali: Timestamp.fromDate(rencanaTglKembali as Date),
-            idPemberiIzin: null,
-            pemberiIzin: null,
-            sudahKembali: null,
-            kembaliSesuaiRencana: null,
-            sudahDapatIzinUstadzah: null,
-            sudahDapatIzinNdalem: false,
-            jumlahTunggakan: 0,
-            status: "Menunggu Persetujuan Ustadzah" as IzinStatus
           };
-      
-      // Submit to Firebase
-      const newIzinId = await createIzinApplication(izinData, user.santriId);
-      
+      reportId.current ??= crypto.randomUUID();
+      const newIzinId = await createIzinApplication(izinData, { ...user, name: santriName || user.name }, reportId.current);
+
       if (newIzinId) {
         // Redirect to the list page on success
-        router.push("/izin-santri");
+        router.push(`/izin-santri/${newIzinId}`);
       }
     } catch (err) {
       console.error("Error submitting application:", err);
-      setError("Gagal mengirimkan permohonan. Silakan coba lagi.");
+      setError(err instanceof Error ? err.message : "Gagal menyimpan laporan. Silakan coba lagi.");
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   };
 
-  // Redirect if not waliSantri
+  // Redirect if not waliSantri. Done in an effect (not during render) so we
+  // don't update the router while NewIzinPage itself is still rendering.
+  useEffect(() => {
+    if (!loading && (!user || user.role !== "waliSantri")) {
+      router.push("/");
+    }
+  }, [loading, user, router]);
+
   if (!loading && (!user || user.role !== "waliSantri")) {
-    router.push("/");
     return null;
   }
   
@@ -127,14 +123,14 @@ export default function NewIzinPage() {
           href="/izin-santri" 
           className="inline-flex items-center text-indigo-600 hover:text-indigo-800"
         >
-          <ArrowLeftIcon className="h-4 w-4 mr-1" /> Kembali ke Daftar Permohonan
+          <ArrowLeftIcon className="h-4 w-4 mr-1" /> Kembali ke Daftar Laporan
         </Link>
       </div>
       
       <div className="bg-white shadow overflow-hidden sm:rounded-lg">
         <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
           <h3 className="text-lg leading-6 font-medium text-gray-900">
-            Buat Permohonan Izin Baru
+            Lapor Izin Sakit/Pulang
           </h3>
           <p className="mt-1 max-w-2xl text-sm text-gray-500">
             {santriName ? `Santri: ${santriName}` : 'Silakan isi formulir di bawah ini'}
@@ -148,7 +144,10 @@ export default function NewIzinPage() {
             </div>
           )}
           
+          <p className="mb-5 text-sm text-gray-600">Laporan langsung tercatat tanpa persetujuan. Setelah kembali atau sembuh, santri atau pengurus dapat melaporkannya.</p>
+          {isPreviewing && <p className="mb-4 text-sm text-amber-700">Keluar dari Preview UI untuk menyimpan laporan.</p>}
           <form onSubmit={handleSubmit}>
+            <fieldset disabled={submitting || isPreviewing}>
             <div className="space-y-6">
               {/* Izin Type Selection */}
               <div>
@@ -283,6 +282,7 @@ export default function NewIzinPage() {
                         <DatePicker
                           id="tglPulang"
                           selected={tglPulang}
+                          maxDate={new Date()}
                           onChange={(date) => setTglPulang(date)}
                           showTimeSelect
                           timeFormat="HH:mm"
@@ -319,6 +319,8 @@ export default function NewIzinPage() {
               
               <div className="flex justify-end pt-5">
                 <Link
+                  aria-disabled={submitting}
+                  onClick={event => { if (submitting) event.preventDefault(); }}
                   href="/izin-santri"
                   className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
@@ -335,14 +337,16 @@ export default function NewIzinPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Mengirim...
+                      Menyimpan...
                     </>
                   ) : (
-                    'Kirim Permohonan'
+                    'Simpan Laporan'
                   )}
                 </button>
               </div>
             </div>
+            </fieldset>
+            {submitting && <p role="status" className="mt-3 text-sm text-gray-600">Sedang menyimpan laporan. Mohon tunggu.</p>}
           </form>
         </div>
       </div>

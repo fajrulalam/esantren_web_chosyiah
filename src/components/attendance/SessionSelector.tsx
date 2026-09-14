@@ -19,6 +19,7 @@ import { db } from '@/firebase/config';
 import { format } from 'date-fns';
 import { AttendanceRecord, AttendanceType } from '@/types/attendance';
 import { Santri } from "@/types/santri";
+import ModalPortal from '@/components/ModalPortal';
 
 interface SessionSelectorProps {
   kodeAsrama: string;
@@ -66,6 +67,8 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
   const [isAddingType, setIsAddingType] = useState(false);
   const [isUpdatingType, setIsUpdatingType] = useState(false);
   const [isDeletingSession, setIsDeletingSession] = useState(false);
+  const [selectedSessionToDelete, setSelectedSessionToDelete] = useState<AttendanceRecord | null>(null);
+  const [sessionDeleteError, setSessionDeleteError] = useState<string | null>(null);
   const [showDeleteTypeModal, setShowDeleteTypeModal] = useState(false);
   const [selectedTypeToDelete, setSelectedTypeToDelete] = useState<AttendanceType | null>(null);
   const [isDeletingType, setIsDeletingType] = useState(false);
@@ -244,12 +247,17 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
         id: doc.id,
         nama: doc.data().nama || '',
         kamar: doc.data().kamar || '',
+        kelas: doc.data().kelas || doc.data().semester || '',
         jenjangPendidikan: doc.data().jenjangPendidikan || '',
         statusAktif: doc.data().statusAktif || '',
+        statusTanggungan: doc.data().statusTanggungan || 'Belum Ada Tagihan',
         tahunMasuk: doc.data().tahunMasuk || '',
         programStudi: doc.data().programStudi || '',
         semester: doc.data().kelas || '',
-        kodeAsrama: doc.data().kodeAsrama
+        kodeAsrama: doc.data().kodeAsrama,
+        nomorWalisantri: doc.data().nomorWalisantri || '',
+        tanggalLahir: doc.data().tanggalLahir || '',
+        jumlahTunggakan: doc.data().jumlahTunggakan || 0,
       }));
 
       setSantris(santriData);
@@ -344,7 +352,9 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
 
     // Check for changes in edit mode
     if (showEditTypeModal) {
-      const newSelectedIds = isSelectAll ? new Set() : new Set(filteredSantris.map(s => s.id));
+      const newSelectedIds = isSelectAll
+        ? new Set<string>()
+        : new Set<string>(filteredSantris.map(s => s.id));
       checkForChanges(newSelectedIds);
     }
   };
@@ -415,25 +425,46 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
     }
   };
 
-  // Handle deleting a session
-  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+  // Open the in-app confirmation before deleting a session
+  const handleDeleteSession = (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent navigation
 
-    const confirmation = window.confirm("Apakah Anda yakin ingin menghapus sesi presensi ini? Tindakan ini tidak dapat dibatalkan.");
-    if (!confirmation) return;
+    const session = sessions.find((currentSession) => currentSession.id === sessionId);
+    if (!session) return;
 
+    setSessionDeleteError(null);
+    setSelectedSessionToDelete(session);
+  };
+
+  const closeDeleteSessionModal = () => {
+    if (isDeletingSession) return;
+
+    setSelectedSessionToDelete(null);
+    setSessionDeleteError(null);
+  };
+
+  // Confirm deletion from the in-app modal
+  const handleConfirmDeleteSession = async () => {
+    if (!selectedSessionToDelete) return;
+
+    setSessionDeleteError(null);
     setIsDeletingSession(true);
     try {
-      const success = await deleteAttendanceSession(sessionId);
+      const success = await deleteAttendanceSession(selectedSessionToDelete.id);
       if (success) {
         // Remove from local state
-        setSessions(sessions.filter(session => session.id !== sessionId));
+        setSessions((currentSessions) =>
+          currentSessions.filter(
+            (session) => session.id !== selectedSessionToDelete.id
+          )
+        );
+        setSelectedSessionToDelete(null);
       } else {
-        alert("Gagal menghapus sesi. Silakan coba lagi.");
+        setSessionDeleteError("Gagal menghapus sesi. Silakan coba lagi.");
       }
     } catch (error) {
       console.error("Error deleting session:", error);
-      alert("Terjadi kesalahan saat menghapus sesi.");
+      setSessionDeleteError("Terjadi kesalahan saat menghapus sesi.");
     } finally {
       setIsDeletingSession(false);
     }
@@ -842,6 +873,77 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
           )}
         </>
       )}
+
+      {/* Delete Session Confirmation Modal */}
+      <ModalPortal
+        isOpen={Boolean(selectedSessionToDelete)}
+        onClose={closeDeleteSessionModal}
+        maxWidth="md"
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-session-dialog-title"
+        >
+          <h3
+            id="delete-session-dialog-title"
+            className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100"
+          >
+            Hapus Sesi Presensi
+          </h3>
+
+          <p className="text-gray-600 dark:text-gray-300">
+            Apakah Anda yakin ingin menghapus sesi presensi
+            {selectedSessionToDelete && (
+              <strong className="ml-1 text-gray-800 dark:text-gray-100">
+                &quot;{selectedSessionToDelete.attendanceType}&quot;
+              </strong>
+            )}
+            ?
+          </p>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            Tindakan ini tidak dapat dibatalkan.
+          </p>
+
+          {sessionDeleteError && (
+            <div
+              role="alert"
+              className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300"
+            >
+              {sessionDeleteError}
+            </div>
+          )}
+
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={closeDeleteSessionModal}
+              disabled={isDeletingSession}
+              className="px-4 py-2 bg-gradient-to-br from-gray-200 to-gray-300
+                         dark:from-gray-700 dark:to-gray-800
+                         text-gray-800 dark:text-gray-200 font-medium rounded-lg
+                         shadow-[3px_3px_8px_rgba(0,0,0,0.1),-3px_-3px_8px_rgba(255,255,255,0.8)]
+                         dark:shadow-[3px_3px_8px_rgba(0,0,0,0.3),-3px_-3px_8px_rgba(255,255,255,0.05)]
+                         hover:shadow-[1px_1px_3px_rgba(0,0,0,0.1),-1px_-1px_3px_rgba(255,255,255,0.8)]
+                         transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleConfirmDeleteSession()}
+              disabled={isDeletingSession}
+              className="px-4 py-2 bg-gradient-to-br from-red-500 to-red-600
+                         text-white font-medium rounded-lg
+                         shadow-[3px_3px_8px_rgba(0,0,0,0.1),-3px_-3px_8px_rgba(255,255,255,0.1)]
+                         hover:shadow-[1px_1px_3px_rgba(0,0,0,0.1),-1px_-1px_3px_rgba(255,255,255,0.1)]
+                         transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isDeletingSession ? "Menghapus..." : "Ya, Hapus"}
+            </button>
+          </div>
+        </div>
+      </ModalPortal>
 
       {/* Add Attendance Type Modal */}
       {showAddTypeModal && (

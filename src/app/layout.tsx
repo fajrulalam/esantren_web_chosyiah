@@ -2,10 +2,11 @@ import type { ReactNode } from 'react';
 import '@/styles/globals.css';
 import { Nunito } from 'next/font/google';
 import { AuthProvider } from '@/firebase/auth';
-import Navbar from '@/components/Navbar';
+import AppShell from '@/components/AppShell';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'react-hot-toast';
 import PWARegister from '@/components/PWARegister';
+import SantriSemesterSync from '@/components/SantriSemesterSync';
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -50,13 +51,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <AuthProvider>
             <Toaster position="top-right" />
             <PWARegister />
-            <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 transition-colors">
-              <Navbar />
-              {/* Added top padding to ensure the Navbar does not cover page content */}
-              <main className="flex-grow pt-24 bg-white dark:bg-gray-900 transition-colors">
-                {children}
-              </main>
-            </div>
+            <SantriSemesterSync />
+            <AppShell>{children}</AppShell>
           </AuthProvider>
         </ThemeProvider>
       </body>

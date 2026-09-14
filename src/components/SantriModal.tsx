@@ -48,7 +48,7 @@ export default function SantriModal({
 
       {/* Modal content */}
       <div
-        className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all relative"
+        className="w-full max-w-lg max-h-[calc(100vh-2rem)] transform overflow-y-auto rounded-lg bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all relative"
         style={{ zIndex: 1000000 }}
         onClick={(e) => e.stopPropagation()}
       >

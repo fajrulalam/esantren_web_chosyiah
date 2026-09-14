@@ -3,36 +3,31 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/firebase/auth";
 import {
-  getPendingIzinApplications,
-  getNdalemPendingIzinApplications,
   getOngoingIzinApplications,
   getIzinHistory,
-  updateIzinApplicationStatus,
-  updateNdalemApprovalStatus,
   getIzinReport,
   IzinReportItem,
 } from "@/firebase/izinSakitPulang";
 import { IzinSakitPulang } from "@/types/izinSakitPulang";
 import { Timestamp } from "firebase/firestore";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowPathIcon,
+  ChartBarIcon,
   DocumentTextIcon,
   DocumentArrowDownIcon,
-  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import IzinCard from "@/components/izin/IzinCard";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { formatDate, formatDateOnly, formatISODate } from "@/utils/date";
+import { formatISODate } from "@/utils/date";
 
-type TabType = "pending" | "ndalem" | "ongoing" | "history" | "report";
+type TabType = "ongoing" | "history" | "report";
 
 export default function IzinAdminPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabType>("pending");
+  const [activeTab, setActiveTab] = useState<TabType>("ongoing");
   const [applications, setApplications] = useState<
     (IzinSakitPulang & { santriName?: string })[]
   >([]);
@@ -59,6 +54,7 @@ export default function IzinAdminPage() {
 
   // Load applications based on active tab
   useEffect(() => {
+    let cancelled = false;
     const fetchApplications = async () => {
       if (loading) return;
 
@@ -69,12 +65,6 @@ export default function IzinAdminPage() {
           user.role !== "superAdmin")
       ) {
         router.push("/");
-        return;
-      }
-
-      // Skip data fetching for the history tab as it requires user interaction first
-      if (activeTab === "history" && !historyFilterApplied) {
-        setIsLoading(false);
         return;
       }
 
@@ -91,13 +81,6 @@ export default function IzinAdminPage() {
         let data: (IzinSakitPulang & { santriName?: string })[] = [];
 
         switch (activeTab) {
-          case "pending":
-            data = await getPendingIzinApplications();
-            break;
-          case "ndalem":
-            // All admin roles can see ndalem pending applications
-            data = await getNdalemPendingIzinApplications();
-            break;
           case "ongoing":
             data = await getOngoingIzinApplications();
             break;
@@ -106,22 +89,23 @@ export default function IzinAdminPage() {
             if (historyFilterApplied) {
               data = await getIzinHistory(historyStartDate, historyEndDate);
             } else {
-              // Get limited recent history (will be empty initially)
+              // Get the eight most recent completed records
               data = await getIzinHistory();
             }
             break;
         }
 
-        setApplications(data);
+        if (!cancelled) setApplications(data);
       } catch (err) {
         console.error(`Error fetching ${activeTab} applications:`, err);
-        setError(`Gagal memuat data. Silakan coba lagi.`);
+        if (!cancelled) setError(`Gagal memuat data. Silakan coba lagi.`);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     fetchApplications();
+    return () => { cancelled = true; };
   }, [
     activeTab,
     user,
@@ -162,6 +146,7 @@ export default function IzinAdminPage() {
     // Show all tabs for all admin roles
     return (
       <button
+        disabled={isLoadingHistory}
         onClick={() => setActiveTab(tabName)}
         className={`${baseClasses} ${
           isActive ? activeClasses : inactiveClasses
@@ -170,64 +155,6 @@ export default function IzinAdminPage() {
         {label}
       </button>
     );
-  };
-
-  // Render applications count badge
-  const renderCountBadge = (count: number) => {
-    return (
-      <span className="ml-2 bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">
-        {count}
-      </span>
-    );
-  };
-
-  // Handle approval directly from list
-  const handleQuickApprove = async (
-    application: IzinSakitPulang & { santriName?: string },
-    isNdalemApproval: boolean
-  ) => {
-    if (!user) return;
-
-    try {
-      if (isNdalemApproval) {
-        await updateNdalemApprovalStatus(application.id, true, user);
-      } else {
-        await updateIzinApplicationStatus(application.id, true, user);
-      }
-
-      // Refresh the list
-      setRefreshTrigger((prev) => prev + 1);
-    } catch (err) {
-      console.error("Error with quick approval:", err);
-      setError("Gagal menyetujui permohonan. Silakan coba lagi.");
-    }
-  };
-
-  // Handle rejection directly from list
-  const handleQuickReject = async (
-    application: IzinSakitPulang & { santriName?: string },
-    isNdalemApproval: boolean
-  ) => {
-    if (!user) return;
-
-    try {
-      if (isNdalemApproval) {
-        await updateNdalemApprovalStatus(application.id, false, user);
-      } else {
-        await updateIzinApplicationStatus(application.id, false, user);
-      }
-
-      // Refresh the list
-      setRefreshTrigger((prev) => prev + 1);
-    } catch (err) {
-      console.error("Error with quick rejection:", err);
-      setError("Gagal menolak permohonan. Silakan coba lagi.");
-    }
-  };
-
-  // Check if user can approve as ndalem
-  const canApproveAsNdalem = () => {
-    return user?.role === "pengasuh" || user?.role === "superAdmin";
   };
 
   // Load history data with date range
@@ -383,7 +310,7 @@ export default function IzinAdminPage() {
     <div className="container mx-auto px-4 py-8 dark:bg-gray-900">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold dark:text-white">
-          Manajemen Izin Sakit &amp; Pulang
+          Laporan Izin Sakit &amp; Pulang
         </h1>
         <button
           onClick={handleRefresh}
@@ -394,13 +321,13 @@ export default function IzinAdminPage() {
         </button>
       </div>
 
+      <p className="mb-6 text-sm text-gray-600 dark:text-gray-300">Santri melaporkan izin langsung. Santri atau pengurus mencatat kembali atau sembuh.</p>
+
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
         <div className="flex flex-wrap space-x-1 md:space-x-4">
-          {renderTabButton("pending", `Menunggu Persetujuan`)}
-          {renderTabButton("ndalem", `Menunggu Persetujuan Ndalem`)}
-          {renderTabButton("ongoing", `Sedang Berlangsung`)}
-          {renderTabButton("history", `Sejarah Izin`)}
+          {renderTabButton("ongoing", `Belum Selesai`)}
+          {renderTabButton("history", `Riwayat Izin`)}
           {renderTabButton("report", `Laporan`)}
         </div>
       </div>
@@ -512,7 +439,7 @@ export default function IzinAdminPage() {
                   <p className="mt-2 text-gray-500 dark:text-gray-400">
                     {historyFilterApplied
                       ? "Tidak ada data izin sejarah dalam rentang waktu yang dipilih."
-                      : "Silakan pilih rentang tanggal dan klik 'Tampilkan Data'."}
+                      : "Belum ada riwayat izin."}
                   </p>
                 </div>
               ) : (
@@ -622,7 +549,7 @@ export default function IzinAdminPage() {
               <DocumentTextIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto" />
               <p className="mt-2 text-gray-600 dark:text-gray-400">
                 Belum ada data laporan. Silakan pilih rentang tanggal dan klik
-                "Buat Laporan".
+                &quot;Buat Laporan&quot;.
               </p>
             </div>
           ) : (
@@ -733,15 +660,7 @@ export default function IzinAdminPage() {
               {applications.length === 0 ? (
                 <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-gray-500 dark:text-gray-400">
-                    Tidak ada pengajuan{" "}
-                    {activeTab === "pending"
-                      ? "yang menunggu persetujuan"
-                      : activeTab === "ndalem"
-                      ? "yang menunggu persetujuan ndalem"
-                      : activeTab === "ongoing"
-                      ? "yang sedang berlangsung"
-                      : ""}
-                    .
+                    Tidak ada laporan izin yang belum selesai.
                   </p>
                 </div>
               ) : (
@@ -752,17 +671,7 @@ export default function IzinAdminPage() {
                       izin={application}
                       formatDate={formatDate}
                       detailLink={`/izin-admin/${application.id}`}
-                      showQuickApprove={
-                        activeTab === "pending" ||
-                        (activeTab === "ndalem" && canApproveAsNdalem())
-                      }
-                      showQuickReject={
-                        activeTab === "pending" ||
-                        (activeTab === "ndalem" && canApproveAsNdalem())
-                      }
-                      onQuickApprove={handleQuickApprove}
-                      onQuickReject={handleQuickReject}
-                      isNdalemAction={activeTab === "ndalem"}
+                      onCompleted={handleRefresh}
                     />
                   ))}
                 </div>

@@ -23,8 +23,29 @@ export interface UserData {
   santriId?: string; // For wali santri to link to their child
 }
 
+// Minimal shape needed to preview another user's UI/UX (e.g. a row from the
+// user-management table). Only superAdmin may start a preview.
+export interface UiPreviewTarget {
+  uid: string;
+  email?: string | null;
+  name?: string;
+  role: UserRole;
+  santriId?: string;
+}
+
+const UI_PREVIEW_STORAGE_KEY = "esantren_ui_preview_user";
+
 interface AuthContextProps {
+  // Effective user: the previewed user while a superAdmin UI preview is
+  // active, otherwise the real authenticated user. Almost everything in the
+  // app should keep reading this field, since role-gated navigation and
+  // pages will then automatically render as the previewed role would see it.
   user: UserData | null;
+  // The real, authenticated user regardless of any active preview. Use this
+  // for permission checks that must not be affected by previewing (e.g. the
+  // user-management page itself).
+  realUser: UserData | null;
+  isPreviewing: boolean;
   loading: boolean;
   santriName: string | null;
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -43,6 +64,12 @@ interface AuthContextProps {
     tanggalLahir: string;
   }) => Promise<void>;
   logOut: () => Promise<void>;
+  // Lets a superAdmin see the app exactly as another user would, without
+  // signing out. This is a client-side UI preview only: the real Firebase
+  // Auth session stays the superAdmin's, so no real re-authentication and no
+  // backend/service-account involvement.
+  startUiPreview: (target: UiPreviewTarget) => UserData;
+  stopUiPreview: () => void;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -51,6 +78,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [santriName, setSantriName] = useState<string | null>(null);
+  const [previewUser, setPreviewUser] = useState<UserData | null>(null);
+
+  // Restore an in-progress UI preview (e.g. after a page refresh). Scoped to
+  // sessionStorage so it never survives closing the tab.
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(UI_PREVIEW_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as UserData;
+        setPreviewUser(parsed);
+        if (parsed.role === "waliSantri") {
+          setSantriName(parsed.name || null);
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to restore UI preview state:", error);
+    }
+  }, []);
+
+  const isPreviewing = user?.role === "superAdmin" && !!previewUser;
+  const effectiveUser = isPreviewing ? previewUser : user;
+
+  const startUiPreview = (target: UiPreviewTarget): UserData => {
+    if (!user || user.role !== "superAdmin") {
+      throw new Error("Hanya Super Admin yang dapat menggunakan Preview UI.");
+    }
+    if (target.uid === user.uid) {
+      throw new Error("Anda sudah masuk sebagai akun ini.");
+    }
+
+    const preview: UserData = {
+      uid: target.uid,
+      email: target.email ?? null,
+      role: target.role,
+      name: target.name,
+      santriId: target.santriId,
+    };
+
+    setPreviewUser(preview);
+    // A few waliSantri screens (payment history, izin) show this alongside
+    // the profile, the same way a real Santri self-login would set it.
+    setSantriName(preview.role === "waliSantri" ? preview.name || null : null);
+    try {
+      sessionStorage.setItem(UI_PREVIEW_STORAGE_KEY, JSON.stringify(preview));
+    } catch (error) {
+      console.warn("Failed to persist UI preview state:", error);
+    }
+
+    return preview;
+  };
+
+  const stopUiPreview = () => {
+    setPreviewUser(null);
+    setSantriName(null);
+    try {
+      sessionStorage.removeItem(UI_PREVIEW_STORAGE_KEY);
+    } catch (error) {
+      console.warn("Failed to clear UI preview state:", error);
+    }
+  };
 
   // Get user role from Firestore
   const getUserRole = async (firebaseUser: FirebaseUser) => {
@@ -142,6 +229,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => unsubscribe();
   }, []);
+
+  // A UI preview is only meaningful while the real session belongs to a
+  // superAdmin. Drop any stale preview the moment that stops being true
+  // (sign-out, role change, session expiry, etc.).
+  useEffect(() => {
+    if (loading) return;
+    if (previewUser && user?.role !== "superAdmin") {
+      setPreviewUser(null);
+      setSantriName(null);
+      try {
+        sessionStorage.removeItem(UI_PREVIEW_STORAGE_KEY);
+      } catch (error) {
+        console.warn("Failed to clear UI preview state:", error);
+      }
+    }
+  }, [loading, previewUser, user]);
 
   // Sign in with email and password
   const signInWithEmail = async (email: string, password: string) => {
@@ -407,6 +510,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Clear user state regardless of auth type (handles waliSantri case)
       setUser(null);
       setSantriName(null);
+      stopUiPreview();
     } catch (error) {
       console.error("Error signing out:", error);
       throw error;
@@ -555,7 +659,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const value = {
-    user,
+    user: effectiveUser,
+    realUser: user,
+    isPreviewing,
     loading,
     santriName,
     signInWithEmail,
@@ -564,7 +670,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkSantriName,
     checkSantriPhone,
     createNewUser,
-    logOut
+    logOut,
+    startUiPreview,
+    stopUiPreview
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

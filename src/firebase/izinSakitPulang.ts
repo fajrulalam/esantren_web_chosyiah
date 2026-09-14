@@ -1,678 +1,197 @@
-import { db } from "./config";
+import { db, auth } from "./config";
 import {
-  collection,
-  addDoc,
-  query,
-  where,
-  getDocs,
-  deleteDoc,
-  doc,
-  getDoc,
-  updateDoc,
-  Timestamp,
-  orderBy,
-  collectionGroup,
-  limit,
-  DocumentData, deleteField
+  collection, query, where, getDocs, doc, getDoc, Timestamp,
+  orderBy, limit, runTransaction, deleteField,
+  type QueryDocumentSnapshot, type DocumentData, type QueryConstraint,
 } from "firebase/firestore";
-import { IzinSakitPulang, IzinStatus } from "@/types/izinSakitPulang";
-import { UserData } from "@/firebase/auth";
-import { formatDate } from "@/utils/date";
+import type { IzinSakitPulang, IzinActor, NewIzinReport } from "@/types/izinSakitPulang";
+import type { UserData } from "@/firebase/auth";
+import {
+  ONGOING_IZIN_STATUSES, HISTORY_IZIN_STATUSES, isIzinOngoing,
+  canReportIzinCompletion, validateIzinReport, validateReturnDate,
+} from "@/utils/izinWorkflow";
 
 const COLLECTION_NAME = "SakitDanPulangCollection";
+const asIzin = (snapshot: QueryDocumentSnapshot): IzinSakitPulang =>
+  ({ ...snapshot.data(), id: snapshot.id } as IzinSakitPulang);
+const actor = (user: UserData, timestamp: Timestamp, fallbackName = "Santri"): IzinActor => ({
+  uid: user.uid, name: user.name || user.email || fallbackName, role: user.role, timestamp,
+});
 
-// Create a new izin application
-export const createIzinApplication = async (
-  izinData: Omit<IzinSakitPulang, "id" | "timestamp">,
-  santriId: string
-): Promise<string> => {
-  try {
-    // Add timestamp
-    const dataWithTimestamp = {
-      ...izinData,
-      timestamp: Timestamp.now(),
-      santriId: santriId
-    };
-
-    // Add to Firestore
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), dataWithTimestamp);
-    return docRef.id;
-  } catch (error) {
-    console.error("Error creating izin application:", error);
-    throw error;
+// A report and its attendance projection commit together. Reading the santri
+// document in the transaction also serializes concurrent reports of the same type.
+export async function createIzinApplication(
+  input: NewIzinReport, user: UserData, reportId?: string,
+): Promise<string> {
+  if (user.role !== "waliSantri" || !user.santriId) {
+    throw new Error("Hanya santri yang dapat melaporkan izinnya sendiri.");
   }
-};
-
-// Get all izin applications for a specific santri
-export const getIzinApplicationsBySantri = async (santriId: string): Promise<IzinSakitPulang[]> => {
-  try {
-    const izinQuery = query(
-      collection(db, COLLECTION_NAME),
-      where("santriId", "==", santriId),
-      orderBy("timestamp", "desc")
-    );
-
-    const querySnapshot = await getDocs(izinQuery);
-    
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as IzinSakitPulang));
-  } catch (error) {
-    console.error("Error getting izin applications:", error);
-    throw error;
-  }
-};
-
-// Delete an izin application
-export const deleteIzinApplication = async (izinId: string): Promise<boolean> => {
-  try {
-    await deleteDoc(doc(db, COLLECTION_NAME, izinId));
-    return true;
-  } catch (error) {
-    console.error("Error deleting izin application:", error);
-    throw error;
-  }
-};
-
-// Get all pending izin applications that need approval
-export const getPendingIzinApplications = async (): Promise<(IzinSakitPulang & { santriName?: string })[]> => {
-  try {
-    const pulangQuery = query(
-      collection(db, COLLECTION_NAME),
-      where("status", "==", "Menunggu Persetujuan Ustadzah"),
-      orderBy("timestamp", "desc")
-    );
-    
-    const sakitQuery = query(
-      collection(db, COLLECTION_NAME),
-      where("status", "==", "Menunggu Diperiksa Ustadzah"),
-      orderBy("timestamp", "desc")
-    );
-
-    const [pulangSnapshot, sakitSnapshot] = await Promise.all([
-      getDocs(pulangQuery),
-      getDocs(sakitQuery)
-    ]);
-
-    const combinedResults: (IzinSakitPulang & { santriName?: string })[] = [];
-    
-    // Get all santri IDs to fetch their names
-    const santriIds = new Set<string>();
-    pulangSnapshot.docs.forEach(doc => santriIds.add(doc.data().santriId));
-    sakitSnapshot.docs.forEach(doc => santriIds.add(doc.data().santriId));
-    
-    // Get santri names
-    const santriNames = new Map<string, string>();
-    await Promise.all(Array.from(santriIds).map(async (santriId) => {
-      try {
-        const santriDoc = await getDoc(doc(db, "SantriCollection", santriId));
-        if (santriDoc.exists()) {
-          santriNames.set(santriId, santriDoc.data().nama || "Unknown");
-        }
-      } catch (err) {
-        console.error(`Error getting santri name for ID ${santriId}:`, err);
+  validateIzinReport(input);
+  const izinRef = reportId ? doc(db, COLLECTION_NAME, reportId) : doc(collection(db, COLLECTION_NAME));
+  const santriRef = doc(db, "SantriCollection", user.santriId);
+  await runTransaction(db, async (transaction) => {
+    const existing = await transaction.get(izinRef);
+    if (existing.exists()) {
+      const data = existing.data();
+      if (data.santriId !== user.santriId || data.reportedBy?.uid !== user.uid) {
+        throw new Error("Laporan tidak sesuai dengan akun santri.");
       }
-    }));
-    
-    // Add data with santri names
-    pulangSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      combinedResults.push({
-        id: doc.id,
-        ...data,
-        santriName: santriNames.get(data.santriId)
-      } as IzinSakitPulang & { santriName?: string });
-    });
-    
-    sakitSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      combinedResults.push({
-        id: doc.id,
-        ...data,
-        santriName: santriNames.get(data.santriId)
-      } as IzinSakitPulang & { santriName?: string });
-    });
-    
-    // Sort by timestamp (newest first)
-    return combinedResults.sort((a, b) => 
-      b.timestamp.toMillis() - a.timestamp.toMillis()
-    );
-  } catch (error) {
-    console.error("Error getting pending izin applications:", error);
-    throw error;
-  }
-};
-
-// Get izin applications that need ndalem approval (for pengasuh/superAdmin)
-export const getNdalemPendingIzinApplications = async (): Promise<(IzinSakitPulang & { santriName?: string })[]> => {
-  try {
-    const query1 = query(
-      collection(db, COLLECTION_NAME),
-      where("status", "==", "Menunggu Persetujuan Ndalem"),
-      orderBy("timestamp", "desc")
-    );
-    
-    const snapshot = await getDocs(query1);
-    
-    const results: (IzinSakitPulang & { santriName?: string })[] = [];
-    
-    // Get all santri IDs to fetch their names
-    const santriIds = new Set<string>();
-    snapshot.docs.forEach(doc => santriIds.add(doc.data().santriId));
-    
-    // Get santri names
-    const santriNames = new Map<string, string>();
-    await Promise.all(Array.from(santriIds).map(async (santriId) => {
-      try {
-        const santriDoc = await getDoc(doc(db, "SantriCollection", santriId));
-        if (santriDoc.exists()) {
-          santriNames.set(santriId, santriDoc.data().nama || "Unknown");
-        }
-      } catch (err) {
-        console.error(`Error getting santri name for ID ${santriId}:`, err);
+      return; // Retry after an uncertain network response keeps the original report.
+    }
+    const santriSnapshot = await transaction.get(santriRef);
+    if (!santriSnapshot.exists()) throw new Error("Data santri tidak ditemukan.");
+    const santri = santriSnapshot.data();
+    const field = input.izinType === "Pulang" ? "statusKepulangan" : "statusSakit";
+    const activeId = santri[field]?.izinId;
+    if (activeId) {
+      const active = await transaction.get(doc(db, COLLECTION_NAME, activeId));
+      if (active.exists() && isIzinOngoing({ ...active.data(), id: active.id } as IzinSakitPulang)) {
+        throw new Error(input.izinType === "Pulang"
+          ? "Masih ada laporan pulang yang aktif. Laporkan kembali terlebih dahulu."
+          : "Masih ada laporan sakit yang aktif. Laporkan sembuh terlebih dahulu.");
       }
-    }));
-    
-    // Add data with santri names
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
-      results.push({
-        id: doc.id,
-        ...data,
-        santriName: santriNames.get(data.santriId)
-      } as IzinSakitPulang & { santriName?: string });
-    });
-    
-    return results;
-  } catch (error) {
-    console.error("Error getting ndalem pending applications:", error);
-    throw error;
-  }
-};
-
-// Get all ongoing izin applications (approved but not completed)
-export const getOngoingIzinApplications = async (): Promise<(IzinSakitPulang & { santriName?: string })[]> => {
-  try {
-    const ongoingStatuses = [
-      "Disetujui", 
-      "Proses Pulang", 
-      "Dalam Masa Sakit"
-    ];
-    
-    // We need to query for each status separately
-    const queryPromises = ongoingStatuses.map(status => {
-      return getDocs(
-        query(
-          collection(db, COLLECTION_NAME),
-          where("status", "==", status),
-          orderBy("timestamp", "desc")
-        )
-      );
-    });
-    
-    const snapshots = await Promise.all(queryPromises);
-    
-    const combinedResults: (IzinSakitPulang & { santriName?: string })[] = [];
-    const santriIds = new Set<string>();
-    
-    // Collect all santri IDs first
-    snapshots.forEach(snapshot => {
-      snapshot.docs.forEach(doc => {
-        santriIds.add(doc.data().santriId);
+    }
+    const timestamp = Timestamp.now();
+    const reportedBy = actor(user, timestamp, santri.nama);
+    const common = { santriId: user.santriId, timestamp, workflowVersion: 2, reportedBy };
+    if (input.izinType === "Pulang") {
+      const details = {
+        alasan: input.alasan.trim(), tglPulang: input.tglPulang,
+        rencanaTanggalKembali: input.rencanaTanggalKembali,
+        sudahKembali: false, kembaliSesuaiRencana: null,
+      };
+      transaction.set(izinRef, {
+        ...common, ...details, izinType: "Pulang", status: "Proses Pulang",
+        jumlahTunggakan: Number(santri.jumlahTunggakan) || 0,
       });
-    });
-    
-    // Get santri names
-    const santriNames = new Map<string, string>();
-    await Promise.all(Array.from(santriIds).map(async (santriId) => {
-      try {
-        const santriDoc = await getDoc(doc(db, "SantriCollection", santriId));
-        if (santriDoc.exists()) {
-          santriNames.set(santriId, santriDoc.data().nama || "Unknown");
-        }
-      } catch (err) {
-        console.error(`Error getting santri name for ID ${santriId}:`, err);
-      }
-    }));
-    
-    // Combine all results with santri names
-    snapshots.forEach(snapshot => {
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        combinedResults.push({
-          id: doc.id,
-          ...data,
-          santriName: santriNames.get(data.santriId)
-        } as IzinSakitPulang & { santriName?: string });
-      });
-    });
-    
-    // Sort by timestamp (newest first)
-    return combinedResults.sort((a, b) => 
-      b.timestamp.toMillis() - a.timestamp.toMillis()
-    );
-  } catch (error) {
-    console.error("Error getting ongoing izin applications:", error);
-    throw error;
-  }
-};
-
-// Get completed or rejected izin applications (history) with date filtering
-export const getIzinHistory = async (
-  startDate?: Date | null,
-  endDate?: Date | null
-): Promise<(IzinSakitPulang & { santriName?: string })[]> => {
-  try {
-    const historyStatuses = [
-      "Sudah Kembali", 
-      "Sudah Sembuh", 
-      "Ditolak", 
-      "Ditolak Ustadzah", 
-      "Ditolak Ndalem"
-    ];
-    
-    const results: (IzinSakitPulang & { santriName?: string })[] = [];
-    let combinedDocs: { id: string; data: any }[] = [];
-    
-    // If date range is provided, use it for filtering
-    if (startDate && endDate) {
-      const startTimestamp = Timestamp.fromDate(startDate);
-      // Set end date to end of day
-      const adjustedEndDate = new Date(endDate);
-      adjustedEndDate.setHours(23, 59, 59, 999);
-      const endTimestamp = Timestamp.fromDate(adjustedEndDate);
-      
-      // Check if date range is more than 3 months
-      const diffTime = Math.abs(adjustedEndDate.getTime() - startDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (diffDays > 90) {
-        throw new Error("Date range cannot exceed 3 months");
-      }
-      
-      // Query with date filters for each status
-      const queryPromises = historyStatuses.map(status => {
-        return getDocs(
-          query(
-            collection(db, COLLECTION_NAME),
-            where("status", "==", status),
-            where("timestamp", ">=", startTimestamp),
-            where("timestamp", "<=", endTimestamp),
-            orderBy("timestamp", "desc")
-          )
-        );
-      });
-      
-      const snapshots = await Promise.all(queryPromises);
-      
-      // Collect all docs
-      snapshots.forEach(snapshot => {
-        snapshot.docs.forEach(doc => {
-          combinedDocs.push({ id: doc.id, data: doc.data() });
-        });
+      transaction.update(santriRef, {
+        statusKehadiran: "Pulang",
+        statusKepulangan: { ...details, izinId: izinRef.id, reportedBy, timestamp },
       });
     } else {
-      // No date range provided, get limited recent history
-      const queryPromises = historyStatuses.map(status => {
-        return getDocs(
-          query(
-            collection(db, COLLECTION_NAME),
-            where("status", "==", status),
-            orderBy("timestamp", "desc"),
-            limit(8 / historyStatuses.length) // Limit to 8 total entries across all statuses
-          )
-        );
-      });
-      
-      const snapshots = await Promise.all(queryPromises);
-      
-      // Collect all docs
-      snapshots.forEach(snapshot => {
-        snapshot.docs.forEach(doc => {
-          combinedDocs.push({ id: doc.id, data: doc.data() });
-        });
+      const details = { keluhan: input.keluhan.trim(), timestamp, reportedBy };
+      transaction.set(izinRef, { ...common, ...details, izinType: "Sakit", status: "Dalam Masa Sakit" });
+      transaction.update(santriRef, {
+        // A santri who reports being sick while away remains away in attendance.
+        statusKehadiran: santri.statusKehadiran === "Pulang" ? "Pulang" : "Sakit",
+        statusSakit: { ...details, izinId: izinRef.id },
       });
     }
-    
-    if (combinedDocs.length === 0) {
-      return [];
-    }
-    
-    // Get santri names for all documents
-    const santriIds = new Set<string>();
-    combinedDocs.forEach(doc => {
-      santriIds.add(doc.data.santriId);
-    });
-    
-    const santriNames = new Map<string, string>();
-    await Promise.all(Array.from(santriIds).map(async (santriId) => {
-      try {
-        const santriDoc = await getDoc(doc(db, "SantriCollection", santriId));
-        if (santriDoc.exists()) {
-          santriNames.set(santriId, santriDoc.data().nama || "Unknown");
-        }
-      } catch (err) {
-        console.error(`Error getting santri name for ID ${santriId}:`, err);
-      }
-    }));
-    
-    // Format results with santri names
-    combinedDocs.forEach(doc => {
-      results.push({
-        id: doc.id,
-        ...doc.data,
-        santriName: santriNames.get(doc.data.santriId)
-      } as IzinSakitPulang & { santriName?: string });
-    });
-    
-    // Sort by timestamp (newest first)
-    return results.sort((a, b) => 
-      b.timestamp.toMillis() - a.timestamp.toMillis()
-    );
-  } catch (error) {
-    console.error("Error getting izin history:", error);
-    throw error;
-  }
-};
+  });
+  return izinRef.id;
+}
 
-// Approve or reject an izin application by ustadzah/pengurus
-export const updateIzinApplicationStatus = async (
-  izinId: string,
-  isApproved: boolean,
-  user: UserData,
-  reason?: string
-): Promise<boolean> => {
-  try {
-    const izinRef = doc(db, COLLECTION_NAME, izinId);
-    const izinDoc = await getDoc(izinRef);
-    
-    if (!izinDoc.exists()) {
-      throw new Error("Izin application not found");
-    }
-    
-    const izinData = izinDoc.data() as IzinSakitPulang;
-    const updateData: Record<string, any> = {
-      sudahDapatIzinUstadzah: isApproved,
-      approvedBy: {
-        uid: user.uid,
-        name: user.name || user.email,
-        role: user.role,
-        timestamp: Timestamp.now()
-      }
-    };
-    
-    // Set appropriate status based on application type and approval decision
-    if (izinData.izinType === "Pulang") {
-      if (isApproved) {
-        updateData.status = "Menunggu Persetujuan Ndalem" as IzinStatus;
-      } else {
-        updateData.status = "Ditolak" as IzinStatus;
-      }
-    } else { // Sakit
-      if (isApproved) {
-        updateData.status = "Dalam Masa Sakit" as IzinStatus;
-        
-        // Update santri status to "Sakit" in SantriCollection when approved
-        try {
-          const santriRef = doc(db, "SantriCollection", izinData.santriId);
-          const santriDoc = await getDoc(santriRef);
-          
-          if (santriDoc.exists()) {
-            // Create statusSakit object with all the details from the application
-            const statusSakit = {
-              keluhan: (izinData as any).keluhan,
-              timestamp: izinData.timestamp,
-              approvedBy: updateData.approvedBy,
-              izinId: izinId
-            };
-            
-            // Update santri document
-            await updateDoc(santriRef, {
-              statusKehadiran: "Sakit",
-              statusSakit: statusSakit
-            });
-          }
-        } catch (err) {
-          console.error("Error updating santri status for sakit:", err);
-          // Continue with the approval even if updating santri fails
-        }
-      } else {
-        updateData.status = "Ditolak" as IzinStatus;
-      }
-    }
-    
-    // Add rejection reason if provided
-    if (!isApproved && reason) {
-      updateData.rejectionReason = reason;
-    }
-    
-    await updateDoc(izinRef, updateData);
-    return true;
-  } catch (error) {
-    console.error("Error updating izin application status:", error);
-    throw error;
-  }
-};
+export async function getIzinApplicationsBySantri(santriId: string): Promise<IzinSakitPulang[]> {
+  const snapshot = await getDocs(query(collection(db, COLLECTION_NAME),
+    where("santriId", "==", santriId), orderBy("timestamp", "desc")));
+  return snapshot.docs.map(asIzin);
+}
 
-// Approve or reject an izin pulang application by ndalem/pengasuh
-export const updateNdalemApprovalStatus = async (
-  izinId: string,
-  isApproved: boolean,
-  user: UserData,
-  reason?: string
-): Promise<boolean> => {
-  try {
-    const izinRef = doc(db, COLLECTION_NAME, izinId);
-    const izinDoc = await getDoc(izinRef);
-    
-    if (!izinDoc.exists()) {
-      throw new Error("Izin application not found");
-    }
-    
-    const izinData = izinDoc.data() as IzinSakitPulang;
-    
-    // Only applicable for izin pulang
-    if (izinData.izinType !== "Pulang") {
-      throw new Error("This function is only for Izin Pulang applications");
-    }
-    
-    const updateData: Record<string, any> = {
-      sudahDapatIzinNdalem: isApproved,
-      ndalemApproval: {
-        uid: user.uid,
-        name: user.name || user.email,
-        role: user.role,
-        timestamp: Timestamp.now()
-      }
-    };
-    
-    // Set appropriate status based on approval decision
-    if (isApproved) {
-      updateData.status = "Proses Pulang" as IzinStatus;
-      updateData.idPemberiIzin = user.uid;
-      updateData.pemberiIzin = user.name || user.email;
-      
-      // Update santri status to "Pulang" in SantriCollection when approved
-      try {
-        const santriRef = doc(db, "SantriCollection", izinData.santriId);
-        const santriDoc = await getDoc(santriRef);
-        
-        if (santriDoc.exists()) {
-          // Create statusKepulangan object with all the details from the application
-          const statusKepulangan = {
-            alasan: (izinData as any).alasan,
-            rencanaTanggalKembali: (izinData as any).rencanaTanggalKembali,
-            tglPulang: (izinData as any).tglPulang,
-            pemberiIzin: user.name || user.email,
-            idPemberiIzin: user.uid,
-            approvedAt: Timestamp.now(),
-            izinId: izinId
-          };
-          
-          // Update santri document
-          await updateDoc(santriRef, {
-            statusKehadiran: "Pulang",
-            statusKepulangan: statusKepulangan
-          });
-        }
-      } catch (err) {
-        console.error("Error updating santri status for pulang:", err);
-        // Continue with the approval even if updating santri fails
-      }
-    } else {
-      updateData.status = "Ditolak" as IzinStatus;
-    }
-    
-    // Add rejection reason if provided
-    if (!isApproved && reason) {
-      updateData.ndalemRejectionReason = reason;
-    }
-    
-    await updateDoc(izinRef, updateData);
-    return true;
-  } catch (error) {
-    console.error("Error updating ndalem approval status:", error);
-    throw error;
-  }
-};
+async function withSantriNames(records: IzinSakitPulang[]) {
+  const names = new Map<string, string>();
+  await Promise.all([...new Set(records.map(record => record.santriId))].map(async (id) => {
+    const santri = await getDoc(doc(db, "SantriCollection", id));
+    names.set(id, santri.exists() ? santri.data().nama || "Santri" : "Data santri tidak ditemukan");
+  }));
+  return records.map(record => ({ ...record, santriName: names.get(record.santriId) }));
+}
 
-// Verify santri return from pulang
-export const verifySantriReturn = async (
-  izinId: string,
-  user: UserData,
-  returnDate: Date = new Date() // Default to current date if not provided
-): Promise<boolean> => {
-  try {
-    const izinRef = doc(db, COLLECTION_NAME, izinId);
-    const izinDoc = await getDoc(izinRef);
-    
-    if (!izinDoc.exists()) {
-      throw new Error("Izin application not found");
-    }
-    
-    const izinData = izinDoc.data() as any;
-    
-    // Only applicable for approved izin pulang
-    if (izinData.izinType !== "Pulang" || !izinData.sudahDapatIzinNdalem) {
-      throw new Error("This function is only for approved Izin Pulang applications");
-    }
-    
-    // Check if already marked as returned
-    if (izinData.sudahKembali === true) {
-      throw new Error("Santri already marked as returned");
-    }
-    
-    const returnTimestamp = Timestamp.fromDate(returnDate);
-    
-    // Check if return is on time
-    const kembaliSesuaiRencana = returnTimestamp.toMillis() <= izinData.rencanaTanggalKembali.toMillis();
-    
-    const updateData = {
-      sudahKembali: true,
-      kembaliSesuaiRencana: kembaliSesuaiRencana,
-      tanggalKembali: returnTimestamp,
-      status: "Sudah Kembali" as IzinStatus,
-      returnVerifiedBy: {
-        uid: user.uid,
-        name: user.name || user.email,
-        role: user.role,
-        timestamp: Timestamp.now()
-      }
-    };
-    
-    // Update the application
-    await updateDoc(izinRef, updateData);
-    
-    // Update santri status back to "Ada" in SantriCollection
-    try {
-      const santriRef = doc(db, "SantriCollection", izinData.santriId);
-      const santriDoc = await getDoc(santriRef);
-      
-      if (santriDoc.exists()) {
-        // Update santri document
-        await updateDoc(santriRef, {
-          statusKehadiran: "Ada",
-          // Keep statusKepulangan but add return info
-          "statusKepulangan.sudahKembali": true,
-          "statusKepulangan.tanggalKembali": returnTimestamp,
-          "statusKepulangan.kembaliSesuaiRencana": kembaliSesuaiRencana,
-          "statusKepulangan.returnVerifiedBy": {
-            uid: user.uid,
-            name: user.name || user.email,
-            role: user.role,
-            timestamp: Timestamp.now()
-          }
-        });
-      }
-    } catch (err) {
-      console.error("Error updating santri status after return:", err);
-      // Continue with the verification even if updating santri fails
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error verifying santri return:", error);
-    throw error;
-  }
-};
+export async function getOngoingIzinApplications() {
+  // Single-field queries work with the existing indexes, including old pending states.
+  const snapshots = await Promise.all(ONGOING_IZIN_STATUSES.map(status => getDocs(query(
+    collection(db, COLLECTION_NAME), where("status", "==", status),
+  ))));
+  const records = snapshots.flatMap(snapshot => snapshot.docs.map(asIzin))
+    .filter(isIzinOngoing).sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+  return withSantriNames(records);
+}
 
-// Mark santri as recovered from sickness
-export const verifySantriRecovered = async (
-  izinId: string,
-  user: UserData
-): Promise<boolean> => {
-  try {
-    const izinRef = doc(db, COLLECTION_NAME, izinId);
-    const izinDoc = await getDoc(izinRef);
-    
-    if (!izinDoc.exists()) {
-      throw new Error("Izin application not found");
+export async function getIzinHistory(startDate?: Date | null, endDate?: Date | null) {
+  const constraints: QueryConstraint[] = [];
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end < start) {
+      throw new Error("Rentang tanggal tidak valid.");
     }
-    
-    const izinData = izinDoc.data() as any;
-    
-    // Only applicable for approved izin sakit
-    if (izinData.izinType !== "Sakit" || !izinData.sudahDapatIzinUstadzah) {
-      throw new Error("This function is only for approved Izin Sakit applications");
+    if (end.getTime() - start.getTime() > 90 * 86400000) {
+      throw new Error("Rentang tanggal tidak boleh melebihi 90 hari.");
     }
-    
-    const updateData = {
-      status: "Sudah Sembuh" as IzinStatus,
-      recoveryVerifiedBy: {
-        uid: user.uid,
-        name: user.name || user.email,
-        role: user.role,
-        timestamp: Timestamp.now()
-      }
-    };
-    
-    // Update the application
-    await updateDoc(izinRef, updateData);
-    
-    // Update santri status back to "Ada" in SantriCollection
-    try {
-      const santriRef = doc(db, "SantriCollection", izinData.santriId);
-      const santriDoc = await getDoc(santriRef);
-      
-      if (santriDoc.exists()) {
-        // Update santri document
-        await updateDoc(santriRef, {
-          statusKehadiran: "Ada",
-          statusSakit: deleteField()
-        });
-      }
-    } catch (err) {
-      console.error("Error updating santri status after recovery:", err);
-      // Continue with the verification even if updating santri fails
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error verifying santri recovery:", error);
-    throw error;
+    constraints.push(where("timestamp", ">=", Timestamp.fromDate(start)),
+      where("timestamp", "<=", Timestamp.fromDate(end)));
   }
-};
+  const snapshots = await Promise.all(HISTORY_IZIN_STATUSES.map(status => getDocs(query(
+    collection(db, COLLECTION_NAME), where("status", "==", status),
+    ...constraints, orderBy("timestamp", "desc"),
+    ...(!startDate || !endDate ? [limit(8)] : []),
+  ))));
+  const records = snapshots.flatMap(snapshot => snapshot.docs.map(asIzin))
+    .sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+  return withSantriNames(startDate && endDate ? records : records.slice(0, 8));
+}
+
+// Shared by the santri, pengurus, and attendance screens. Closing an old report
+// must never reset attendance belonging to a newer/different report.
+async function completeIzin(
+  izinId: string, user: UserData, type: "Pulang" | "Sakit", returnDate?: Date,
+): Promise<boolean> {
+  const izinRef = doc(db, COLLECTION_NAME, izinId);
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(izinRef);
+    if (!snapshot.exists()) throw new Error("Laporan tidak ditemukan.");
+    const izin = { ...snapshot.data(), id: snapshot.id } as IzinSakitPulang;
+    const ownsReport = user.role === "waliSantri" && user.santriId === izin.santriId;
+    if (!ownsReport && user.role !== "pengurus") {
+      throw new Error("Hanya santri yang bersangkutan atau pengurus yang dapat melaporkan selesai.");
+    }
+    if (user.role === "pengurus") {
+      if (auth.currentUser?.uid !== user.uid) throw new Error("Sesi pengurus tidak valid.");
+      const profile = await transaction.get(doc(db, "PengurusCollection", user.uid));
+      if (!profile.exists() || profile.data().role !== "pengurus") {
+        throw new Error("Akun tidak terdaftar sebagai pengurus.");
+      }
+      user = { ...user, name: profile.data().name || profile.data().nama, email: profile.data().email || null };
+    }
+    if (izin.izinType !== type) throw new Error("Jenis laporan tidak sesuai.");
+    if (izin.status === (type === "Pulang" ? "Sudah Kembali" : "Sudah Sembuh")) return true;
+    if (!canReportIzinCompletion(izin, user)) throw new Error("Laporan ini sudah tidak aktif.");
+    const now = Timestamp.now();
+    const completedAt = returnDate ? Timestamp.fromDate(returnDate) : now;
+    if (type === "Pulang") validateReturnDate(izin, completedAt.toDate(), now.toMillis());
+    const santriRef = doc(db, "SantriCollection", izin.santriId);
+    const santriSnapshot = await transaction.get(santriRef);
+    const santri = santriSnapshot.data();
+    const reportedBy = actor(user, now, santri?.nama);
+    const field = type === "Pulang" ? "statusKepulangan" : "statusSakit";
+    const otherField = type === "Pulang" ? "statusSakit" : "statusKepulangan";
+    // Verify the other projection before restoring it (some legacy maps are stale).
+    let otherIsActive = false;
+    if (santri?.[field]?.izinId === izinId && santri[otherField]?.izinId) {
+      const other = await transaction.get(doc(db, COLLECTION_NAME, santri[otherField].izinId));
+      otherIsActive = other.exists() && isIzinOngoing({ ...other.data(), id: other.id } as IzinSakitPulang);
+    }
+    const update: DocumentData = type === "Pulang" && izin.izinType === "Pulang" ? {
+      status: "Sudah Kembali", sudahKembali: true, tanggalKembali: completedAt,
+      kembaliSesuaiRencana: completedAt.toMillis() <= izin.rencanaTanggalKembali.toMillis(),
+      returnReportedBy: reportedBy,
+    } : { status: "Sudah Sembuh", tanggalSembuh: completedAt, recoveryReportedBy: reportedBy };
+    transaction.update(izinRef, update);
+    if (santriSnapshot.exists() && santri?.[field]?.izinId === izinId) {
+      transaction.update(santriRef, {
+        [field]: deleteField(),
+        statusKehadiran: otherIsActive ? (type === "Pulang" ? "Sakit" : "Pulang") : "Ada",
+      });
+    }
+    return true;
+  });
+}
+
+export const reportSantriReturn = (izinId: string, user: UserData, returnDate?: Date) =>
+  completeIzin(izinId, user, "Pulang", returnDate);
+export const reportSantriRecovered = (izinId: string, user: UserData) =>
+  completeIzin(izinId, user, "Sakit");
 
 export interface IzinReportItem {
   santriId: string;
@@ -746,24 +265,24 @@ export const getIzinReport = async (
     
     // Process data for each santri
     const reportItems: IzinReportItem[] = santriIds.map(santriId => {
-      const santriIzinRecords = izinRecords.filter(record => record.santriId === santriId);
+      const santriIzinRecords = izinRecords.filter(record => record.santriId === santriId && !record.status.startsWith("Ditolak"));
       const pulangRecords = santriIzinRecords.filter(record => record.izinType === "Pulang");
       const sakitRecords = santriIzinRecords.filter(record => record.izinType === "Sakit");
       
       // Count late returns - only for returned students with kembaliSesuaiRencana field
       const terlambatKembali = pulangRecords.filter(record => 
         record.sudahKembali === true && 
-        (record as any).kembaliSesuaiRencana === false
+        record.kembaliSesuaiRencana === false
       ).length;
       
       // Collect all unique alasan pulang
       const alasanList = pulangRecords
-        .map(record => (record as any).alasan)
+        .map(record => record.alasan)
         .filter(Boolean);
       
       // Collect all unique keluhan sakit  
       const keluhanList = sakitRecords
-        .map(record => (record as any).keluhan)
+        .map(record => record.keluhan)
         .filter(Boolean);
       
       // Group and format alasan and keluhan

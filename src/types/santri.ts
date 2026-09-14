@@ -8,6 +8,7 @@ export interface Santri {
   statusTanggungan: 'Lunas' | 'Belum Lunas' | 'Belum Ada Tagihan' | 'Menunggu Verifikasi';
   jenjangPendidikan: string;
   semester?: string;
+  semesterAutoUpdatedPeriod?: string;
   programStudi?: string;
   statusAktif: 'Aktif' | 'Boyong' | 'Lulus' | 'Dikeluarkan' | 'Pending' | 'Ditolak';
   tanggalLahir: string;
@@ -26,6 +27,7 @@ export interface Santri {
 
 export interface SantriFormData {
   nama: string;
+  email?: string;
   kamar: string;
   kelas: string;
   tahunMasuk: string;

@@ -581,7 +581,7 @@ export default function KegiatanPage() {
                                                                 updated[index].name = e.target.value;
                                                                 setFormData({ ...formData, customActivities: updated });
                                                             }}
-                                                            placeholder="Contoh: Piket Dapur, Mengajar Komputer..."
+                                                            placeholder="Contoh: Mengajar Komputer..."
                                                             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                                             disabled={loading}
                                                         />

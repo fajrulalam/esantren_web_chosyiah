@@ -16,6 +16,10 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
+import {
+  getCurrentAcademicSemesterKey,
+  isHigherEducationSantri,
+} from "@/firebase/santriSemester";
 import { Santri, SantriFormData } from "@/types/santri";
 import { KODE_ASRAMA } from "@/constants";
 import { ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/20/solid";
@@ -25,6 +29,7 @@ import CSVImportModal from "@/components/CSVImportModal";
 import DataToolsModal from "@/components/DataToolsModal";
 import ImportProgressPanel from "@/components/ImportProgressPanel";
 import { exportToExcel } from "@/utils/excelExport";
+import { getAcademicSemesterPeriod } from "@/utils/academicSemester";
 import { formatName, formatNameForId } from "@/utils/nameFormatter";
 import StickyHorizontalScroll from "@/components/StickyHorizontalScroll";
 import { toast } from "react-hot-toast";
@@ -33,6 +38,7 @@ export default function DataSantriPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const currentAcademicPeriod = getAcademicSemesterPeriod();
 
   // Santri data state
   const [santris, setSantris] = useState<Santri[]>([]);
@@ -202,6 +208,7 @@ export default function DataSantriPage() {
   const fetchSantris = async () => {
     try {
       setIsLoading(true);
+
       const santriRef = collection(db, "SantriCollection");
       const q = query(santriRef, where("kodeAsrama", "==", KODE_ASRAMA));
       const querySnapshot = await getDocs(q);
@@ -440,6 +447,13 @@ export default function DataSantriPage() {
           updateData.statusTanggungan = syncedFormData.statusTanggungan;
         }
 
+        if (
+          syncedFormData.statusAktif === "Aktif" &&
+          isHigherEducationSantri(syncedFormData)
+        ) {
+          updateData.semesterAutoUpdatedPeriod = getCurrentAcademicSemesterKey();
+        }
+
         // Update existing santri with formatted name and synchronized fields
         const santriRef = doc(db, "SantriCollection", selectedSantri.id);
         console.log("Updating document in Firestore...");
@@ -486,6 +500,10 @@ export default function DataSantriPage() {
           statusTanggungan: "Belum Ada Tagihan",
           createdAt: timestamp,
           jumlahTunggakan: 0,
+          ...(syncedFormData.statusAktif === "Aktif" &&
+          isHigherEducationSantri(syncedFormData)
+            ? { semesterAutoUpdatedPeriod: getCurrentAcademicSemesterKey() }
+            : {}),
         };
         console.log("Prepared santri data:", santriData);
 
@@ -677,6 +695,10 @@ export default function DataSantriPage() {
             statusTanggungan: "Belum Ada Tagihan",
             createdAt: timestamp,
             jumlahTunggakan: 0,
+            ...(santriData.statusAktif === "Aktif" &&
+            isHigherEducationSantri(santriData)
+              ? { semesterAutoUpdatedPeriod: getCurrentAcademicSemesterKey() }
+              : {}),
           });
 
           // Update success count
@@ -892,9 +914,16 @@ export default function DataSantriPage() {
   return (
     <div className="container mx-auto py-8 px-4 dark:bg-gray-900 transition-colors">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <h1 className="text-2xl font-bold dark:text-white transition-colors">
-          Data Santri
-        </h1>
+        <div>
+          <h1 className="text-2xl font-bold dark:text-white transition-colors">
+            Data Santri
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Periode saat ini: Semester {currentAcademicPeriod.name} (Tahun
+            Akademik {currentAcademicPeriod.academicYear}). Semester numerik
+            Perguruan Tinggi aktif maju otomatis setiap 1 Maret dan 1 September.
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2 sm:justify-end">
           {selectedSantriIds.size > 0 && (
             <button

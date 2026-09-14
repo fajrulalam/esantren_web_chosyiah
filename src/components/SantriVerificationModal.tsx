@@ -9,6 +9,10 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
+import {
+  getCurrentAcademicSemesterKey,
+  isHigherEducationSantri,
+} from "@/firebase/santriSemester";
 import { Santri } from "@/types/santri";
 
 interface SantriVerificationModalProps {
@@ -60,7 +64,7 @@ export default function SantriVerificationModal({
 
         if (santriSnapshot.exists()) {
           const data = santriSnapshot.data() as Santri;
-          setSantriData({ id: santriSnapshot.id, ...data });
+          setSantriData({ ...data, id: santriSnapshot.id });
         } else {
           setError("Data santri tidak ditemukan");
         }
@@ -110,9 +114,18 @@ export default function SantriVerificationModal({
 
       // Update santri status to 'Aktif'
       const santriRef = doc(db, "SantriCollection", santriId);
-      await updateDoc(santriRef, {
+      const verificationUpdate: Record<string, unknown> = {
         statusAktif: "Aktif",
         updatedAt: new Date(),
+      };
+
+      if (isHigherEducationSantri(santriData)) {
+        verificationUpdate.semesterAutoUpdatedPeriod =
+          getCurrentAcademicSemesterKey();
+      }
+
+      await updateDoc(santriRef, {
+        ...verificationUpdate,
       });
 
       // Increment the counter in Counters/activeSantri

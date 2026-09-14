@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import DarkModeToggle from '@/components/DarkModeToggle';
 
 export default function Navbar() {
-    const { user, logOut } = useAuth();
+    const { user, logOut, isPreviewing } = useAuth();
     const pathname = usePathname();
     const router = useRouter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -43,7 +43,7 @@ export default function Navbar() {
 
     // Updated navbar classes without the dark solid border
     const navbarClasses = `
-        fixed top-0 left-0 right-0 z-30 transition-all duration-300
+        fixed ${isPreviewing ? 'top-10' : 'top-0'} left-0 right-0 z-30 transition-all duration-300
         ${isScrolled
             ? 'bg-amber-50/90 dark:bg-gray-900/90 backdrop-blur-md py-3 shadow-lg'
             : 'bg-amber-50 dark:bg-gray-900 py-5'
@@ -140,7 +140,7 @@ export default function Navbar() {
                                                     User Management
                                                 </Link>
                                             )}
-                                            {['superAdmin', 'pengurus', 'pengasuh'].includes(user.role) && (
+                                            {user.role === 'superAdmin' && (
                                                 <Link
                                                     href="/voucher-asrama"
                                                     className={isActive('/voucher-asrama') ? activeClass : inactiveClass}
@@ -289,7 +289,7 @@ export default function Navbar() {
                                                     User Management
                                                 </Link>
                                             )}
-                                            {['superAdmin', 'pengurus', 'pengasuh'].includes(user.role) && (
+                                            {user.role === 'superAdmin' && (
                                                 <Link
                                                     href="/voucher-asrama"
                                                     className={`block ${isActive('/voucher-asrama') ? activeClass : inactiveClass}`}

@@ -40,6 +40,7 @@ export default function SantriForm({
   const defaultPhoneFormat = "+62";
   const [formData, setFormData] = useState<SantriFormData>({
     nama: "",
+    email: "",
     kamar: "",
     kelas: "",
     tahunMasuk: new Date().getFullYear().toString(),
@@ -75,11 +76,14 @@ export default function SantriForm({
       }
       setDateInputValue(formattedDate);
 
+      const semester = santri.semester || santri.kelas || "";
+
       setFormData({
         nama: santri.nama,
+        email: santri.email || "",
         kamar: santri.kamar,
-        kelas: santri.semester,
-        semester: santri.semester,
+        kelas: semester,
+        semester,
         tahunMasuk: santri.tahunMasuk,
         nomorWalisantri: santri.nomorWalisantri,
         jenjangPendidikan: santri.jenjangPendidikan,
@@ -135,6 +139,9 @@ export default function SantriForm({
       }));
     } else {
       // Normal case for other fields
+      if (name === "email") {
+        setErrors((prev) => ({ ...prev, email: "" }));
+      }
       setFormData((prev) => ({
         ...prev,
         [name]: value,
@@ -204,6 +211,7 @@ export default function SantriForm({
     // First, let's ensure nomorWalisantri has a value even if the user hasn't typed anything
     const updatedFormData = {
       ...formData,
+      email: formData.email?.trim().toLowerCase() || "",
       nomorWalisantri: phoneNumber
         ? formatPhoneNumber(phoneCountryCode, phoneNumber)
         : "+62",
@@ -218,6 +226,12 @@ export default function SantriForm({
 
     // Check most required fields individually
     if (!updatedFormData.nama) newErrors.nama = "Field ini wajib diisi";
+    if (
+      updatedFormData.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updatedFormData.email)
+    ) {
+      newErrors.email = "Format email tidak valid";
+    }
     if (!updatedFormData.kamar) newErrors.kamar = "Field ini wajib diisi";
     // tahunMasuk is no longer required
     if (!updatedFormData.jenjangPendidikan)
@@ -246,6 +260,7 @@ export default function SantriForm({
       const errorMessages = Object.entries(newErrors).map(([field, message]) => {
         const fieldNames: Record<string, string> = {
           nama: "Nama Santri",
+          email: "Email",
           kamar: "Kamar",
           jenjangPendidikan: "Jenjang Pendidikan",
           phone: "Nomor Telepon Wali Santri",
@@ -318,6 +333,37 @@ export default function SantriForm({
         )}
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           Contoh: M. Fajrul Alam Ulin Nuha
+        </p>
+      </div>
+
+      <div>
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-200"
+        >
+          Email
+        </label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          value={formData.email || ""}
+          onChange={handleChange}
+          placeholder="Masukkan email"
+          autoComplete="email"
+          className={`mt-1 block w-full rounded-md ${
+            errors.email
+              ? "border-red-300 dark:border-red-700"
+              : "border-gray-300 dark:border-gray-600"
+          } bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400`}
+        />
+        {errors.email && (
+          <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+            {errors.email}
+          </p>
+        )}
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          Opsional. Digunakan untuk akses akun jika diperlukan.
         </p>
       </div>
 

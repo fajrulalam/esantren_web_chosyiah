@@ -38,8 +38,9 @@ export interface StudentAttendanceStatus {
 // Status for leaving the dormitory
 export interface StatusKepulangan {
   alasan: string;
-  idPemberiIzin: string;
-  pemberiIzin: string;
+  izinId: string;
+  idPemberiIzin?: string;
+  pemberiIzin?: string;
   rencanaTanggalKembali: Timestamp;
   sudahKembali: boolean;
   kembaliSesuaiRencana?: boolean;
@@ -82,6 +83,9 @@ export interface SantriWithAttendance {
   nama: string;
   kodeAsrama: string;
   statusKehadiran: 'Ada' | 'Sakit' | 'Pulang';
+  statusSakit?: { izinId: string; keluhan?: string };
+  kamar?: string;
+  semester?: number | string;
   statusKepulangan?: StatusKepulangan;
   createdAt: Timestamp;
   updatedAt: Timestamp;

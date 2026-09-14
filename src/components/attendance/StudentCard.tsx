@@ -2,7 +2,8 @@ import React, { memo, useState, useRef, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { markAttendance, overrideSickStatus, overrideReturnStatus } from '@/firebase/attendance';
 import useAttendanceStore from '@/app/attendance/store';
-import { SantriWithAttendance } from '@/types/attendance';
+import { useAuth } from '@/firebase/auth';
+import { SantriWithAttendance, StudentAttendanceStatus } from '@/types/attendance';
 import {
   CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, ArrowRightStartOnRectangleIcon, InformationCircleIcon, ClockIcon
 } from '@heroicons/react/24/solid';
@@ -55,6 +56,11 @@ interface StudentCardProps {
 }
 
 const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) => {
+  const { user, isPreviewing } = useAuth();
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const statusInFlight = useRef(false);
+  const canCompleteIzin = user?.role === "pengurus" && !isPreviewing;
   const { currentSession } = useAttendanceStore();
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [justLongPressed, setJustLongPressed] = useState(false);
@@ -76,7 +82,8 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
   }, [currentSession, student, studentStatus]);
   const isLateReturning =
       student.statusKehadiran === 'Pulang' &&
-      student.statusKepulangan?.rencanaTanggalKembali?.toDate() < new Date() &&
+      !!student.statusKepulangan?.rencanaTanggalKembali &&
+      student.statusKepulangan.rencanaTanggalKembali.toDate() < new Date() &&
       !student.statusKepulangan?.sudahKembali;
 
   // --- Action Handlers (Simplified to ensure functionality) ---
@@ -94,7 +101,7 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
       return;
     }
     
-    let newStatus;
+    let newStatus: StudentAttendanceStatus['status'];
     
     // Simple toggle between states for regular students
     if (studentStatus === 'present') {
@@ -153,6 +160,11 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
   const longPressEvent = useLongPress(handleLongPress, 700);
 
   const handleStatusOverride = async (action: 'recover' | 'returned' | 'present' | 'absent' | 'sick') => {
+    if (statusInFlight.current || isPreviewing) return;
+    if ((action === 'recover' || action === 'returned') && !canCompleteIzin) return;
+    statusInFlight.current = true;
+    setSavingStatus(true);
+    setStatusError(null);
     try {
       if (action === 'recover' && student.statusKehadiran === 'Sakit') {
         // Mark as recovered in SantriCollection (changes the base status)
@@ -172,8 +184,13 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
         // Mark as sick in the attendance session
         await markAttendance(sessionId, student.id, 'excusedSick', teacherId);
       }
-    } catch (error) { console.error("Failed to override status:", error); }
-    finally { setShowStatusModal(false); }
+      setShowStatusModal(false);
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : "Gagal menyimpan status.");
+    } finally {
+      statusInFlight.current = false;
+      setSavingStatus(false);
+    }
   };
   // --- End Action Handlers ---
 
@@ -341,11 +358,12 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
 
         {/* Status Override Modal */}
         {showStatusModal && (
-            <div className={modalOverlayStyle} onClick={() => setShowStatusModal(false)}>
+            <div className={modalOverlayStyle} onClick={() => { if (!savingStatus) setShowStatusModal(false); }}>
               <div className={modalContentStyle} onClick={(e) => e.stopPropagation()}>
                 <h3 className="text-base font-semibold mb-3 text-slate-800 dark:text-slate-100 text-center">
                   Update Status: {student.nama}
                 </h3>
+                <fieldset disabled={savingStatus}>
                 {student.statusKehadiran === 'Sakit' && (
                     <div className="mb-4">
                       <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 text-center">Santri ini ditandai sedang sakit.</p>
@@ -375,10 +393,11 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
                       <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-4">
                         <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Update status di sistem:</p>
                         <button 
+                          disabled={!canCompleteIzin}
                           onClick={() => handleStatusOverride('recover')} 
                           className={modalButtonStyle('confirm')}
                         >
-                          <CheckCircleIcon className="w-4 h-4" /> Tandai Sembuh
+                          <CheckCircleIcon className="w-4 h-4" /> Lapor Sembuh
                         </button>
                       </div>
                     </div>
@@ -419,19 +438,23 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
                       <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-4">
                         <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Update status di sistem:</p>
                         <button 
+                          disabled={!canCompleteIzin}
                           onClick={() => handleStatusOverride('returned')} 
                           className={modalButtonStyle('confirm')}
                         >
-                          <CheckCircleIcon className="w-4 h-4" /> Tandai Kembali
+                          <CheckCircleIcon className="w-4 h-4" /> Lapor Kembali
                         </button>
                       </div>
                     </div>
                 )}
+                {statusError && <p role="alert" className="mt-3 text-sm text-red-600">{statusError}</p>}
+                {savingStatus && <p role="status" className="mt-3 text-sm">Sedang menyimpan laporan. Mohon tunggu.</p>}
                 <div className="mt-4 flex justify-center">
                   <button onClick={() => setShowStatusModal(false)} className={modalButtonStyle('cancel')}>
                     Tutup
                   </button>
                 </div>
+                </fieldset>
               </div>
             </div>
         )}

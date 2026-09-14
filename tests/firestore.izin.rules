@@ -1,0 +1,14 @@
+// Emulator fixture only. Do not deploy these rules.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /SantriCollection/{santriId} {
+      allow read, create: if true;
+      // Deliberately reject attendance writes to exercise transaction rollback.
+      allow update, delete: if !(santriId in ['atomic-create', 'atomic-complete']);
+    }
+    match /{collectionName}/{document=**} {
+      allow read, write: if collectionName != 'SantriCollection';
+    }
+  }
+}

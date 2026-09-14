@@ -8,12 +8,13 @@ import {
   query,
   where,
   serverTimestamp,
-  deleteField,
   deleteDoc,
   Timestamp,
+  type DocumentData,
+  type QueryConstraint,
 } from "firebase/firestore";
 import { format } from "date-fns";
-import { db } from "./config";
+import { db, auth } from "./config";
 import {
   AttendanceRecord,
   AttendanceType,
@@ -21,7 +22,8 @@ import {
   AttendanceReport,
   AttendanceReportData,
 } from "@/types/attendance";
-import { IzinStatus } from "@/types/izinSakitPulang";
+import { reportSantriReturn, reportSantriRecovered } from "./izinSakitPulang";
+import type { UserData } from "./auth";
 import { KODE_ASRAMA } from "@/constants";
 
 // Function to create a new attendance session
@@ -40,7 +42,7 @@ export async function createAttendanceSession(
   const sessionId = `${today}-${encodedType}-${timestamp}`;
 
   // Prepare student statuses object
-  const studentStatuses: Record<string, any> = {};
+  const studentStatuses: DocumentData = {};
 
   // Check if this is coming from a selected attendance type with specific santri list
   if (attendanceTypeId) {
@@ -279,7 +281,7 @@ export async function addSantrisToSession(
   }
 
   const sessionData = sessionSnap.data();
-  const updates: Record<string, any> = {};
+  const updates: DocumentData = {};
 
   // For each santri, add them to the studentStatuses if they don't exist
   for (const santriId of santriIds) {
@@ -301,135 +303,42 @@ export async function addSantrisToSession(
   return false;
 }
 
-// Function to handle overriding "Sakit" status
-export async function overrideSickStatus(
-  santriId: string,
-  isStillSick: boolean,
-  teacherId: string,
-  statusSakit: { izinId: string }
-): Promise<boolean> {
-  const returnVerifiedBy = {
-    uid: teacherId,
-    timestamp: serverTimestamp(),
-  };
-
-  if (!isStillSick) {
-    try {
-      // Check SantriCollection document first
-      const santriDocRef = doc(db, "SantriCollection", santriId);
-
-      await updateDoc(santriDocRef, {
-        statusKehadiran: "Ada",
-        statusSakit: deleteField(),
-      });
-
-      // Check SakitDanPulangCollection document
-      const izinDocRef = doc(
-        db,
-        "SakitDanPulangCollection",
-        statusSakit.izinId
-      );
-      const izinDocSnap = await getDoc(izinDocRef);
-
-      if (izinDocSnap.exists()) {
-        await updateDoc(izinDocRef, {
-          status: "Sudah Sembuh" as IzinStatus,
-          recoveryVerifiedBy: returnVerifiedBy,
-        });
-      }
-
-      console.log(`Santri ${santriId} marked as Sudah Sembuh`);
-      return true;
-    } catch (error) {
-      console.error(`Error marking santrisss ${santriId} as Sembuh:`, error);
-    }
+// Attendance shortcuts use the same transaction as the Izin pages.
+async function getPengurusForReport(teacherId: string): Promise<UserData> {
+  if (auth.currentUser?.uid !== teacherId) throw new Error("Sesi pengurus tidak valid.");
+  const snapshot = await getDoc(doc(db, "PengurusCollection", teacherId));
+  if (!snapshot.exists() || snapshot.data().role !== "pengurus") {
+    throw new Error("Hanya pengurus yang dapat mencatat kembali atau sembuh.");
   }
-  return false;
-
-  /*
-  if (hasReturned) {
-    try {
-      // First, determine if return is as planned
-      const currentTimeMillis = Date.now();
-      const plannedReturnMillis = statusKepulanganMap.rencanaTanggalKembali.toMillis();
-      const kembaliSesuaiRencana = currentTimeMillis <= plannedReturnMillis;
-
-      // Create return verification metadata
-      const returnVerifiedBy = {
-        uid: teacherId,
-        timestamp: serverTimestamp()
-      };
-
-      // 1. Update SakitDanPulangCollection document
-      await updateDoc(doc(db, "SakitDanPulangCollection", statusKepulanganMap.izinId), {
-        sudahKembali: true,
-        status: "Sudah Kembali",
-        tanggalKembali: serverTimestamp(),
-        kembaliSesuaiRencana: kembaliSesuaiRencana,
-        returnVerifiedBy: returnVerifiedBy
-      });
-
-      // 2. Update SantriCollection document
-      await updateDoc(doc(db, "SantriCollection", santriId), {
-        statusKehadiran: "Ada",
-        statusKepulangan: deleteField(),
-      });
-
-
-  }
-   */
+  const data = snapshot.data();
+  return { uid: teacherId, role: "pengurus", name: data.name || data.nama, email: data.email || null };
 }
 
-// Function to handle overriding "Pulang" status
-export async function overrideReturnStatus(
-  santriId: string,
-  hasReturned: boolean,
-  teacherId: string,
-  statusKepulanganMap: { izinId: string; rencanaTanggalKembali: Timestamp }
-): Promise<boolean> {
-  if (hasReturned) {
-    try {
-      // First, determine if return is as planned
-      const currentTimeMillis = Date.now();
-      const plannedReturnMillis =
-        statusKepulanganMap.rencanaTanggalKembali.toMillis();
-      const kembaliSesuaiRencana = currentTimeMillis <= plannedReturnMillis;
-
-      // Create return verification metadata
-      const returnVerifiedBy = {
-        uid: teacherId,
-        timestamp: serverTimestamp(),
-      };
-
-      // 1. Update SakitDanPulangCollection document
-      await updateDoc(
-        doc(db, "SakitDanPulangCollection", statusKepulanganMap.izinId),
-        {
-          sudahKembali: true,
-          status: "Sudah Kembali",
-          tanggalKembali: serverTimestamp(),
-          kembaliSesuaiRencana: kembaliSesuaiRencana,
-          returnVerifiedBy: returnVerifiedBy,
-        }
-      );
-
-      // 2. Update SantriCollection document
-      await updateDoc(doc(db, "SantriCollection", santriId), {
-        statusKehadiran: "Ada",
-        statusKepulangan: deleteField(),
-      });
-
-      console.log(
-        `Santri ${santriId} marked as returned ${kembaliSesuaiRencana ? "on time" : "late"
-        }`
-      );
-      return true;
-    } catch (error) {
-      console.error(`Error marking santri ${santriId} as returned:`, error);
-      return false;
-    }
+async function checkReportSantri(izinId: string, santriId: string) {
+  if (!izinId) throw new Error("Laporan izin tidak ditemukan.");
+  const snapshot = await getDoc(doc(db, "SakitDanPulangCollection", izinId));
+  if (!snapshot.exists() || snapshot.data().santriId !== santriId) {
+    throw new Error("Laporan izin tidak sesuai dengan santri.");
   }
-  return false;
+}
+
+export async function overrideSickStatus(
+  santriId: string, isStillSick: boolean, teacherId: string, statusSakit: { izinId: string },
+): Promise<boolean> {
+  if (isStillSick) return false;
+  const user = await getPengurusForReport(teacherId);
+  await checkReportSantri(statusSakit?.izinId, santriId);
+  return reportSantriRecovered(statusSakit.izinId, user);
+}
+
+export async function overrideReturnStatus(
+  santriId: string, hasReturned: boolean, teacherId: string,
+  statusKepulangan: { izinId: string; rencanaTanggalKembali: Timestamp },
+): Promise<boolean> {
+  if (!hasReturned) return false;
+  const user = await getPengurusForReport(teacherId);
+  await checkReportSantri(statusKepulangan?.izinId, santriId);
+  return reportSantriReturn(statusKepulangan.izinId, user);
 }
 
 // Function to close an active attendance session
@@ -529,7 +438,7 @@ export async function generateAttendanceReport(
   }
 ): Promise<AttendanceReport> {
   // Start with basic query conditions
-  let conditions: any[] = [
+  const conditions: QueryConstraint[] = [
     where("kodeAsrama", "==", kodeAsrama),
     where("timestamp", ">=", startDate),
     where("timestamp", "<=", endDate),
