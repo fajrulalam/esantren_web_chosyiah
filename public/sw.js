@@ -1,88 +1,69 @@
-const CACHE_NAME = 'esantren-chosyiah-cache-v1';
+const CACHE_PREFIX = 'esantren-chosyiah-cache-';
+const CACHE_NAME = `${CACHE_PREFIX}v2`;
 const OFFLINE_URL = '/offline.html';
 
+// Never precache app pages: their HTML points to a specific deployment's code.
 const ASSETS_TO_CACHE = [
-  '/',
-  '/offline.html',
+  OFFLINE_URL,
   '/favicon.png',
   '/icon-192x192.png',
   '/icon-512x512.png',
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('Opened cache and caching key assets');
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
-  self.skipWaiting();
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(ASSETS_TO_CACHE);
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(names
+      .filter((name) => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME)
+      .map((name) => caches.delete(name)));
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only cache GET requests
-  if (event.request.method !== 'GET') return;
+  const request = event.request;
+  const url = new URL(request.url);
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.pathname === '/api' || url.pathname.startsWith('/api/') || url.pathname.startsWith('/__/')) return;
 
-  // Avoid caching browser extensions, firebase auth calls, etc.
-  const url = new URL(event.request.url);
-  if (!url.protocol.startsWith('http')) return;
-
-  // Skip APIs and Firebase calls from caching in sw
-  if (url.pathname.startsWith('/__/auth') || url.hostname.includes('firebaseapp.com') || url.hostname.includes('googleapis.com')) {
+  // A navigation must load the current deployment. When offline, show the
+  // offline page rather than an old (possibly authenticated) application page.
+  if (request.mode === 'navigate') {
+    event.respondWith((async () => {
+      try {
+        return await fetch(request, { cache: 'no-store' });
+      } catch {
+        const cache = await caches.open(CACHE_NAME);
+        return await cache.match(OFFLINE_URL) || new Response('Anda sedang offline.', {
+          status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
+      }
+    })());
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached response and fetch updated version in background (stale-while-revalidate)
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse);
-              });
-            }
-          })
-          .catch(() => {
-            // Ignore background fetch failures
-          });
-        return cachedResponse;
-      }
+  // Next.js router/RSC requests and other dynamic responses go straight to
+  // the network. Only versioned build assets and the offline shell are cached.
+  const staticAsset = url.pathname.startsWith('/_next/static/') || ASSETS_TO_CACHE.includes(url.pathname);
+  if (!staticAsset || request.headers.has('RSC') || url.searchParams.has('_rsc')) return;
 
-      return fetch(event.request)
-        .then((response) => {
-          // Cache successful responses for our domain (exclude APIs, etc.)
-          if (response.status === 200 && url.origin === self.location.origin) {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // If network fetch fails and requested a document (page navigation), show offline fallback
-          if (event.request.mode === 'navigate') {
-            return caches.match(OFFLINE_URL);
-          }
-        });
-    })
-  );
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    const response = await fetch(request);
+    if (response.ok && !response.redirected) {
+      // Storage failure must not prevent a successfully fetched asset loading.
+      await cache.put(request, response.clone()).catch(() => {});
+    }
+    return response;
+  })());
 });
