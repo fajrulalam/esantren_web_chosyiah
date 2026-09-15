@@ -299,35 +299,82 @@ export default function SantriVerificationModal({
               </div>
             </div>
 
-            {/* Payment Proof */}
-            {santriData.paymentProofUrl && (
+            {/* Payment Proof(s) - including any carried over from a merge */}
+            {(santriData.paymentProofUrl ||
+              (santriData.mergedPaymentProofs &&
+                santriData.mergedPaymentProofs.length > 0)) && (
               <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
                 <h4 className="font-semibold text-lg mb-2">Bukti Pembayaran</h4>
-                <div className="mt-2 flex justify-center">
-                  <a
-                    href={santriData.paymentProofUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <img
-                      src={santriData.paymentProofUrl}
-                      alt="Bukti Pembayaran"
-                      className="max-w-full w-auto h-auto max-h-[250px] rounded-lg shadow-sm border border-gray-200"
-                    />
-                  </a>
-                </div>
-                <div className="mt-2 text-center">
-                  <a
-                    href={santriData.paymentProofUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 text-sm hover:underline"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Lihat gambar asli
-                  </a>
+                <div className="space-y-4">
+                  {santriData.paymentProofUrl && (
+                    <div>
+                      {santriData.mergedPaymentProofs &&
+                        santriData.mergedPaymentProofs.length > 0 && (
+                          <p className="text-xs text-gray-500 mb-1">
+                            Pendaftaran ini
+                          </p>
+                        )}
+                      <div className="flex justify-center">
+                        <a
+                          href={santriData.paymentProofUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <img
+                            src={santriData.paymentProofUrl}
+                            alt="Bukti Pembayaran"
+                            className="max-w-full w-auto h-auto max-h-[250px] rounded-lg shadow-sm border border-gray-200"
+                          />
+                        </a>
+                      </div>
+                      <div className="mt-2 text-center">
+                        <a
+                          href={santriData.paymentProofUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 text-sm hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Lihat gambar asli
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {santriData.mergedPaymentProofs?.map((proof, index) => (
+                    <div
+                      key={`${proof.imageUrl}-${index}`}
+                      className="pt-4 border-t border-gray-100"
+                    >
+                      <p className="text-xs text-gray-500 mb-1">
+                        Digabung dari pendaftaran duplikat &ldquo;{proof.nama}
+                        &rdquo;
+                        {proof.paymentOption &&
+                          ` — ${
+                            proof.paymentOption === "pangkalOnly"
+                              ? "Uang Pangkal Saja"
+                              : "Uang Pangkal + Syahriah"
+                          }`}
+                      </p>
+                      <div className="flex justify-center">
+                        <a
+                          href={proof.imageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <img
+                            src={proof.imageUrl}
+                            alt="Bukti Pembayaran (digabung)"
+                            className="max-w-full w-auto h-auto max-h-[250px] rounded-lg shadow-sm border border-gray-200"
+                          />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

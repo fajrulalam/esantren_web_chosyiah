@@ -20,19 +20,64 @@ import {
   getCurrentAcademicSemesterKey,
   isHigherEducationSantri,
 } from "@/firebase/santriSemester";
-import { Santri, SantriFormData } from "@/types/santri";
+import { MergedPaymentProof, Santri, SantriFormData } from "@/types/santri";
 import { KODE_ASRAMA } from "@/constants";
 import { ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/20/solid";
 import SantriModal from "@/components/SantriModal";
 import SantriVerificationModal from "@/components/SantriVerificationModal";
+import SantriMergeModal from "@/components/SantriMergeModal";
 import CSVImportModal from "@/components/CSVImportModal";
 import DataToolsModal from "@/components/DataToolsModal";
 import ImportProgressPanel from "@/components/ImportProgressPanel";
 import { exportToExcel } from "@/utils/excelExport";
 import { getAcademicSemesterPeriod } from "@/utils/academicSemester";
 import { formatName, formatNameForId } from "@/utils/nameFormatter";
+import { removeUndefinedFields } from "@/utils/firestoreData";
 import StickyHorizontalScroll from "@/components/StickyHorizontalScroll";
 import { toast } from "react-hot-toast";
+
+// Delete all PaymentStatuses tied to a santri and remove it from any linked Invoices
+const cleanupSantriPaymentRecords = async (santriId: string) => {
+  const paymentStatusesRef = collection(db, "PaymentStatuses");
+  const paymentStatusQuery = query(
+    paymentStatusesRef,
+    where("santriId", "==", santriId)
+  );
+  const paymentStatusesSnapshot = await getDocs(paymentStatusQuery);
+
+  const affectedInvoiceIds: string[] = [];
+  const deletePromises = paymentStatusesSnapshot.docs.map(async (statusDoc) => {
+    const statusData = statusDoc.data();
+    if (statusData.invoiceId) {
+      affectedInvoiceIds.push(statusData.invoiceId);
+    }
+    await deleteDoc(doc(db, "PaymentStatuses", statusDoc.id));
+  });
+  await Promise.all(deletePromises);
+
+  const uniqueInvoiceIds = [...new Set(affectedInvoiceIds)];
+  const invoiceUpdatePromises = uniqueInvoiceIds.map(async (invoiceId) => {
+    const invoiceRef = doc(db, "Invoices", invoiceId);
+    const invoiceSnap = await getDoc(invoiceRef);
+
+    if (invoiceSnap.exists()) {
+      const invoiceData = invoiceSnap.data();
+      if (
+        invoiceData.selectedSantriIds &&
+        Array.isArray(invoiceData.selectedSantriIds)
+      ) {
+        const updatedSantriIds = invoiceData.selectedSantriIds.filter(
+          (id: string) => id !== santriId
+        );
+
+        await updateDoc(invoiceRef, {
+          selectedSantriIds: updatedSantriIds,
+        });
+      }
+    }
+  });
+  await Promise.all(invoiceUpdatePromises);
+};
 
 export default function DataSantriPage() {
   const { user, loading } = useAuth();
@@ -78,6 +123,8 @@ export default function DataSantriPage() {
   const [isDataToolsModalOpen, setIsDataToolsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+  const [isMerging, setIsMerging] = useState(false);
   const [selectedSantri, setSelectedSantri] = useState<Santri | undefined>(
     undefined
   );
@@ -189,6 +236,14 @@ export default function DataSantriPage() {
       );
       return firstMatch?.programStudi || prodi;
     });
+
+  // Selected santris eligible for merging (2+ selected, all still Pending)
+  const selectedSantrisList = santris.filter((s) =>
+    selectedSantriIds.has(s.id)
+  );
+  const canMergeSelected =
+    selectedSantrisList.length >= 2 &&
+    selectedSantrisList.every((s) => s.statusAktif === "Pending");
 
   // Auth check
   useEffect(() => {
@@ -436,22 +491,19 @@ export default function DataSantriPage() {
         console.log("Formatted name:", formattedName);
 
         // Prepare update data - only include statusTanggungan if it's provided
-        const updateData: any = {
+        const updateData = removeUndefinedFields({
           ...syncedFormData,
           nama: formattedName, // Use properly formatted name
           kodeAsrama: KODE_ASRAMA,
-        };
+          ...(syncedFormData.statusAktif === "Aktif" &&
+          isHigherEducationSantri(syncedFormData)
+            ? { semesterAutoUpdatedPeriod: getCurrentAcademicSemesterKey() }
+            : {}),
+        });
 
         // Include statusTanggungan if it's provided in the form data
         if (syncedFormData.statusTanggungan) {
           updateData.statusTanggungan = syncedFormData.statusTanggungan;
-        }
-
-        if (
-          syncedFormData.statusAktif === "Aktif" &&
-          isHigherEducationSantri(syncedFormData)
-        ) {
-          updateData.semesterAutoUpdatedPeriod = getCurrentAcademicSemesterKey();
         }
 
         // Update existing santri with formatted name and synchronized fields
@@ -493,7 +545,7 @@ export default function DataSantriPage() {
         console.log("Generated document ID:", docId);
 
         // Create santri data with properly formatted name
-        const santriData = {
+        const santriData = removeUndefinedFields({
           ...syncedFormData, // Use synchronized form data
           nama: formattedName, // Use the properly formatted name
           kodeAsrama: KODE_ASRAMA,
@@ -504,7 +556,7 @@ export default function DataSantriPage() {
           isHigherEducationSantri(syncedFormData)
             ? { semesterAutoUpdatedPeriod: getCurrentAcademicSemesterKey() }
             : {}),
-        };
+        });
         console.log("Prepared santri data:", santriData);
 
         try {
@@ -568,58 +620,7 @@ export default function DataSantriPage() {
     try {
       setIsSubmitting(true);
 
-      // Find all payment statuses associated with this santri
-      const paymentStatusesRef = collection(db, "PaymentStatuses");
-      const paymentStatusQuery = query(
-        paymentStatusesRef,
-        where("santriId", "==", santri.id)
-      );
-      const paymentStatusesSnapshot = await getDocs(paymentStatusQuery);
-
-      // Collect invoice IDs that need updates
-      const affectedInvoiceIds: string[] = [];
-
-      // Delete each payment status and collect affected invoice IDs
-      const deletePromises = paymentStatusesSnapshot.docs.map(
-        async (statusDoc) => {
-          const statusData = statusDoc.data();
-          if (statusData.invoiceId) {
-            affectedInvoiceIds.push(statusData.invoiceId);
-          }
-          await deleteDoc(doc(db, "PaymentStatuses", statusDoc.id));
-        }
-      );
-
-      // Wait for all payment status deletions to complete
-      await Promise.all(deletePromises);
-
-      // Update affected invoices to remove this santri from selectedSantriIds
-      const uniqueInvoiceIds = [...new Set(affectedInvoiceIds)];
-      const invoiceUpdatePromises = uniqueInvoiceIds.map(async (invoiceId) => {
-        const invoiceRef = doc(db, "Invoices", invoiceId);
-        const invoiceSnap = await getDoc(invoiceRef);
-
-        if (invoiceSnap.exists()) {
-          const invoiceData = invoiceSnap.data();
-          // Remove santri ID from the selected santris list
-          if (
-            invoiceData.selectedSantriIds &&
-            Array.isArray(invoiceData.selectedSantriIds)
-          ) {
-            const updatedSantriIds = invoiceData.selectedSantriIds.filter(
-              (id: string) => id !== santri.id
-            );
-
-            // Update the invoice with the santri removed
-            await updateDoc(invoiceRef, {
-              selectedSantriIds: updatedSantriIds,
-            });
-          }
-        }
-      });
-
-      // Wait for all invoice updates to complete
-      await Promise.all(invoiceUpdatePromises);
+      await cleanupSantriPaymentRecords(santri.id);
 
       // Finally, delete the santri document
       const santriRef = doc(db, "SantriCollection", santri.id);
@@ -778,50 +779,9 @@ export default function DataSantriPage() {
           }));
 
           try {
-            // 1. Find payment statuses for this santri
-            const paymentStatusesRef = collection(db, "PaymentStatuses");
-            const paymentStatusQuery = query(
-              paymentStatusesRef,
-              where("santriId", "==", santri.id)
-            );
-            const paymentStatusesSnapshot = await getDocs(paymentStatusQuery);
+            await cleanupSantriPaymentRecords(santri.id);
 
-            // 2. Collect invoice IDs that need updates
-            const affectedInvoiceIds: string[] = [];
-
-            // 3. Delete payment statuses and collect invoice IDs
-            for (const statusDoc of paymentStatusesSnapshot.docs) {
-              const statusData = statusDoc.data();
-              if (statusData.invoiceId) {
-                affectedInvoiceIds.push(statusData.invoiceId);
-              }
-              await deleteDoc(doc(db, "PaymentStatuses", statusDoc.id));
-            }
-
-            // 4. Update affected invoices to remove this santri
-            const uniqueInvoiceIds = [...new Set(affectedInvoiceIds)];
-            for (const invoiceId of uniqueInvoiceIds) {
-              const invoiceRef = doc(db, "Invoices", invoiceId);
-              const invoiceSnap = await getDoc(invoiceRef);
-
-              if (invoiceSnap.exists()) {
-                const invoiceData = invoiceSnap.data();
-                if (
-                  invoiceData.selectedSantriIds &&
-                  Array.isArray(invoiceData.selectedSantriIds)
-                ) {
-                  const updatedSantriIds = invoiceData.selectedSantriIds.filter(
-                    (id: string) => id !== santri.id
-                  );
-
-                  await updateDoc(invoiceRef, {
-                    selectedSantriIds: updatedSantriIds,
-                  });
-                }
-              }
-            }
-
-            // 5. Finally delete the santri
+            // Finally delete the santri
             const santriRef = doc(db, "SantriCollection", santri.id);
             await deleteDoc(santriRef);
 
@@ -859,6 +819,94 @@ export default function DataSantriPage() {
     } catch (error) {
       console.error("Error during bulk delete:", error);
       alert("Terjadi kesalahan saat menghapus data santri");
+    }
+  };
+
+  // Merge duplicate pending registrations into a single chosen record
+  const handleMergeSantris = async (primaryId: string) => {
+    const primary = selectedSantrisList.find((s) => s.id === primaryId);
+    const duplicates = selectedSantrisList.filter((s) => s.id !== primaryId);
+
+    if (!primary || duplicates.length === 0) return;
+
+    try {
+      setIsMerging(true);
+
+      // Note what each duplicate had, so the payment info isn't lost once it's deleted
+      const mergeNoteLines = duplicates.map((dup) => {
+        const parts = [`Digabung dari pendaftaran duplikat "${dup.nama}"`];
+        parts.push(
+          dup.paymentOption === "pangkalOnly"
+            ? "Uang Pangkal Saja"
+            : "Uang Pangkal + Syahriah"
+        );
+        if (dup.paymentProofUrl) {
+          parts.push(`Bukti: ${dup.paymentProofUrl}`);
+        }
+        return parts.join(" - ");
+      });
+
+      const mergedCatatan = [primary.catatan, ...mergeNoteLines]
+        .filter(Boolean)
+        .join("\n");
+
+      // Keep each duplicate's receipt as an actual displayable entry too, not just a link in the note
+      const now = Date.now();
+      const newMergedProofs: MergedPaymentProof[] = duplicates
+        .filter(
+          (dup): dup is Santri & { paymentProofUrl: string } =>
+            !!dup.paymentProofUrl
+        )
+        .map((dup) => {
+          const entry: MergedPaymentProof = {
+            nama: dup.nama,
+            imageUrl: dup.paymentProofUrl,
+            mergedAt: now,
+          };
+          if (dup.paymentOption) {
+            entry.paymentOption = dup.paymentOption;
+          }
+          return entry;
+        });
+
+      const mergedPaymentProofs = [
+        ...(primary.mergedPaymentProofs || []),
+        ...newMergedProofs,
+      ];
+
+      await updateDoc(doc(db, "SantriCollection", primary.id), {
+        catatan: mergedCatatan,
+        mergedPaymentProofs,
+      });
+
+      // Remove the duplicates, cleaning up any payment records/invoice references tied to them
+      for (const dup of duplicates) {
+        await cleanupSantriPaymentRecords(dup.id);
+        await deleteDoc(doc(db, "SantriCollection", dup.id));
+      }
+
+      setSantris((prev) =>
+        prev
+          .filter((s) => !duplicates.some((d) => d.id === s.id))
+          .map((s) =>
+            s.id === primary.id
+              ? { ...s, catatan: mergedCatatan, mergedPaymentProofs }
+              : s
+          )
+      );
+
+      setSelectedSantriIds(new Set());
+      setIsSelectAll(false);
+      setIsMergeModalOpen(false);
+
+      toast.success(
+        `Berhasil menggabungkan ${duplicates.length + 1} pendaftaran menjadi 1 data`
+      );
+    } catch (error) {
+      console.error("Error merging santri:", error);
+      toast.error("Terjadi kesalahan saat menggabungkan data santri");
+    } finally {
+      setIsMerging(false);
     }
   };
 
@@ -925,6 +973,14 @@ export default function DataSantriPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 sm:justify-end">
+          {canMergeSelected && (
+            <button
+              onClick={() => setIsMergeModalOpen(true)}
+              className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
+            >
+              Gabungkan ({selectedSantriIds.size}) Terpilih
+            </button>
+          )}
           {selectedSantriIds.size > 0 && (
             <button
               onClick={handleBulkDelete}
@@ -1611,6 +1667,16 @@ export default function DataSantriPage() {
           santriId={selectedSantriIdForVerification}
           isMobile={window.innerWidth < 768}
           onVerificationComplete={fetchSantris}
+        />
+      )}
+
+      {/* Merge Modal - combine duplicate pending registrations into one record */}
+      {isMergeModalOpen && (
+        <SantriMergeModal
+          santris={selectedSantrisList}
+          onClose={() => setIsMergeModalOpen(false)}
+          onConfirm={handleMergeSantris}
+          isSubmitting={isMerging}
         />
       )}
 

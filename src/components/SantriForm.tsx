@@ -5,6 +5,7 @@ import { Santri, SantriFormData } from "@/types/santri";
 import { KODE_ASRAMA } from "@/constants";
 import { formatName } from "@/utils/nameFormatter";
 import { toast } from "react-hot-toast";
+import SantriPaymentReceiptsModal from "./SantriPaymentReceiptsModal";
 
 interface SantriFormProps {
   santri?: Santri;
@@ -51,17 +52,20 @@ export default function SantriForm({
     statusTanggungan: "Belum Ada Tagihan",
     tanggalLahir: "",
     nomorTelpon: defaultPhoneFormat,
+    catatan: "",
   });
 
   const [phoneCountryCode, setPhoneCountryCode] = useState("+62");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [dateInputValue, setDateInputValue] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showReceiptsModal, setShowReceiptsModal] = useState(false);
 
   useEffect(() => {
     if (santri) {
       // When editing, parse the existing phone number
-      const { countryCode, number } = splitPhoneNumber(santri.nomorWalisantri);
+      const existingPhoneNumber = santri.nomorWalisantri || "";
+      const { countryCode, number } = splitPhoneNumber(existingPhoneNumber);
       setPhoneCountryCode(countryCode);
       setPhoneNumber(number);
 
@@ -84,14 +88,16 @@ export default function SantriForm({
         kamar: santri.kamar,
         kelas: semester,
         semester,
-        tahunMasuk: santri.tahunMasuk,
-        nomorWalisantri: santri.nomorWalisantri,
+        // Registration-created records may not have this optional field yet.
+        tahunMasuk: santri.tahunMasuk || "",
+        nomorWalisantri: existingPhoneNumber,
         jenjangPendidikan: santri.jenjangPendidikan,
         programStudi: santri.programStudi || "",
         statusAktif: santri.statusAktif,
         statusTanggungan: santri.statusTanggungan,
         tanggalLahir: santri.tanggalLahir,
         nomorTelpon: santri.nomorWalisantri || "", // Use same number for both fields
+        catatan: santri.catatan || "",
       });
     }
   }, [santri]);
@@ -147,6 +153,13 @@ export default function SantriForm({
         [name]: value,
       }));
     }
+  };
+
+  const handleCatatanChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setFormData((prev) => ({
+      ...prev,
+      catatan: e.target.value,
+    }));
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -305,6 +318,7 @@ export default function SantriForm({
   );
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label
@@ -378,10 +392,11 @@ export default function SantriForm({
           <select
             id="tahunMasuk"
             name="tahunMasuk"
-            value={formData.tahunMasuk}
+            value={formData.tahunMasuk || ""}
             onChange={handleChange}
             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
           >
+            <option value="">Pilih tahun</option>
             {years.map((year) => (
               <option key={year} value={year}>
                 {year}
@@ -592,6 +607,40 @@ export default function SantriForm({
         </div>
       )}
 
+      {/* Button to view all payment receipts uploaded by this santri */}
+      {santri && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowReceiptsModal(true)}
+            className="w-full sm:w-auto px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-sm"
+          >
+            Lihat Semua Bukti Pembayaran
+          </button>
+        </div>
+      )}
+
+      <div>
+        <label
+          htmlFor="catatan"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-200"
+        >
+          Catatan
+        </label>
+        <textarea
+          id="catatan"
+          name="catatan"
+          value={formData.catatan || ""}
+          onChange={handleCatatanChange}
+          rows={3}
+          placeholder="Catatan internal tentang santri ini..."
+          className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          Opsional. Hanya terlihat oleh admin.
+        </p>
+      </div>
+
       <div className="flex justify-between space-x-3 pt-4">
         {santri && onDelete && (
           <button
@@ -633,5 +682,12 @@ export default function SantriForm({
         </div>
       </div>
     </form>
+    {santri && showReceiptsModal && (
+      <SantriPaymentReceiptsModal
+        santri={santri}
+        onClose={() => setShowReceiptsModal(false)}
+      />
+    )}
+    </>
   );
 }

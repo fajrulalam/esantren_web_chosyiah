@@ -23,6 +23,15 @@ export interface Santri {
   paymentOption?: string;
   paymentProofUrl?: string;
   rejectReason?: string;
+  catatan?: string;
+  mergedPaymentProofs?: MergedPaymentProof[];
+}
+
+export interface MergedPaymentProof {
+  nama: string;
+  paymentOption?: string;
+  imageUrl: string;
+  mergedAt: number;
 }
 
 export interface SantriFormData {
@@ -39,6 +48,7 @@ export interface SantriFormData {
   statusTanggungan?: 'Lunas' | 'Belum Lunas' | 'Belum Ada Tagihan' | 'Menunggu Verifikasi';
   tanggalLahir: string;
   nomorTelpon?: string;
+  catatan?: string;
 }
 
 export interface PaymentHistoryItem {
