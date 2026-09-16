@@ -23,3 +23,15 @@ export const validateInstallmentAmount = (
   amount: number,
   availableAmount: number
 ) => Number.isInteger(amount) && amount > 0 && amount <= availableAmount;
+
+export const formatRupiahInput = (value: string | number) => {
+  const digits = String(value).replace(/\D/g, "");
+  if (!digits) return "";
+
+  const amount = Number(digits);
+  return Number.isFinite(amount)
+    ? new Intl.NumberFormat("id-ID", {
+        maximumFractionDigits: 0,
+      }).format(amount)
+    : "";
+};

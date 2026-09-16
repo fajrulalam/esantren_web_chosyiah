@@ -975,16 +975,15 @@ export const reviewPaymentInstallment = functions.https.onCall(async (data, cont
         : 'Dibatalkan',
       action: action === 'approve' ? 'Verified' : action === 'reject' ? 'Rejected' : 'Revoked',
       by: reviewedBy,
-      reason,
-      note: reason,
+      ...(reason !== undefined ? { reason, note: reason } : {}),
       relatedPaymentId: attemptId,
     };
-    const pendingAmount = Object.values(history)
+    const pendingAmount = Object.values(history as Record<string, any>)
       .filter((item: any) =>
         ['Bayar Lunas', 'Bayar Sebagian'].includes(item.type) &&
         item.status === 'Menunggu Verifikasi'
       )
-      .reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+      .reduce<number>((sum, item: any) => sum + Number(item.amount || 0), 0);
     const status = pendingAmount > 0
       ? 'Menunggu Verifikasi'
       : paid === total

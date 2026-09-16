@@ -30,6 +30,7 @@ import {
   normalizePaymentStatus,
   reviewPaymentAttempt,
 } from "@/firebase/paymentInstallments";
+import { formatRupiahInput } from "@/utils/paymentInstallmentMath";
 
 interface SantriPaymentStatus extends PaymentStatus {
   nama: string;
@@ -3057,18 +3058,23 @@ export default function RekapDetailView({
                                   <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Nominal aktual pada bukti pembayaran
                                   </label>
-                                  <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={confirmedLegacyAmount}
-                                    onChange={(event) =>
-                                      setConfirmedLegacyAmount(
-                                        event.target.value.replace(/[^\d]/g, "")
-                                      )
-                                    }
-                                    placeholder="Masukkan nominal rupiah"
-                                    className="w-full rounded-md border border-gray-300 p-2"
-                                  />
+                                  <div className="relative">
+                                    <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                                      Rp
+                                    </span>
+                                    <input
+                                      type="text"
+                                      inputMode="numeric"
+                                      value={formatRupiahInput(confirmedLegacyAmount)}
+                                      onChange={(event) =>
+                                        setConfirmedLegacyAmount(
+                                          event.target.value.replace(/[^\d]/g, "")
+                                        )
+                                      }
+                                      placeholder="Masukkan nominal rupiah"
+                                      className="w-full rounded-md border border-gray-300 p-2 pl-10"
+                                    />
+                                  </div>
                                 </>
                               ) : (
                                 <p className="text-sm text-amber-700">

@@ -18,6 +18,7 @@ import {
   normalizePaymentStatus,
   reviewPaymentAttempt,
 } from "@/firebase/paymentInstallments";
+import { formatRupiahInput } from "@/utils/paymentInstallmentMath";
 
 interface SantriVerificationModalProps {
   closeModal: () => void;
@@ -270,14 +271,15 @@ export default function SantriVerificationModal({
 
       {/* Modal content */}
       <div
-        className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all relative"
+        className="w-full max-w-lg max-h-[calc(100vh-2rem)] transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all relative flex flex-col"
         style={{ zIndex: 1000000 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
+        <h3 className="flex-shrink-0 text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
           Verifikasi Pendaftaran Santri
         </h3>
 
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
         {loading ? (
           <div className="flex justify-center items-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -459,18 +461,23 @@ export default function SantriVerificationModal({
                           <label className="block text-sm font-medium mb-1">
                             Nominal aktual pada bukti
                           </label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={confirmedLegacyAmount}
-                            onChange={(event) =>
-                              setConfirmedLegacyAmount(
-                                event.target.value.replace(/[^\d]/g, "")
-                              )
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            placeholder="Masukkan nominal rupiah"
-                          />
+                          <div className="relative">
+                            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                              Rp
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={formatRupiahInput(confirmedLegacyAmount)}
+                              onChange={(event) =>
+                                setConfirmedLegacyAmount(
+                                  event.target.value.replace(/[^\d]/g, "")
+                                )
+                              }
+                              className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md"
+                              placeholder="Masukkan nominal rupiah"
+                            />
+                          </div>
                         </>
                       ) : (
                         <p className="text-sm text-amber-700 dark:text-amber-300">
@@ -487,7 +494,7 @@ export default function SantriVerificationModal({
               )}
             </div>
 
-            {showRejectForm ? (
+            {showRejectForm && (
               <div className="mb-6">
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -553,60 +560,6 @@ export default function SantriVerificationModal({
                     </div>
                   </div>
                 </div>
-
-                <div className="flex gap-2 mt-4">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowRejectForm(false);
-                      setSelectedReasonOption("");
-                      setRejectReason("");
-                    }}
-                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleReject();
-                    }}
-                    disabled={rejecting || !selectedReasonOption}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
-                  >
-                    {rejecting ? "Memproses..." : "Tolak & Kirim WhatsApp"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleVerify();
-                  }}
-                  disabled={
-                    verifying ||
-                    !registrationPayment ||
-                    ((registrationPayment.requiresAmountConfirmation ||
-                      getPendingPaymentAttempts(registrationPayment)[0]
-                        ?.legacyAmountConfirmationRequired) &&
-                      (user?.role !== "superAdmin" || !confirmedLegacyAmount))
-                  }
-                  className="flex-1 px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-300 disabled:cursor-not-allowed"
-                >
-                  {verifying ? "Memproses..." : "Terima Pendaftaran"}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowRejectForm(true);
-                  }}
-                  disabled={verifying || rejecting}
-                  className="flex-1 px-4 py-3 bg-white border border-red-600 text-red-600 rounded-md hover:bg-red-50 disabled:text-red-300 disabled:border-red-300 disabled:cursor-not-allowed"
-                >
-                  Tolak Pendaftaran
-                </button>
               </div>
             )}
           </>
@@ -614,6 +567,65 @@ export default function SantriVerificationModal({
           <div className="text-gray-500 dark:text-gray-400 py-4">
             Tidak ada data yang tersedia
           </div>
+        )}
+        </div>
+
+        {!loading && !error && santriData && (
+          showRejectForm ? (
+            <div className="flex-shrink-0 flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowRejectForm(false);
+                  setSelectedReasonOption("");
+                  setRejectReason("");
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+              >
+                Batal
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReject();
+                }}
+                disabled={rejecting || !selectedReasonOption}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
+              >
+                {rejecting ? "Memproses..." : "Tolak & Kirim WhatsApp"}
+              </button>
+            </div>
+          ) : (
+            <div className="flex-shrink-0 flex flex-col sm:flex-row gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleVerify();
+                }}
+                disabled={
+                  verifying ||
+                  !registrationPayment ||
+                  ((registrationPayment.requiresAmountConfirmation ||
+                    getPendingPaymentAttempts(registrationPayment)[0]
+                      ?.legacyAmountConfirmationRequired) &&
+                    (user?.role !== "superAdmin" || !confirmedLegacyAmount))
+                }
+                className="flex-1 px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-300 disabled:cursor-not-allowed"
+              >
+                {verifying ? "Memproses..." : "Terima Pendaftaran"}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowRejectForm(true);
+                }}
+                disabled={verifying || rejecting}
+                className="flex-1 px-4 py-3 bg-white border border-red-600 text-red-600 rounded-md hover:bg-red-50 disabled:text-red-300 disabled:border-red-300 disabled:cursor-not-allowed"
+              >
+                Tolak Pendaftaran
+              </button>
+            </div>
+          )
         )}
       </div>
     </div>,

@@ -1,4 +1,4 @@
-import * as cors from 'cors';
+import cors from 'cors';
 import * as functions from 'firebase-functions';
 
 // Initialize CORS middleware with ALL origins allowed

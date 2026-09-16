@@ -2,7 +2,8 @@
 //
 // Dry run (read-only, default):
 //   node scripts/migrate-registration-installments.mjs
-// Apply (requires firebase-admin and e-santren-firebase-adminsdk.json):
+// Apply (requires firebase-admin; uses the service-account key when present,
+// otherwise the active Google Application Default Credentials):
 //   node scripts/migrate-registration-installments.mjs --apply
 //
 // Only Pending santri are considered. Existing Active/Boyong/Lulus/
@@ -93,10 +94,6 @@ async function discoverWithClient() {
 }
 
 async function applyMigration(discovery) {
-  if (!existsSync(serviceAccountPath)) {
-    throw new Error(`Missing service account key: ${serviceAccountPath}`);
-  }
-
   let adminApp;
   let adminFirestore;
   try {
@@ -108,9 +105,16 @@ async function applyMigration(discovery) {
     );
   }
 
+  const credential = existsSync(serviceAccountPath)
+    ? adminApp.cert(JSON.parse(readFileSync(serviceAccountPath, "utf8")))
+    : adminApp.applicationDefault();
   adminApp.initializeApp({
-    credential: adminApp.cert(JSON.parse(readFileSync(serviceAccountPath, "utf8"))),
+    credential,
+    projectId: "e-santren",
   });
+  if (!existsSync(serviceAccountPath)) {
+    console.log("No local service-account key found; using Google Application Default Credentials.");
+  }
   const db = adminFirestore.getFirestore();
   const backup = [];
 
