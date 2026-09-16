@@ -36,6 +36,8 @@ interface InvoiceData {
   timestamp: admin.firestore.Timestamp;
   numberOfSantriInvoiced: number;
   selectedSantriIds?: string[]; // Optional array of santri IDs for selective invoicing
+  systemManaged?: boolean;
+  systemType?: string;
 }
 
 /**
@@ -49,6 +51,14 @@ export const createPaymentStatusesOnInvoiceCreation = async (
   try {
     const invoiceData = snapshot.data() as InvoiceData;
     const invoiceId = context.params.invoiceId;
+
+    if (invoiceData.systemManaged || invoiceData.systemType === 'registration_fee') {
+      functions.logger.info(
+        `Skipping automatic payment-status generation for system invoice: ${invoiceId}`,
+        { structuredData: true }
+      );
+      return;
+    }
     const { kodeAsrama, nominal } = invoiceData;
     
     // Check if specific santriIds were selected for this invoice
@@ -330,6 +340,13 @@ export const deleteInvoice = functions.region(region).https.onCall(async (data, 
       );
     }
 
+    if (invoiceDoc.data()?.systemManaged || invoiceDoc.data()?.systemType === 'registration_fee') {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'System-managed invoices cannot be deleted.'
+      );
+    }
+
     // 2. Get all payment statuses for this invoice
     const paymentStatusesQuery = await db
       .collection('PaymentStatuses')
@@ -426,6 +443,12 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
     }
 
     const invoiceData = invoiceDoc.data() as InvoiceData;
+    if (invoiceData.systemManaged || invoiceData.systemType === 'registration_fee') {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'Santri membership of a system-managed invoice cannot be edited manually.'
+      );
+    }
     const kodeAsrama = invoiceData.kodeAsrama;
     const nominal = invoiceData.nominal;
     
@@ -615,6 +638,14 @@ export const removeSantrisFromInvoice = functions.region(region).https.onCall(as
       throw new functions.https.HttpsError(
         'not-found',
         'The specified invoice was not found.'
+      );
+    }
+
+
+    if (invoiceDoc.data()?.systemManaged || invoiceDoc.data()?.systemType === 'registration_fee') {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'Santri membership of a system-managed invoice cannot be edited manually.'
       );
     }
     

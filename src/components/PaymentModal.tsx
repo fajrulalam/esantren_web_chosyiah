@@ -3,18 +3,17 @@ import { useState, useEffect, useRef } from "react";
 import { db, storage } from "../firebase/config";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
-  collection,
   doc,
   getDoc,
-  updateDoc,
-  setDoc,
-  arrayUnion,
-  serverTimestamp,
-  increment,
 } from "firebase/firestore";
 import { useAuth } from "../firebase/auth";
-import { PaymentStatus, PaymentHistoryItem } from "@/types/santri";
-import { KODE_ASRAMA } from "@/constants";
+import { PaymentStatus } from "@/types/santri";
+import {
+  getAvailablePaymentAmount,
+  getPendingAmount,
+  normalizePaymentStatus,
+  submitPaymentAttempt,
+} from "@/firebase/paymentInstallments";
 
 interface PaymentModalProps {
   closeModal: () => void;
@@ -52,11 +51,11 @@ export default function PaymentModal({
 
         if (paymentSnapshot.exists()) {
           // Include the document ID in the payment data
-          const data = paymentSnapshot.data() as PaymentStatus;
-          setPaymentData({
-            ...data,
-            id: paymentSnapshot.id, // Add the document ID
-          });
+          const data = normalizePaymentStatus({
+            ...paymentSnapshot.data(),
+            id: paymentSnapshot.id,
+          } as PaymentStatus);
+          setPaymentData(data);
 
           // If it's a partial payment already, default to partial
           if (data.paid > 0 && data.paid < data.total) {
@@ -86,7 +85,7 @@ export default function PaymentModal({
   useEffect(() => {
     // Set default amount for full payment if not partial
     if (paymentData && !isPartial) {
-      setAmount(String(paymentData.total - paymentData.paid));
+      setAmount(String(getAvailablePaymentAmount(paymentData)));
     } else if (paymentData && isPartial && amount === "") {
       // Clear amount if switching to partial
       setAmount("");
@@ -186,7 +185,8 @@ export default function PaymentModal({
     const metadata = {
       contentType: file.type,
       customMetadata: {
-        uploadedBy: user?.role ? "Admin" : "Wali Santri",
+        uploadedBy:
+          user?.role === "waliSantri" ? "Wali Santri" : "Admin",
         santriId: santriId,
         paymentId: paymentId,
         originalFileName: file.name,
@@ -201,13 +201,6 @@ export default function PaymentModal({
     console.log("Upload successful, download URL:", downloadURL);
 
     return downloadURL;
-  };
-
-  const updateSantriStatus = async (santriId: string) => {
-    const santriRef = doc(db, "SantriCollection", santriId);
-    await updateDoc(santriRef, {
-      statusTanggungan: "Menunggu Verifikasi",
-    });
   };
 
   const handlePayment = async () => {
@@ -229,7 +222,12 @@ export default function PaymentModal({
     const numericAmount = amount.replace(/\./g, "").replace(/[^\d]/g, "");
     const paymentAmount = isPartial
       ? parseInt(numericAmount, 10)
-      : paymentData.total - paymentData.paid;
+      : getAvailablePaymentAmount(paymentData);
+
+    if (getAvailablePaymentAmount(paymentData) <= 0) {
+      setError("Tidak ada saldo yang dapat diajukan saat ini.");
+      return;
+    }
 
     if (isPartial && (!numericAmount || parseInt(numericAmount, 10) <= 0)) {
       setError("Silakan masukkan jumlah pembayaran yang valid");
@@ -238,11 +236,11 @@ export default function PaymentModal({
 
     if (
       isPartial &&
-      parseInt(numericAmount, 10) > paymentData.total - paymentData.paid
+      parseInt(numericAmount, 10) > getAvailablePaymentAmount(paymentData)
     ) {
       setError(
         `Jumlah maksimal yang dapat dibayarkan adalah ${formatCurrency(
-          paymentData.total - paymentData.paid
+          getAvailablePaymentAmount(paymentData)
         )}`
       );
       return;
@@ -258,76 +256,18 @@ export default function PaymentModal({
         paymentData.id
       );
 
-      // Determine who is inputting the payment
-      // If user has a role (admin/staff), use "Admin", otherwise use santri/wali name
-      const inputtedBy = user?.role
-        ? "Admin"
-        : user?.name || santriName || "Wali Santri";
+      const inputtedBy =
+        user?.role === "waliSantri"
+          ? user.name || santriName || "Wali Santri"
+          : user?.name || "Admin";
 
-      // Create the payment history item
-      const historyItem: PaymentHistoryItem = {
-        id: `payment_${Date.now()}`,
-        date: new Date().toISOString(),
-        type: isPartial ? "Bayar Sebagian" : "Bayar Lunas",
+      await submitPaymentAttempt({
+        paymentStatusId: paymentData.id,
         amount: paymentAmount,
-        status: "Menunggu Verifikasi",
-        imageUrl: imageUrl,
-        paymentMethod: paymentMethod,
-        inputtedBy: inputtedBy,
-      };
-
-      // Make sure we have a valid payment ID
-      if (!paymentData || !paymentData.id) {
-        throw new Error("Payment ID is missing. Cannot update payment status.");
-      }
-
-      // Update the payment status document
-      const paymentRef = doc(db, "PaymentStatuses", paymentData.id);
-
-      // Update with the new payment history
-      const historyUpdate: Record<string, any> = {};
-      historyUpdate[`history.${historyItem.id}`] = historyItem;
-
-      // Don't update the 'paid' field yet - wait until verification
-      // Just update status and add to history
-      await updateDoc(paymentRef, {
-        status: "Menunggu Verifikasi",
-        // Keep paid amount as is until verification
-        ...historyUpdate,
+        imageUrl,
+        paymentMethod,
+        inputtedBy,
       });
-
-      // Update santri status to "Menunggu Verifikasi"
-      await updateSantriStatus(paymentData.santriId);
-
-      // Update invoice counters to increment numberOfWaitingVerification
-      if (paymentData.invoiceId) {
-        const invoiceRef = doc(db, "Invoices", paymentData.invoiceId);
-        await updateDoc(invoiceRef, {
-          numberOfWaitingVerification: increment(1),
-        });
-      }
-
-      // Record the payment activity
-      const kodeAsrama = (paymentData as any).kodeAsrama || KODE_ASRAMA;
-      if (kodeAsrama) {
-        const activityRef = collection(
-          db,
-          "AktivitasCollection",
-          kodeAsrama,
-          "PembayaranLogs"
-        );
-        await setDoc(doc(activityRef), {
-          type: "pembayaran_baru",
-          paymentId: paymentData.id,
-          invoiceId: paymentData.invoiceId,
-          santriId: paymentData.santriId,
-          santriName: (paymentData as any).santriName || paymentData.nama,
-          paymentName: paymentData.invoiceId,
-          amount: paymentAmount,
-          timestamp: serverTimestamp(),
-          status: "Menunggu Verifikasi",
-        });
-      }
 
       setLoading(false);
       if (onPaymentComplete) onPaymentComplete();
@@ -400,11 +340,7 @@ export default function PaymentModal({
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-medium dark:text-white">
             {paymentData
-              ? `Bayar ${
-                  paymentData.invoiceId
-                    ? paymentData.invoiceId.split("_").slice(1, -1).join(" ")
-                    : "Pembayaran"
-                }`
+              ? `Bayar ${paymentData.paymentName || "Pembayaran"}`
               : "Pembayaran"}
           </h3>
           {!isMobile && (
@@ -420,9 +356,13 @@ export default function PaymentModal({
         {paymentData ? (
           <div className="mb-6">
             <div className="text-gray-600 dark:text-gray-300 mb-2">
-              Total: {formatCurrency(paymentData.total)} • Dibayar:{" "}
-              {formatCurrency(paymentData.paid)} • Sisa:{" "}
-              {formatCurrency(paymentData.total - paymentData.paid)}
+              Total: {formatCurrency(paymentData.total)} • Terverifikasi:{" "}
+              {formatCurrency(paymentData.paid)} • Menunggu:{" "}
+              {formatCurrency(getPendingAmount(paymentData))}
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Belum dibayar: {formatCurrency(Math.max(0, paymentData.total - paymentData.paid))} •
+              Dapat diajukan sekarang: {formatCurrency(getAvailablePaymentAmount(paymentData))}
             </div>
             <label className="block text-text-light dark:text-gray-300 mb-2">
               Jenis Pembayaran
@@ -443,20 +383,27 @@ export default function PaymentModal({
               >
                 Bayar Lunas
               </button>
-              {/*<button*/}
-              {/*    className={`w-full py-2 px-4 rounded-md transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 text-sm ${*/}
-              {/*        isPartial ? 'bg-gray-200 text-gray-800 border border-gray-300 focus:ring-gray-400' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 focus:ring-gray-300'*/}
-              {/*    }`}*/}
-              {/*    onClick={(e) => {*/}
-              {/*        e.preventDefault(); */}
-              {/*        e.stopPropagation();*/}
-              {/*        setIsPartial(true);*/}
-              {/*    }}*/}
-              {/*    type="button"*/}
-              {/*>*/}
-              {/*    Bayar Sebagian*/}
-              {/*</button>*/}
+              <button
+                className={`w-full py-3 px-4 rounded-md font-bold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  isPartial
+                    ? "bg-blue-600 dark:bg-amber-600 text-white border border-blue-600 dark:border-amber-600 focus:ring-blue-500 dark:focus:ring-amber-500"
+                    : "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-gray-500 dark:focus:ring-gray-600"
+                }`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsPartial(true);
+                }}
+                type="button"
+              >
+                Bayar Sebagian
+              </button>
             </div>
+            {paymentData.requiresAmountConfirmation && (
+              <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
+                Nominal bukti pembayaran lama harus dikonfirmasi Super Admin sebelum pembayaran baru dapat diajukan.
+              </p>
+            )}
           </div>
         ) : (
           <div className="flex justify-center py-4">
@@ -494,10 +441,10 @@ export default function PaymentModal({
                   // Ensure it doesn't exceed remaining amount
                   if (
                     paymentData &&
-                    numValue > paymentData.total - paymentData.paid
+                    numValue > getAvailablePaymentAmount(paymentData)
                   ) {
                     // If exceeds, set to max remaining amount
-                    const maxAmount = paymentData.total - paymentData.paid;
+                    const maxAmount = getAvailablePaymentAmount(paymentData);
                     const formattedMax = new Intl.NumberFormat("id-ID").format(
                       maxAmount
                     );
@@ -516,8 +463,8 @@ export default function PaymentModal({
             </div>
             {paymentData && (
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Sisa yang harus dibayar:{" "}
-                {formatCurrency(paymentData.total - paymentData.paid)}
+                Maksimal yang dapat diajukan sekarang:{" "}
+                {formatCurrency(getAvailablePaymentAmount(paymentData))}
               </p>
             )}
           </div>
@@ -661,7 +608,12 @@ export default function PaymentModal({
           <button
             className="px-4 py-2 bg-blue-600 dark:bg-amber-600 text-white rounded font-medium transition-all duration-200 hover:bg-blue-700 dark:hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-amber-500 focus:ring-opacity-50"
             onClick={handlePayment}
-            disabled={loading || !paymentData}
+            disabled={
+              loading ||
+              !paymentData ||
+              getAvailablePaymentAmount(paymentData) <= 0 ||
+              Boolean(paymentData.requiresAmountConfirmation)
+            }
           >
             {loading ? (
               <span className="flex items-center">

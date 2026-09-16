@@ -20,37 +20,18 @@ import {
   where,
 } from "firebase/firestore";
 import { toast } from "react-hot-toast";
-import { KODE_ASRAMA } from "@/constants";
+import {
+  ALL_ROOM_IDS,
+  DORM_BLOCKS,
+  KODE_ASRAMA,
+  ROOM_CAPACITY,
+  ROOM_LETTERS,
+  VALID_ROOM_IDS,
+  FloorLevel,
+} from "@/constants";
 import { useAuth } from "@/firebase/auth";
 import { db } from "@/firebase/config";
 import { Santri } from "@/types/santri";
-
-type FloorLevel = 1 | 2;
-type RoomLetter = "A" | "B" | "C" | "D";
-
-interface DormBlock {
-  id: string;
-  floor: FloorLevel;
-}
-
-const ROOM_CAPACITY = 2;
-const ROOM_LETTERS: RoomLetter[] = ["A", "B", "C", "D"];
-const DORM_BLOCKS: DormBlock[] = [
-  { id: "101", floor: 1 },
-  { id: "104", floor: 1 },
-  { id: "201", floor: 2 },
-  { id: "202", floor: 2 },
-  { id: "203", floor: 2 },
-  { id: "204", floor: 2 },
-  { id: "205", floor: 2 },
-  { id: "206", floor: 2 },
-  { id: "207", floor: 2 },
-];
-
-const ALL_ROOM_IDS = DORM_BLOCKS.flatMap((block) =>
-  ROOM_LETTERS.map((letter) => `${block.id} ${letter}`)
-);
-const VALID_ROOM_IDS = new Set(ALL_ROOM_IDS);
 
 function normalizeRoom(value?: string | null) {
   const match = (value ?? "")

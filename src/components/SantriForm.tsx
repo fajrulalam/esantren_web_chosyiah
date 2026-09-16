@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Listbox } from "@headlessui/react";
+import { CheckIcon, ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import { Santri, SantriFormData } from "@/types/santri";
-import { KODE_ASRAMA } from "@/constants";
+import { ALL_ROOM_IDS, KODE_ASRAMA } from "@/constants";
 import { formatName } from "@/utils/nameFormatter";
 import { toast } from "react-hot-toast";
 import SantriPaymentReceiptsModal from "./SantriPaymentReceiptsModal";
@@ -13,6 +15,7 @@ interface SantriFormProps {
   onCancel: () => void;
   isSubmitting: boolean;
   onDelete?: (santri: Santri) => Promise<void>;
+  hidePengurusFields?: boolean;
 }
 
 export default function SantriForm({
@@ -21,6 +24,7 @@ export default function SantriForm({
   onCancel,
   isSubmitting,
   onDelete,
+  hidePengurusFields = false,
 }: SantriFormProps) {
   // Split phone number into country code and number
   const splitPhoneNumber = (phoneNumber: string) => {
@@ -102,9 +106,10 @@ export default function SantriForm({
     }
   }, [santri]);
 
-  // Update formData whenever phoneNumber changes
+  // Update formData whenever phoneNumber changes. The phone fields are hidden
+  // for pengurus edits, so preserve their existing values in that case.
   useEffect(() => {
-    if (phoneNumber) {
+    if (!hidePengurusFields && phoneNumber) {
       const formattedNumber = formatPhoneNumber(phoneCountryCode, phoneNumber);
       setFormData((prev) => ({
         ...prev,
@@ -112,7 +117,7 @@ export default function SantriForm({
         nomorTelpon: formattedNumber,
       }));
     }
-  }, [phoneNumber, phoneCountryCode]);
+  }, [hidePengurusFields, phoneNumber, phoneCountryCode]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -153,6 +158,14 @@ export default function SantriForm({
         [name]: value,
       }));
     }
+  };
+
+  const handleKamarChange = (value: string) => {
+    setErrors((prev) => ({ ...prev, kamar: "" }));
+    setFormData((prev) => ({
+      ...prev,
+      kamar: value,
+    }));
   };
 
   const handleCatatanChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -220,17 +233,18 @@ export default function SantriForm({
 
     console.log("Form submission initiated");
 
-    // Override required fields validation - IMPORTANT FIX
-    // First, let's ensure nomorWalisantri has a value even if the user hasn't typed anything
+    // Keep hidden pengurus-only fields unchanged when editing.
     const updatedFormData = {
       ...formData,
       email: formData.email?.trim().toLowerCase() || "",
-      nomorWalisantri: phoneNumber
-        ? formatPhoneNumber(phoneCountryCode, phoneNumber)
-        : "+62",
-      nomorTelpon: phoneNumber
-        ? formatPhoneNumber(phoneCountryCode, phoneNumber)
-        : "+62",
+      ...(!hidePengurusFields && {
+        nomorWalisantri: phoneNumber
+          ? formatPhoneNumber(phoneCountryCode, phoneNumber)
+          : "+62",
+        nomorTelpon: phoneNumber
+          ? formatPhoneNumber(phoneCountryCode, phoneNumber)
+          : "+62",
+      }),
     };
     setFormData(updatedFormData);
 
@@ -247,16 +261,16 @@ export default function SantriForm({
     }
     if (!updatedFormData.kamar) newErrors.kamar = "Field ini wajib diisi";
     // tahunMasuk is no longer required
-    if (!updatedFormData.jenjangPendidikan)
+    if (!hidePengurusFields && !updatedFormData.jenjangPendidikan)
       newErrors.jenjangPendidikan = "Field ini wajib diisi";
 
-    // Check phone number - THIS IS THE CRITICAL PART
-    if (!phoneNumber) {
+    if (!hidePengurusFields && !phoneNumber) {
       newErrors.phone = "Nomor telepon wajib diisi";
     }
 
     // Additional validation for programStudi when jenjangPendidikan is "Perguruan Tinggi"
     if (
+      !hidePengurusFields &&
       updatedFormData.jenjangPendidikan === "Perguruan Tinggi" &&
       !updatedFormData.programStudi
     ) {
@@ -299,7 +313,7 @@ export default function SantriForm({
 
     console.log("Form validation passed successfully");
 
-    // At this point, updatedFormData already has nomorWalisantri and nomorTelpon set correctly
+    // At this point, visible phone fields are normalized and hidden fields are preserved.
     console.log("Submitting data:", updatedFormData);
 
     try {
@@ -316,6 +330,10 @@ export default function SantriForm({
   const years = Array.from({ length: 10 }, (_, i) =>
     (currentYear - i).toString()
   );
+  const kamarOptions =
+    formData.kamar && !ALL_ROOM_IDS.includes(formData.kamar)
+      ? [formData.kamar, ...ALL_ROOM_IDS]
+      : ALL_ROOM_IDS;
 
   return (
     <>
@@ -382,28 +400,30 @@ export default function SantriForm({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label
-            htmlFor="tahunMasuk"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-200"
-          >
-            Tahun Masuk
-          </label>
-          <select
-            id="tahunMasuk"
-            name="tahunMasuk"
-            value={formData.tahunMasuk || ""}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
-          >
-            <option value="">Pilih tahun</option>
-            {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!hidePengurusFields && (
+          <div>
+            <label
+              htmlFor="tahunMasuk"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-200"
+            >
+              Tahun Masuk
+            </label>
+            <select
+              id="tahunMasuk"
+              name="tahunMasuk"
+              value={formData.tahunMasuk || ""}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+            >
+              <option value="">Pilih tahun</option>
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label
@@ -412,38 +432,96 @@ export default function SantriForm({
           >
             Kamar
           </label>
-          <input
-            type="text"
-            id="kamar"
-            name="kamar"
-            value={formData.kamar}
-            onChange={handleChange}
-            placeholder=""
-            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
-          />
+          <Listbox value={formData.kamar} onChange={handleKamarChange}>
+            <div className="relative mt-1">
+              <Listbox.Button
+                id="kamar"
+                className={`relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white ${
+                  errors.kamar
+                    ? "border-red-300 dark:border-red-700"
+                    : "border-gray-300 dark:border-gray-600"
+                }`}
+              >
+                <span
+                  className={`block truncate ${
+                    formData.kamar
+                      ? ""
+                      : "text-gray-400 dark:text-gray-500"
+                  }`}
+                >
+                  {formData.kamar || "Pilih kamar"}
+                </span>
+                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                  <ChevronUpDownIcon
+                    className="h-5 w-5 text-gray-400"
+                    aria-hidden="true"
+                  />
+                </span>
+              </Listbox.Button>
+              <Listbox.Options className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-gray-700 sm:text-sm">
+                {kamarOptions.map((kamar) => (
+                  <Listbox.Option
+                    key={kamar}
+                    value={kamar}
+                    className={({ active }) =>
+                      `relative cursor-default select-none py-2 pl-3 pr-9 ${
+                        active
+                          ? "bg-blue-100 text-blue-900 dark:bg-blue-900/60 dark:text-white"
+                          : "text-gray-900 dark:text-gray-100"
+                      }`
+                    }
+                  >
+                    {({ selected }) => (
+                      <>
+                        <span
+                          className={`block truncate ${
+                            selected ? "font-semibold" : "font-normal"
+                          }`}
+                        >
+                          {kamar}
+                        </span>
+                        {selected && (
+                          <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-600 dark:text-blue-300">
+                            <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </Listbox.Option>
+                ))}
+              </Listbox.Options>
+            </div>
+          </Listbox>
+          {errors.kamar && (
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+              {errors.kamar}
+            </p>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label
-            htmlFor="jenjangPendidikan"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-200"
-          >
-            Jenjang Pendidikan
-          </label>
-          <select
-            id="jenjangPendidikan"
-            name="jenjangPendidikan"
-            value={formData.jenjangPendidikan}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
-          >
-            <option value="SLTP">SLTP</option>
-            <option value="SLTA">SLTA</option>
-            <option value="Perguruan Tinggi">Perguruan Tinggi</option>
-          </select>
-        </div>
+        {!hidePengurusFields && (
+          <div>
+            <label
+              htmlFor="jenjangPendidikan"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-200"
+            >
+              Jenjang Pendidikan
+            </label>
+            <select
+              id="jenjangPendidikan"
+              name="jenjangPendidikan"
+              value={formData.jenjangPendidikan}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+            >
+              <option value="SLTP">SLTP</option>
+              <option value="SLTA">SLTA</option>
+              <option value="Perguruan Tinggi">Perguruan Tinggi</option>
+            </select>
+          </div>
+        )}
 
         {formData.jenjangPendidikan === "Perguruan Tinggi" && (
           <div>
@@ -506,85 +584,91 @@ export default function SantriForm({
           </select>
         </div>
 
-        <div>
-          <label
-            htmlFor="nomorWalisantri"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-200"
-          >
-            Nomor Telepon Wali Santri*
-          </label>
-          <div className="mt-1 flex">
-            <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-3 text-gray-500 dark:text-gray-300 sm:text-sm">
-              {phoneCountryCode}
-            </span>
-            <input
-              type="text"
-              id="nomorWalisantri"
-              value={phoneNumber}
-              onChange={handlePhoneChange}
-              placeholder="81234567890"
-              className={`block w-full flex-1 rounded-none rounded-r-md sm:text-sm 
-                ${
-                  errors.phone
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                    : "border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-500"
-                } 
-                dark:bg-gray-700 dark:text-white`}
-            />
-          </div>
-          {errors.phone && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-              {errors.phone}
+        {!hidePengurusFields && (
+          <div>
+            <label
+              htmlFor="nomorWalisantri"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-200"
+            >
+              Nomor Telepon Wali Santri*
+            </label>
+            <div className="mt-1 flex">
+              <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-3 text-gray-500 dark:text-gray-300 sm:text-sm">
+                {phoneCountryCode}
+              </span>
+              <input
+                type="text"
+                id="nomorWalisantri"
+                value={phoneNumber}
+                onChange={handlePhoneChange}
+                placeholder="81234567890"
+                className={`block w-full flex-1 rounded-none rounded-r-md sm:text-sm
+                  ${
+                    errors.phone
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                      : "border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-500"
+                  }
+                  dark:bg-gray-700 dark:text-white`}
+              />
+            </div>
+            {errors.phone && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                {errors.phone}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Contoh: 81234567890
             </p>
-          )}
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Contoh: 81234567890
-          </p>
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label
-            htmlFor="tanggalLahir"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-200"
-          >
-            Tanggal Lahir
-          </label>
-          <input
-            type="date"
-            id="tanggalLahir"
-            name="tanggalLahir"
-            value={dateInputValue}
-            onChange={handleDateChange}
-            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
-          />
-        </div>
+        {!hidePengurusFields && (
+          <div>
+            <label
+              htmlFor="tanggalLahir"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-200"
+            >
+              Tanggal Lahir
+            </label>
+            <input
+              type="date"
+              id="tanggalLahir"
+              name="tanggalLahir"
+              value={dateInputValue}
+              onChange={handleDateChange}
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+            />
+          </div>
+        )}
 
-        <div>
-          <label
-            htmlFor="statusAktif"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-200"
-          >
-            Status Aktif
-          </label>
-          <select
-            id="statusAktif"
-            name="statusAktif"
-            value={formData.statusAktif}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
-          >
-            <option value="Aktif">Aktif</option>
-            <option value="Boyong">Boyong</option>
-            <option value="Lulus">Lulus</option>
-            <option value="Dikeluarkan">Dikeluarkan</option>
-          </select>
-        </div>
+        {!hidePengurusFields && (
+          <div>
+            <label
+              htmlFor="statusAktif"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-200"
+            >
+              Status Aktif
+            </label>
+            <select
+              id="statusAktif"
+              name="statusAktif"
+              value={formData.statusAktif}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+            >
+              <option value="Aktif">Aktif</option>
+              <option value="Boyong">Boyong</option>
+              <option value="Lulus">Lulus</option>
+              <option value="Dikeluarkan">Dikeluarkan</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Status Tanggungan field - only show when editing existing santri */}
-      {santri && (
+      {santri && !hidePengurusFields && (
         <div>
           <label
             htmlFor="statusTanggungan"
@@ -608,7 +692,7 @@ export default function SantriForm({
       )}
 
       {/* Button to view all payment receipts uploaded by this santri */}
-      {santri && (
+      {santri && !hidePengurusFields && (
         <div>
           <button
             type="button"
@@ -620,26 +704,28 @@ export default function SantriForm({
         </div>
       )}
 
-      <div>
-        <label
-          htmlFor="catatan"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-200"
-        >
-          Catatan
-        </label>
-        <textarea
-          id="catatan"
-          name="catatan"
-          value={formData.catatan || ""}
-          onChange={handleCatatanChange}
-          rows={3}
-          placeholder="Catatan internal tentang santri ini..."
-          className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
-        />
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Opsional. Hanya terlihat oleh admin.
-        </p>
-      </div>
+      {!hidePengurusFields && (
+        <div>
+          <label
+            htmlFor="catatan"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-200"
+          >
+            Catatan
+          </label>
+          <textarea
+            id="catatan"
+            name="catatan"
+            value={formData.catatan || ""}
+            onChange={handleCatatanChange}
+            rows={3}
+            placeholder="Catatan internal tentang santri ini..."
+            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400"
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Opsional. Hanya terlihat oleh admin.
+          </p>
+        </div>
+      )}
 
       <div className="flex justify-between space-x-3 pt-4">
         {santri && onDelete && (

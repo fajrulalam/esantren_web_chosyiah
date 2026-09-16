@@ -22,6 +22,8 @@ interface PaymentLog {
   numberOfSantriInvoiced: number;
   timestamp: Timestamp;
   selectedSantriIds?: string[]; // Added for santri management
+  systemManaged?: boolean;
+  systemType?: string;
 }
 
 // Search params wrapper component
@@ -92,7 +94,9 @@ function RekapContent() {
           numberOfPaid: data.numberOfPaid || 0,
           numberOfWaitingVerification: data.numberOfWaitingVerification || 0,
           numberOfSantriInvoiced: data.numberOfSantriInvoiced || 0,
-          timestamp: data.timestamp || Timestamp.now()
+          timestamp: data.timestamp || Timestamp.now(),
+          systemManaged: Boolean(data.systemManaged),
+          systemType: data.systemType,
         };
         paymentLogsMap.set(log.id, log); // Add or overwrite based on Invoice ID
       });
@@ -165,6 +169,9 @@ function RekapContent() {
   // Handler to show edit payment modal (to add santri)
   const handleEditPayment = async (e: React.MouseEvent, payment: PaymentLog) => {
     e.stopPropagation(); // Prevent row click from firing
+    if (payment.systemManaged || payment.systemType === 'registration_fee') {
+      return;
+    }
     
     try {
       // Fetch the invoice document to get selectedSantriIds
@@ -193,6 +200,9 @@ function RekapContent() {
   // Handler to show delete confirmation
   const handleDeleteClick = (e: React.MouseEvent, payment: PaymentLog) => {
     e.stopPropagation(); // Prevent row click from firing
+    if (payment.systemManaged || payment.systemType === 'registration_fee') {
+      return;
+    }
     setPaymentToDelete(payment);
     setShowDeleteConfirm(true);
   };
@@ -354,12 +364,18 @@ function RekapContent() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex justify-center space-x-2">
-                              <button
-                                onClick={(e) => handleEditPayment(e, payment)}
-                                className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600 shadow-sm hover:bg-blue-100"
-                              >
-                                Tambah Santri
-                              </button>
+                              {payment.systemManaged || payment.systemType === 'registration_fee' ? (
+                                <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+                                  Dikelola sistem
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={(e) => handleEditPayment(e, payment)}
+                                  className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600 shadow-sm hover:bg-blue-100"
+                                >
+                                  Tambah Santri
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

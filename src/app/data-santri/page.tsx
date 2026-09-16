@@ -22,7 +22,13 @@ import {
 } from "@/firebase/santriSemester";
 import { MergedPaymentProof, Santri, SantriFormData } from "@/types/santri";
 import { KODE_ASRAMA } from "@/constants";
-import { ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/20/solid";
+import { Listbox } from "@headlessui/react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ChevronUpDownIcon,
+} from "@heroicons/react/20/solid";
 import SantriModal from "@/components/SantriModal";
 import SantriVerificationModal from "@/components/SantriVerificationModal";
 import SantriMergeModal from "@/components/SantriMergeModal";
@@ -79,11 +85,100 @@ const cleanupSantriPaymentRecords = async (santriId: string) => {
   await Promise.all(invoiceUpdatePromises);
 };
 
+interface FilterOption {
+  value: string;
+  label: string;
+  kind?: "group" | "option";
+}
+
+interface CustomFilterDropdownProps {
+  id: string;
+  label: string;
+  value: string;
+  options: FilterOption[];
+  onChange: (value: string) => void;
+}
+
+function CustomFilterDropdown({
+  id,
+  label,
+  value,
+  options,
+  onChange,
+}: CustomFilterDropdownProps) {
+  const selectedOption =
+    options.find((option) => option.value === value) ??
+    options[0] ??
+    { value: "", label: "" };
+
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors"
+      >
+        {label}
+      </label>
+      <Listbox value={value} onChange={onChange}>
+        <div className="relative">
+          <Listbox.Button
+            id={id}
+            className="relative w-full cursor-pointer rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          >
+            <span className="block truncate">{selectedOption.label}</span>
+            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+              <ChevronUpDownIcon
+                className="h-5 w-5 text-gray-400"
+                aria-hidden="true"
+              />
+            </span>
+          </Listbox.Button>
+          <Listbox.Options className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-gray-700 sm:text-sm">
+            {options.map((option) => (
+              <Listbox.Option
+                key={option.value}
+                value={option.value}
+                className={({ active }) =>
+                  `relative select-none py-2 pr-9 ${
+                    option.kind === "option" ? "pl-7" : "pl-3"
+                  } ${
+                    active
+                      ? "bg-blue-100 text-blue-900 dark:bg-blue-900/60 dark:text-white"
+                      : "text-gray-900 dark:text-gray-100"
+                  }`
+                }
+              >
+                {({ selected }) => (
+                  <>
+                    <span
+                      className={`block truncate ${
+                        selected ? "font-semibold" : "font-normal"
+                      }`}
+                    >
+                      {option.label}
+                    </span>
+                    {selected && (
+                      <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-600 dark:text-blue-300">
+                        <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                    )}
+                  </>
+                )}
+              </Listbox.Option>
+            ))}
+          </Listbox.Options>
+        </div>
+      </Listbox>
+    </div>
+  );
+}
+
 export default function DataSantriPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const currentAcademicPeriod = getAcademicSemesterPeriod();
+  const isPengurus = user?.role === "pengurus";
 
   // Santri data state
   const [santris, setSantris] = useState<Santri[]>([]);
@@ -97,10 +192,8 @@ export default function DataSantriPage() {
   type SortField =
     | "nama"
     | "kamar"
-    | "jenjangPendidikan"
     | "semester"
     | "programStudi"
-    | "tahunMasuk"
     | "statusTanggungan"
     | "statusAktif";
   type SortDirection = "asc" | "desc";
@@ -220,6 +313,23 @@ export default function DataSantriPage() {
       // Fall back to string comparison
       return a.groupName.localeCompare(b.groupName);
     });
+
+  const kamarFilterOptions: FilterOption[] = [
+    { value: "all", label: "Semua Kamar" },
+    ...roomGroupsArray.flatMap((group) => [
+      {
+        value: `group:${group.groupName}`,
+        label: group.groupName,
+        kind: "group" as const,
+      },
+      ...group.rooms.map((room: string) => ({
+        value: room,
+        label: `┗ ${room}`,
+        kind: "option" as const,
+      })),
+    ]),
+  ];
+
   // Normalize program studi capitalization for the filter dropdown
   const uniqueProgramStudi = [
     ...new Set(
@@ -231,17 +341,19 @@ export default function DataSantriPage() {
     .sort()
     .map((prodi) => {
       // Find the first occurrence of this program studi (case insensitive) to use its original capitalization
-      const firstMatch = santris.find(
-        (santri) => santri.programStudi?.toUpperCase() === prodi
-      );
-      return firstMatch?.programStudi || prodi;
-    });
+    const firstMatch = santris.find(
+      (santri) => santri.programStudi?.toUpperCase() === prodi
+    );
+    return firstMatch?.programStudi || prodi;
+  })
+    .filter((prodi): prodi is string => Boolean(prodi));
 
   // Selected santris eligible for merging (2+ selected, all still Pending)
   const selectedSantrisList = santris.filter((s) =>
     selectedSantriIds.has(s.id)
   );
   const canMergeSelected =
+    !isPengurus &&
     selectedSantrisList.length >= 2 &&
     selectedSantrisList.every((s) => s.statusAktif === "Pending");
 
@@ -258,6 +370,13 @@ export default function DataSantriPage() {
       }
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (isPengurus) {
+      setSelectedSantriIds(new Set());
+      setIsSelectAll(false);
+    }
+  }, [isPengurus]);
 
   // Fetch santri data
   const fetchSantris = async () => {
@@ -298,8 +417,8 @@ export default function DataSantriPage() {
   // Function to sort the santris
   const getSortedSantris = (santris: Santri[]) => {
     return [...santris].sort((a, b) => {
-      // For numeric fields like semester and tahunMasuk
-      if (sortField === "semester" || sortField === "tahunMasuk") {
+      // For numeric fields like semester
+      if (sortField === "semester") {
         const valA = a[sortField] ? parseInt(a[sortField].toString()) : 0;
         const valB = b[sortField] ? parseInt(b[sortField].toString()) : 0;
         return sortDirection === "asc" ? valA - valB : valB - valA;
@@ -342,7 +461,7 @@ export default function DataSantriPage() {
         return sortDirection === "asc" ? orderA - orderB : orderB - orderA;
       }
 
-      // For string fields (name, kamar, jenjangPendidikan, programStudi)
+      // For visible string fields (name, kamar, programStudi)
       const valueA = String(a[sortField] || "").toLowerCase();
       const valueB = String(b[sortField] || "").toLowerCase();
 
@@ -738,7 +857,7 @@ export default function DataSantriPage() {
 
   // Handle bulk delete with cleanup of related records
   const handleBulkDelete = async () => {
-    if (selectedSantriIds.size === 0) return;
+    if (isPengurus || selectedSantriIds.size === 0) return;
 
     const confirmDelete = window.confirm(
       `Yakin akan menghapus ${selectedSantriIds.size} santri terpilih?`
@@ -824,6 +943,8 @@ export default function DataSantriPage() {
 
   // Merge duplicate pending registrations into a single chosen record
   const handleMergeSantris = async (primaryId: string) => {
+    if (isPengurus) return;
+
     const primary = selectedSantrisList.find((s) => s.id === primaryId);
     const duplicates = selectedSantrisList.filter((s) => s.id !== primaryId);
 
@@ -912,6 +1033,8 @@ export default function DataSantriPage() {
 
   // Handle select all checkboxes
   const handleSelectAll = () => {
+    if (isPengurus) return;
+
     if (isSelectAll) {
       // Deselect all
       setSelectedSantriIds(new Set());
@@ -926,6 +1049,8 @@ export default function DataSantriPage() {
 
   // Handle individual checkbox selection
   const handleSelectSantri = (santriId: string) => {
+    if (isPengurus) return;
+
     const newSelectedIds = new Set(selectedSantriIds);
     if (newSelectedIds.has(santriId)) {
       newSelectedIds.delete(santriId);
@@ -973,21 +1098,25 @@ export default function DataSantriPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 sm:justify-end">
-          {canMergeSelected && (
-            <button
-              onClick={() => setIsMergeModalOpen(true)}
-              className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
-            >
-              Gabungkan ({selectedSantriIds.size}) Terpilih
-            </button>
-          )}
-          {selectedSantriIds.size > 0 && (
-            <button
-              onClick={handleBulkDelete}
-              className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
-            >
-              Hapus ({selectedSantriIds.size}) Terpilih
-            </button>
+          {!isPengurus && (
+            <>
+              {canMergeSelected && (
+                <button
+                  onClick={() => setIsMergeModalOpen(true)}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
+                >
+                  Gabungkan ({selectedSantriIds.size}) Terpilih
+                </button>
+              )}
+              {selectedSantriIds.size > 0 && (
+                <button
+                  onClick={handleBulkDelete}
+                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+                >
+                  Hapus ({selectedSantriIds.size}) Terpilih
+                </button>
+              )}
+            </>
           )}
           <button
             onClick={() => router.push("/data-santri/denah")}
@@ -1070,152 +1199,102 @@ export default function DataSantriPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
-              Status Aktif
-            </label>
-            <select
-              value={statusAktifFilter}
-              onChange={(e) => setStatusAktifFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
-            >
-              <option value="all">Semua Status</option>
-              <option value="Aktif">Aktif</option>
-              <option value="Pending">Pending</option>
-              <option value="Ditolak">Ditolak</option>
-              <option value="Boyong">Boyong</option>
-              <option value="Lulus">Lulus</option>
-              <option value="Dikeluarkan">Dikeluarkan</option>
-            </select>
-          </div>
+          <CustomFilterDropdown
+            id="statusAktifFilter"
+            label="Status Aktif"
+            value={statusAktifFilter}
+            onChange={setStatusAktifFilter}
+            options={[
+              { value: "all", label: "Semua Status" },
+              { value: "Aktif", label: "Aktif" },
+              { value: "Pending", label: "Pending" },
+              { value: "Ditolak", label: "Ditolak" },
+              { value: "Boyong", label: "Boyong" },
+              { value: "Lulus", label: "Lulus" },
+              { value: "Dikeluarkan", label: "Dikeluarkan" },
+            ]}
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
-              Jenjang Pendidikan
-            </label>
-            <select
-              value={jenjangFilter}
-              onChange={(e) => setJenjangFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
-            >
-              <option value="all">Semua Jenjang</option>
-              {uniqueJenjang.map((jenjang) => (
-                <option key={jenjang} value={jenjang}>
-                  {jenjang}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CustomFilterDropdown
+            id="jenjangFilter"
+            label="Jenjang Pendidikan"
+            value={jenjangFilter}
+            onChange={setJenjangFilter}
+            options={[
+              { value: "all", label: "Semua Jenjang" },
+              ...uniqueJenjang.map((jenjang) => ({
+                value: jenjang,
+                label: jenjang,
+              })),
+            ]}
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
-              Program Studi
-            </label>
-            <select
-              value={programStudiFilter}
-              onChange={(e) => setProgramStudiFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
-            >
-              <option value="all">Semua Program Studi</option>
-              {uniqueProgramStudi.map((prodi) => (
-                <option key={prodi} value={prodi}>
-                  {prodi}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CustomFilterDropdown
+            id="programStudiFilter"
+            label="Program Studi"
+            value={programStudiFilter}
+            onChange={setProgramStudiFilter}
+            options={[
+              { value: "all", label: "Semua Program Studi" },
+              ...uniqueProgramStudi.map((prodi) => ({
+                value: prodi,
+                label: prodi,
+              })),
+            ]}
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
-              Semester
-            </label>
-            <select
-              value={semesterFilter}
-              onChange={(e) => setSemesterFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
-            >
-              <option value="all">Semua Semester</option>
-              {uniqueSemester.map((semester) => (
-                <option key={semester} value={semester}>
-                  {semester}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CustomFilterDropdown
+            id="semesterFilter"
+            label="Semester"
+            value={semesterFilter}
+            onChange={setSemesterFilter}
+            options={[
+              { value: "all", label: "Semua Semester" },
+              ...uniqueSemester.map((semester) => ({
+                value: semester,
+                label: semester,
+              })),
+            ]}
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
-              Tahun Masuk
-            </label>
-            <select
-              value={tahunMasukFilter}
-              onChange={(e) => setTahunMasukFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
-            >
-              <option value="all">Semua Tahun</option>
-              {uniqueTahunMasuk.map((tahun) => (
-                <option key={tahun} value={tahun}>
-                  {tahun}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CustomFilterDropdown
+            id="tahunMasukFilter"
+            label="Tahun Masuk"
+            value={tahunMasukFilter}
+            onChange={setTahunMasukFilter}
+            options={[
+              { value: "all", label: "Semua Tahun" },
+              ...uniqueTahunMasuk.map((tahun) => ({
+                value: tahun,
+                label: tahun,
+              })),
+            ]}
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
-              Status Tanggungan
-            </label>
-            <select
-              value={statusTanggunganFilter}
-              onChange={(e) => setStatusTanggunganFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
-            >
-              <option value="all">Semua Status</option>
-              <option value="Lunas">Lunas</option>
-              <option value="Belum Ada Tagihan">Belum Ada Tagihan</option>
-              <option value="Belum Lunas">Belum Lunas</option>
-              <option value="Menunggu Verifikasi">Menunggu Verifikasi</option>
-            </select>
-          </div>
+          <CustomFilterDropdown
+            id="statusTanggunganFilter"
+            label="Status Tanggungan"
+            value={statusTanggunganFilter}
+            onChange={setStatusTanggunganFilter}
+            options={[
+              { value: "all", label: "Semua Status" },
+              { value: "Lunas", label: "Lunas" },
+              { value: "Belum Ada Tagihan", label: "Belum Ada Tagihan" },
+              { value: "Belum Lunas", label: "Belum Lunas" },
+              {
+                value: "Menunggu Verifikasi",
+                label: "Menunggu Verifikasi",
+              },
+            ]}
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
-              Kamar
-            </label>
-            <select
-              value={kamarFilter}
-              onChange={(e) => setKamarFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
-            >
-              <option value="all">Semua Kamar</option>
-
-              {/* Hierarchical Room Selection */}
-              {roomGroupsArray.map((group) => (
-                <React.Fragment key={`group-section-${group.groupName}`}>
-                  {/* Room Group */}
-                  <option
-                    key={`group-${group.groupName}`}
-                    value={`group:${group.groupName}`}
-                    className="font-semibold"
-                    style={{ backgroundColor: "#f0f4f8" }}
-                  >
-                    {group.groupName}
-                  </option>
-
-                  {/* Individual Rooms in this Group */}
-                  {group.rooms.map((room: string) => (
-                    <option
-                      key={room}
-                      value={room}
-                      style={{ paddingLeft: "20px" }}
-                    >
-                      ┗ {room}
-                    </option>
-                  ))}
-                </React.Fragment>
-              ))}
-            </select>
-          </div>
+          <CustomFilterDropdown
+            id="kamarFilter"
+            label="Kamar"
+            value={kamarFilter}
+            onChange={setKamarFilter}
+            options={kamarFilterOptions}
+          />
 
           <div className="flex items-end col-span-1 md:col-span-3 lg:col-span-8">
             <button
@@ -1246,19 +1325,21 @@ export default function DataSantriPage() {
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
                   <thead className="bg-gray-50 dark:bg-gray-900 transition-colors">
                     <tr>
-                      <th
-                        scope="col"
-                        className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 transition-colors sticky left-0 bg-gray-50 dark:bg-gray-900 z-10"
-                      >
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-500 focus:ring-blue-500 dark:bg-gray-700 transition-colors"
-                            checked={isSelectAll}
-                            onChange={handleSelectAll}
-                          />
-                        </div>
-                      </th>
+                      {!isPengurus && (
+                        <th
+                          scope="col"
+                          className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 transition-colors sticky left-0 bg-gray-50 dark:bg-gray-900 z-10"
+                        >
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-500 focus:ring-blue-500 dark:bg-gray-700 transition-colors"
+                              checked={isSelectAll}
+                              onChange={handleSelectAll}
+                            />
+                          </div>
+                        </th>
+                      )}
                       <th
                         scope="col"
                         className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer sticky left-10 bg-gray-50 dark:bg-gray-900 z-10 ${
@@ -1266,6 +1347,7 @@ export default function DataSantriPage() {
                             ? "text-blue-600 dark:text-blue-400"
                             : "text-gray-500 dark:text-gray-400"
                         }`}
+                        style={{ left: isPengurus ? "0px" : "2.5rem" }}
                         onClick={() => handleSort("nama")}
                       >
                         <div className="flex items-center">
@@ -1310,37 +1392,6 @@ export default function DataSantriPage() {
                             <ChevronDownIcon
                               className={`h-3 w-3 ${
                                 sortField === "kamar" &&
-                                sortDirection === "desc"
-                                  ? "text-blue-600 dark:text-blue-400"
-                                  : "text-gray-400"
-                              }`}
-                            />
-                          </div>
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
-                          sortField === "jenjangPendidikan"
-                            ? "text-blue-600 dark:text-blue-400"
-                            : "text-gray-500 dark:text-gray-400"
-                        }`}
-                        onClick={() => handleSort("jenjangPendidikan")}
-                      >
-                        <div className="flex items-center">
-                          <span>Jenjang Pendidikan</span>
-                          <div className="flex flex-col ml-1">
-                            <ChevronUpIcon
-                              className={`h-3 w-3 ${
-                                sortField === "jenjangPendidikan" &&
-                                sortDirection === "asc"
-                                  ? "text-blue-600 dark:text-blue-400"
-                                  : "text-gray-400"
-                              }`}
-                            />
-                            <ChevronDownIcon
-                              className={`h-3 w-3 ${
-                                sortField === "jenjangPendidikan" &&
                                 sortDirection === "desc"
                                   ? "text-blue-600 dark:text-blue-400"
                                   : "text-gray-400"
@@ -1411,111 +1462,72 @@ export default function DataSantriPage() {
                           </div>
                         </div>
                       </th>
-                      <th
-                        scope="col"
-                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
-                          sortField === "tahunMasuk"
-                            ? "text-blue-600 dark:text-blue-400"
-                            : "text-gray-500 dark:text-gray-400"
-                        }`}
-                        onClick={() => handleSort("tahunMasuk")}
-                      >
-                        <div className="flex items-center">
-                          <span>Tahun Masuk</span>
-                          <div className="flex flex-col ml-1">
-                            <ChevronUpIcon
-                              className={`h-3 w-3 ${
-                                sortField === "tahunMasuk" &&
-                                sortDirection === "asc"
-                                  ? "text-blue-600 dark:text-blue-400"
-                                  : "text-gray-400"
-                              }`}
-                            />
-                            <ChevronDownIcon
-                              className={`h-3 w-3 ${
-                                sortField === "tahunMasuk" &&
-                                sortDirection === "desc"
-                                  ? "text-blue-600 dark:text-blue-400"
-                                  : "text-gray-400"
-                              }`}
-                            />
-                          </div>
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors"
-                      >
-                        Nomor Wali Santri
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors"
-                      >
-                        Nomor Telepon Santri
-                      </th>
-                      <th
-                        scope="col"
-                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
-                          sortField === "statusTanggungan"
-                            ? "text-blue-600 dark:text-blue-400"
-                            : "text-gray-500 dark:text-gray-400"
-                        }`}
-                        onClick={() => handleSort("statusTanggungan")}
-                      >
-                        <div className="flex items-center">
-                          <span>Status Tanggungan</span>
-                          <div className="flex flex-col ml-1">
-                            <ChevronUpIcon
-                              className={`h-3 w-3 ${
-                                sortField === "statusTanggungan" &&
-                                sortDirection === "asc"
-                                  ? "text-blue-600 dark:text-blue-400"
-                                  : "text-gray-400"
-                              }`}
-                            />
-                            <ChevronDownIcon
-                              className={`h-3 w-3 ${
-                                sortField === "statusTanggungan" &&
-                                sortDirection === "desc"
-                                  ? "text-blue-600 dark:text-blue-400"
-                                  : "text-gray-400"
-                              }`}
-                            />
-                          </div>
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
-                          sortField === "statusAktif"
-                            ? "text-blue-600 dark:text-blue-400"
-                            : "text-gray-500 dark:text-gray-400"
-                        }`}
-                        onClick={() => handleSort("statusAktif")}
-                      >
-                        <div className="flex items-center">
-                          <span>Status Aktif</span>
-                          <div className="flex flex-col ml-1">
-                            <ChevronUpIcon
-                              className={`h-3 w-3 ${
-                                sortField === "statusAktif" &&
-                                sortDirection === "asc"
-                                  ? "text-blue-600 dark:text-blue-400"
-                                  : "text-gray-400"
-                              }`}
-                            />
-                            <ChevronDownIcon
-                              className={`h-3 w-3 ${
-                                sortField === "statusAktif" &&
-                                sortDirection === "desc"
-                                  ? "text-blue-600 dark:text-blue-400"
-                                  : "text-gray-400"
-                              }`}
-                            />
-                          </div>
-                        </div>
-                      </th>
+                      {!isPengurus && (
+                        <>
+                          <th
+                            scope="col"
+                            className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                              sortField === "statusTanggungan"
+                                ? "text-blue-600 dark:text-blue-400"
+                                : "text-gray-500 dark:text-gray-400"
+                            }`}
+                            onClick={() => handleSort("statusTanggungan")}
+                          >
+                            <div className="flex items-center">
+                              <span>Status Tanggungan</span>
+                              <div className="flex flex-col ml-1">
+                                <ChevronUpIcon
+                                  className={`h-3 w-3 ${
+                                    sortField === "statusTanggungan" &&
+                                    sortDirection === "asc"
+                                      ? "text-blue-600 dark:text-blue-400"
+                                      : "text-gray-400"
+                                  }`}
+                                />
+                                <ChevronDownIcon
+                                  className={`h-3 w-3 ${
+                                    sortField === "statusTanggungan" &&
+                                    sortDirection === "desc"
+                                      ? "text-blue-600 dark:text-blue-400"
+                                      : "text-gray-400"
+                                  }`}
+                                />
+                              </div>
+                            </div>
+                          </th>
+                          <th
+                            scope="col"
+                            className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                              sortField === "statusAktif"
+                                ? "text-blue-600 dark:text-blue-400"
+                                : "text-gray-500 dark:text-gray-400"
+                            }`}
+                            onClick={() => handleSort("statusAktif")}
+                          >
+                            <div className="flex items-center">
+                              <span>Status Aktif</span>
+                              <div className="flex flex-col ml-1">
+                                <ChevronUpIcon
+                                  className={`h-3 w-3 ${
+                                    sortField === "statusAktif" &&
+                                    sortDirection === "asc"
+                                      ? "text-blue-600 dark:text-blue-400"
+                                      : "text-gray-400"
+                                  }`}
+                                />
+                                <ChevronDownIcon
+                                  className={`h-3 w-3 ${
+                                    sortField === "statusAktif" &&
+                                    sortDirection === "desc"
+                                      ? "text-blue-600 dark:text-blue-400"
+                                      : "text-gray-400"
+                                  }`}
+                                />
+                              </div>
+                            </div>
+                          </th>
+                        </>
+                      )}
                       <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors sticky right-0 bg-gray-50 dark:bg-gray-900 z-10"
@@ -1549,78 +1561,75 @@ export default function DataSantriPage() {
 
                       return (
                         <tr key={santri.id} className={rowClasses}>
-                          <td className="px-3 py-4 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-800 z-10">
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-500 focus:ring-blue-500 dark:bg-gray-700 transition-colors"
-                                checked={selectedSantriIds.has(santri.id)}
-                                onChange={() => handleSelectSantri(santri.id)}
-                              />
-                            </div>
-                          </td>
+                          {!isPengurus && (
+                            <td className="px-3 py-4 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-800 z-10">
+                              <div className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-500 focus:ring-blue-500 dark:bg-gray-700 transition-colors"
+                                  checked={selectedSantriIds.has(santri.id)}
+                                  onChange={() => handleSelectSantri(santri.id)}
+                                />
+                              </div>
+                            </td>
+                          )}
                           <td
                             className={`${textClasses} bg-white dark:bg-gray-800 z-10`}
+                            style={{ left: isPengurus ? "0px" : "2.5rem" }}
                           >
                             {santri.nama}
                           </td>
                           <td className={textClasses}>{santri.kamar}</td>
-                          <td className={textClasses}>
-                            {santri.jenjangPendidikan || "-"}
-                          </td>
                           <td className={textClasses}>
                             {santri.semester || "-"}
                           </td>
                           <td className={textClasses}>
                             {santri.programStudi || "-"}
                           </td>
-                          <td className={textClasses}>{santri.tahunMasuk}</td>
-                          <td className={textClasses}>
-                            {santri.nomorWalisantri}
-                          </td>
-                          <td className={textClasses}>
-                            {santri.nomorTelpon || "-"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span
-                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full transition-colors 
-                        ${
-                          santri.statusTanggungan === "Lunas"
-                            ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400"
-                            : santri.statusTanggungan === "Belum Lunas"
-                            ? "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400"
-                            : santri.statusTanggungan === "Belum Ada Tagihan"
-                            ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400"
-                            : santri.statusTanggungan === "Menunggu Verifikasi"
-                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400"
-                            : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-                        }`}
-                            >
-                              {santri.statusTanggungan}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span
-                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full transition-colors 
-                        ${
-                          santri.statusAktif === "Aktif"
-                            ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400"
-                            : santri.statusAktif === "Boyong"
-                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400"
-                            : santri.statusAktif === "Lulus"
-                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400"
-                            : santri.statusAktif === "Dikeluarkan"
-                            ? "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400"
-                            : santri.statusAktif === "Pending"
-                            ? "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-400"
-                            : santri.statusAktif === "Ditolak"
-                            ? "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400"
-                            : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-                        }`}
-                            >
-                              {santri.statusAktif}
-                            </span>
-                          </td>
+                          {!isPengurus && (
+                            <>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                <span
+                                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full transition-colors
+                            ${
+                              santri.statusTanggungan === "Lunas"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400"
+                                : santri.statusTanggungan === "Belum Lunas"
+                                ? "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400"
+                                : santri.statusTanggungan === "Belum Ada Tagihan"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400"
+                                : santri.statusTanggungan === "Menunggu Verifikasi"
+                                ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400"
+                                : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                            }`}
+                                >
+                                  {santri.statusTanggungan}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                <span
+                                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full transition-colors
+                            ${
+                              santri.statusAktif === "Aktif"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400"
+                                : santri.statusAktif === "Boyong"
+                                ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400"
+                                : santri.statusAktif === "Lulus"
+                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400"
+                                : santri.statusAktif === "Dikeluarkan"
+                                ? "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400"
+                                : santri.statusAktif === "Pending"
+                                ? "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-400"
+                                : santri.statusAktif === "Ditolak"
+                                ? "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400"
+                                : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                            }`}
+                                >
+                                  {santri.statusAktif}
+                                </span>
+                              </td>
+                            </>
+                          )}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 transition-colors sticky right-0 bg-white dark:bg-gray-800 z-10">
                             {santri.statusAktif === "Pending" ? (
                               <button
@@ -1658,6 +1667,7 @@ export default function DataSantriPage() {
         onDelete={handleDeleteSantri}
         isSubmitting={isSubmitting}
         title={selectedSantri ? "Edit Data Santri" : "Tambah Santri Baru"}
+        hidePengurusFields={isPengurus && Boolean(selectedSantri)}
       />
 
       {/* Verification Modal */}

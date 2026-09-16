@@ -3,10 +3,15 @@ import PaymentModal from './PaymentModal';
 import PaymentStatusModal from './PaymentStatusModal';
 import { useState, useEffect, useRef } from 'react';
 import { db, functions } from '../firebase/config';
-import { collection, query, where, getDocs, getDoc, doc, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { useAuth } from '../firebase/auth';
 import { PaymentStatus } from '@/types/santri';
+import {
+    getAvailablePaymentAmount,
+    getPendingAmount,
+    normalizePaymentStatus,
+} from '@/firebase/paymentInstallments';
 
 export default function PaymentHistory() {
     const { user, santriName } = useAuth();
@@ -47,7 +52,7 @@ export default function PaymentHistory() {
                     const santriSnapshot = await getDoc(santriDoc);
                     
                     if (santriSnapshot.exists()) {
-                        santriDocData = santriSnapshot.data();
+                        santriDocData = { id: santriSnapshot.id, ...santriSnapshot.data() };
                         setSantriData(santriDocData);
                     } else {
                         setError("Data santri tidak ditemukan");
@@ -63,7 +68,7 @@ export default function PaymentHistory() {
                     if (!querySnapshot.empty) {
                         const docSnapshot = querySnapshot.docs[0];
                         santriId = docSnapshot.id;
-                        santriDocData = docSnapshot.data();
+                        santriDocData = { id: docSnapshot.id, ...docSnapshot.data() };
                         setSantriData(santriDocData);
                     } else {
                         setError("Data santri tidak ditemukan");
@@ -112,18 +117,26 @@ export default function PaymentHistory() {
                 const paymentRef = collection(db, "PaymentStatuses");
                 const q = query(
                     paymentRef,
-                    where("santriId", "==", santriId),
-                    orderBy("createdAt", "desc"),
-                    limit(50)
+                    where("santriId", "==", santriId)
                 );
                 
                 const querySnapshot = await getDocs(q);
                 
                 querySnapshot.forEach((doc) => {
-                    paymentList.push({
+                    paymentList.push(normalizePaymentStatus({
                         id: doc.id,
                         ...doc.data()
-                    } as PaymentStatus);
+                    } as PaymentStatus));
+                });
+                paymentList.sort((a, b) => {
+                    const newestHistoryDate = (payment: PaymentStatus) =>
+                        Math.max(
+                            0,
+                            ...Object.values(payment.history || {}).map((item) =>
+                                new Date(item.date).getTime()
+                            )
+                        );
+                    return newestHistoryDate(b) - newestHistoryDate(a);
                 });
                 
                 // If direct query succeeded and returned data, use it
@@ -137,12 +150,36 @@ export default function PaymentHistory() {
                 try {
                     const getSantriPaymentHistory = httpsCallable(functions, 'getSantriPaymentHistory');
                     const result = await getSantriPaymentHistory({ santriId });
-                    paymentList = (result.data as any)?.paymentHistory || result.data as PaymentStatus[];
+                    const fallbackPayments = (result.data as any)?.paymentHistory || result.data as PaymentStatus[];
+                    paymentList = (fallbackPayments || []).map((payment: PaymentStatus) =>
+                        normalizePaymentStatus(payment)
+                    );
                     console.log("Using cloud function fallback for payments");
                 } catch (cloudError) {
                     console.error("Cloud function also failed:", cloudError);
                     throw cloudError;
                 }
+            }
+
+            const missingInvoiceIds = Array.from(new Set(
+                paymentList
+                    .filter((payment) => !payment.paymentName && payment.invoiceId)
+                    .map((payment) => payment.invoiceId)
+                    .filter((invoiceId): invoiceId is string => Boolean(invoiceId))
+            ));
+            if (missingInvoiceIds.length > 0) {
+                const invoiceSnapshots = await Promise.all(
+                    missingInvoiceIds.map((invoiceId) => getDoc(doc(db, "Invoices", invoiceId)))
+                );
+                const invoiceNames = new Map(
+                    invoiceSnapshots
+                        .filter((snapshot) => snapshot.exists())
+                        .map((snapshot) => [snapshot.id, snapshot.data().paymentName || snapshot.data().name])
+                );
+                paymentList = paymentList.map((payment) => ({
+                    ...payment,
+                    paymentName: payment.paymentName || invoiceNames.get(payment.invoiceId) || "Tagihan",
+                }));
             }
             
             // Update cache
@@ -231,6 +268,12 @@ export default function PaymentHistory() {
         }).format(amount);
     };
 
+    const canSubmitPayment = (payment: PaymentStatus) =>
+        !payment.requiresAmountConfirmation && getAvailablePaymentAmount(payment) > 0;
+
+    const getPaymentButtonLabel = (payment: PaymentStatus) =>
+        payment.paid > 0 || getPendingAmount(payment) > 0 ? 'Bayar Lagi' : 'Bayar';
+
     return (
         <div className="container mx-auto py-6 px-4">
             <h1 className="text-2xl font-bold mb-6 dark:text-white">
@@ -299,8 +342,16 @@ export default function PaymentHistory() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                                     <div className="col-span-1 md:col-span-1 w-[75%]">
                                         <div className="text-base font-medium truncate mb-2 dark:text-white">{payment.paymentName}</div>
-                                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                                            {formatCurrency(payment.paid)} / {formatCurrency(payment.total)}
+                                        <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                                            <div>Terverifikasi: {formatCurrency(payment.paid)}</div>
+                                            <div>Menunggu: {formatCurrency(getPendingAmount(payment))}</div>
+                                            <div>Belum dibayar: {formatCurrency(Math.max(0, payment.total - payment.paid))}</div>
+                                            <div>Dapat diajukan: {formatCurrency(getAvailablePaymentAmount(payment))}</div>
+                                            {payment.requiresAmountConfirmation && (
+                                                <div className="text-amber-700 dark:text-amber-300">
+                                                    Nominal lama menunggu konfirmasi Super Admin.
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -309,13 +360,13 @@ export default function PaymentHistory() {
                                         {payment.status}
                                     </span>
 
-                                        {payment.status === 'Belum Lunas' ? (
+                                        {canSubmitPayment(payment) ? (
                                             <div className="flex flex-col space-y-2">
                                                 <button
                                                     className="border border-blue-600 dark:border-amber-500 bg-white dark:bg-gray-800 text-blue-600 dark:text-amber-500 font-bold px-4 py-2 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-all duration-300"
                                                     onClick={() => handleOpenPaymentModal(payment.id)}
                                                 >
-                                                    Bayar
+                                                    {getPaymentButtonLabel(payment)}
                                                 </button>
                                                 <button
                                                     className="text-blue-600 dark:text-amber-500 text-sm hover:underline"
@@ -343,18 +394,26 @@ export default function PaymentHistory() {
                                         {payment.status}
                                     </span>
                                         <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                            {formatCurrency(payment.paid)} / {formatCurrency(payment.total)}
+                                            Terverifikasi {formatCurrency(payment.paid)} / {formatCurrency(payment.total)}
+                                        </div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
+                                            Menunggu {formatCurrency(getPendingAmount(payment))} • Belum dibayar {formatCurrency(Math.max(0, payment.total - payment.paid))} • Dapat diajukan {formatCurrency(getAvailablePaymentAmount(payment))}
+                                            {payment.requiresAmountConfirmation && (
+                                                <span className="block text-amber-700 dark:text-amber-300">
+                                                    Menunggu konfirmasi nominal oleh Super Admin
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 
                                     <div className="button-container flex justify-end">
-                                        {payment.status === 'Belum Lunas' ? (
+                                        {canSubmitPayment(payment) ? (
                                             <div className="flex flex-col space-y-2">
                                                 <button
                                                     className="border border-blue-600 dark:border-amber-500 bg-white dark:bg-gray-800 text-blue-600 dark:text-amber-500 font-bold px-4 py-2 rounded hover:bg-blue-50 dark:hover:bg-gray-700 transition-all duration-300"
                                                     onClick={() => handleOpenPaymentModal(payment.id)}
                                                 >
-                                                    Bayar
+                                                    {getPaymentButtonLabel(payment)}
                                                 </button>
                                                 <button
                                                     className="text-blue-600 dark:text-amber-500 text-sm hover:underline"

@@ -22,6 +22,11 @@ export interface Santri {
   sekolahAsal?: string;
   paymentOption?: string;
   paymentProofUrl?: string;
+  registrationFeeTotal?: number;
+  registrationSubmittedAmount?: number;
+  registrationPaymentStatusId?: string;
+  registrationInitialPaymentId?: string;
+  registrationActivationCounterHandled?: string;
   rejectReason?: string;
   catatan?: string;
   mergedPaymentProofs?: MergedPaymentProof[];
@@ -56,7 +61,7 @@ export interface PaymentHistoryItem {
   date: string;
   type: 'Bayar Lunas' | 'Bayar Sebagian' | 'Verifikasi Pembayaran' | 'Penolakan Pembayaran' | 'Pembatalan Status Lunas';
   amount?: number;
-  status: 'Terverifikasi' | 'Menunggu Verifikasi' | 'Ditolak';
+  status: 'Terverifikasi' | 'Menunggu Verifikasi' | 'Ditolak' | 'Dibatalkan';
   imageUrl?: string;
   note?: string;
   reason?: string;
@@ -65,6 +70,11 @@ export interface PaymentHistoryItem {
   inputtedBy?: string;
   by?: string;
   action?: string;
+  relatedPaymentId?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  reviewReason?: string;
+  legacyAmountConfirmationRequired?: boolean;
 }
 
 export interface PaymentStatus {
@@ -72,16 +82,22 @@ export interface PaymentStatus {
   invoiceId: string;
   paymentName: string;
   santriId: string;
-  nama: string;
+  nama?: string;
+  santriName?: string;
   status: 'Belum Lunas' | 'Menunggu Verifikasi' | 'Lunas';
   paid: number;
   total: number;
+  pendingAmount?: number;
+  schemaVersion?: number;
+  systemType?: 'registration_fee';
+  requiresAmountConfirmation?: boolean;
   educationLevel: string;
   educationGrade: string;
   semester?: string;
   programStudi?: string;
   kamar: string;
   nomorWaliSantri: string;
+  nomorTelpon?: string;
   history: Record<string, PaymentHistoryItem>;
   timestamp: number;
 }

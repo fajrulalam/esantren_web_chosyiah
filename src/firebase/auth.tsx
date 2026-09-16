@@ -51,6 +51,11 @@ interface AuthContextProps {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInAsSantri: (namaSantri: string, nomorTelpon: string) => Promise<boolean>;
+  establishSantriSession: (santri: {
+    id: string;
+    name: string;
+    email?: string | null;
+  }) => void;
   checkSantriName: (namaSantri: string) => Promise<boolean>;
   checkSantriPhone: (namaSantri: string, nomorTelpon: string) => Promise<boolean>;
   createNewUser: (userData: {
@@ -459,6 +464,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Registration already has the authoritative document ID, so it should not
+  // re-query by a potentially duplicated name/phone pair merely to start the
+  // same local wali-santri session used by the login page.
+  const establishSantriSession = (santri: {
+    id: string;
+    name: string;
+    email?: string | null;
+  }) => {
+    const userData: UserData = {
+      uid: `wali_${santri.id}`,
+      email: santri.email ?? null,
+      role: "waliSantri",
+      name: santri.name,
+      santriId: santri.id,
+    };
+
+    setUser(userData);
+    setSantriName(santri.name);
+    localStorage.setItem("waliSantriUser", JSON.stringify(userData));
+    localStorage.setItem("santriName", santri.name);
+  };
+
   // Create a new user (for superAdmin only)
   const createNewUser = async (userData: {
     email: string;
@@ -667,6 +694,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithEmail,
     signInWithGoogle,
     signInAsSantri,
+    establishSantriSession,
     checkSantriName,
     checkSantriPhone,
     createNewUser,

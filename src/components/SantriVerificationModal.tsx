@@ -5,15 +5,19 @@ import {
   doc,
   getDoc,
   updateDoc,
-  increment,
-  deleteDoc,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import {
   getCurrentAcademicSemesterKey,
   isHigherEducationSantri,
 } from "@/firebase/santriSemester";
-import { Santri } from "@/types/santri";
+import { PaymentStatus, Santri } from "@/types/santri";
+import { useAuth } from "@/firebase/auth";
+import {
+  getPendingPaymentAttempts,
+  normalizePaymentStatus,
+  reviewPaymentAttempt,
+} from "@/firebase/paymentInstallments";
 
 interface SantriVerificationModalProps {
   closeModal: () => void;
@@ -28,10 +32,14 @@ export default function SantriVerificationModal({
   isMobile,
   onVerificationComplete,
 }: SantriVerificationModalProps) {
+  const { user } = useAuth();
   const [modalClass, setModalClass] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [santriData, setSantriData] = useState<Santri | null>(null);
+  const [registrationPayment, setRegistrationPayment] =
+    useState<PaymentStatus | null>(null);
+  const [confirmedLegacyAmount, setConfirmedLegacyAmount] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -65,6 +73,19 @@ export default function SantriVerificationModal({
         if (santriSnapshot.exists()) {
           const data = santriSnapshot.data() as Santri;
           setSantriData({ ...data, id: santriSnapshot.id });
+          if (data.registrationPaymentStatusId) {
+            const paymentSnapshot = await getDoc(
+              doc(db, "PaymentStatuses", data.registrationPaymentStatusId)
+            );
+            if (paymentSnapshot.exists()) {
+              setRegistrationPayment(
+                normalizePaymentStatus({
+                  id: paymentSnapshot.id,
+                  ...paymentSnapshot.data(),
+                } as PaymentStatus)
+              );
+            }
+          }
         } else {
           setError("Data santri tidak ditemukan");
         }
@@ -108,38 +129,51 @@ export default function SantriVerificationModal({
 
     try {
       setVerifying(true);
-
-      // Get kodeAsrama from santri data
-      const kodeAsrama = santriData.kodeAsrama;
-
-      // Update santri status to 'Aktif'
-      const santriRef = doc(db, "SantriCollection", santriId);
-      const verificationUpdate: Record<string, unknown> = {
-        statusAktif: "Aktif",
-        updatedAt: new Date(),
-      };
-
-      if (isHigherEducationSantri(santriData)) {
-        verificationUpdate.semesterAutoUpdatedPeriod =
-          getCurrentAcademicSemesterKey();
+      if (!registrationPayment) {
+        throw new Error(
+          "Tagihan pendaftaran belum terhubung. Jalankan migrasi pendaftaran terlebih dahulu."
+        );
+      }
+      const attempt = getPendingPaymentAttempts(registrationPayment)[0];
+      if (!attempt) {
+        throw new Error("Tidak ada bukti pendaftaran yang menunggu verifikasi.");
+      }
+      const needsAmount =
+        registrationPayment.requiresAmountConfirmation ||
+        attempt.legacyAmountConfirmationRequired ||
+        !Number.isFinite(attempt.amount);
+      if (needsAmount && user?.role !== "superAdmin") {
+        throw new Error(
+          "Hanya Super Admin yang dapat mengonfirmasi nominal pembayaran lama."
+        );
       }
 
-      await updateDoc(santriRef, {
-        ...verificationUpdate,
+      await reviewPaymentAttempt({
+        paymentStatusId: registrationPayment.id,
+        attemptId: attempt.id,
+        action: "approve",
+        reviewedBy: user?.name || "Admin",
+        confirmedAmount: needsAmount
+          ? Number(confirmedLegacyAmount.replace(/[^\d]/g, ""))
+          : undefined,
+        canConfirmLegacyAmount: user?.role === "superAdmin",
       });
 
-      // Increment the counter in Counters/activeSantri
-      const counterRef = doc(db, "Counters", "activeSantri");
-      await updateDoc(counterRef, {
-        [kodeAsrama]: increment(1),
-        lastUpdated: new Date(),
-      });
+      if (isHigherEducationSantri(santriData)) {
+        await updateDoc(doc(db, "SantriCollection", santriId), {
+          semesterAutoUpdatedPeriod: getCurrentAcademicSemesterKey(),
+        });
+      }
 
       onVerificationComplete();
       resetAndClose();
     } catch (err) {
       console.error("Error verifying santri:", err);
-      setError("Terjadi kesalahan saat memverifikasi santri");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan saat memverifikasi santri"
+      );
     } finally {
       setVerifying(false);
     }
@@ -184,6 +218,19 @@ export default function SantriVerificationModal({
 
       // Get santri phone number for WhatsApp
       const phoneNumber = santriData.nomorTelpon || "";
+
+      if (registrationPayment) {
+        const attempt = getPendingPaymentAttempts(registrationPayment)[0];
+        if (attempt) {
+          await reviewPaymentAttempt({
+            paymentStatusId: registrationPayment.id,
+            attemptId: attempt.id,
+            action: "reject",
+            reviewedBy: user?.name || "Admin",
+            reason: fullReason,
+          });
+        }
+      }
 
       // Update santri status to 'Ditolak' instead of deleting
       const santriRef = doc(db, "SantriCollection", santriId);
@@ -379,6 +426,67 @@ export default function SantriVerificationModal({
               </div>
             )}
 
+            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 mb-6 border border-amber-200 dark:border-amber-800">
+              <h4 className="font-semibold mb-2">Pembayaran Pendaftaran</h4>
+              {registrationPayment ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-gray-500">Total kewajiban</p>
+                      <p className="font-medium">
+                        Rp{registrationPayment.total.toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Nominal bukti</p>
+                      <p className="font-medium">
+                        {Number.isFinite(
+                          getPendingPaymentAttempts(registrationPayment)[0]?.amount
+                        )
+                          ? `Rp${Number(
+                              getPendingPaymentAttempts(registrationPayment)[0]?.amount
+                            ).toLocaleString("id-ID")}`
+                          : "Belum dikonfirmasi"}
+                      </p>
+                    </div>
+                  </div>
+                  {(registrationPayment.requiresAmountConfirmation ||
+                    getPendingPaymentAttempts(registrationPayment)[0]
+                      ?.legacyAmountConfirmationRequired) && (
+                    <div className="mt-4">
+                      {user?.role === "superAdmin" ? (
+                        <>
+                          <label className="block text-sm font-medium mb-1">
+                            Nominal aktual pada bukti
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={confirmedLegacyAmount}
+                            onChange={(event) =>
+                              setConfirmedLegacyAmount(
+                                event.target.value.replace(/[^\d]/g, "")
+                              )
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            placeholder="Masukkan nominal rupiah"
+                          />
+                        </>
+                      ) : (
+                        <p className="text-sm text-amber-700 dark:text-amber-300">
+                          Hanya Super Admin yang dapat memasukkan nominal dan menerima pendaftaran lama ini.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-red-700 dark:text-red-300">
+                  Tagihan pendaftaran belum terhubung. Jalankan migrasi pendaftaran sebelum melakukan verifikasi.
+                </p>
+              )}
+            </div>
+
             {showRejectForm ? (
               <div className="mb-6">
                 <div className="mb-4">
@@ -477,7 +585,14 @@ export default function SantriVerificationModal({
                     e.stopPropagation();
                     handleVerify();
                   }}
-                  disabled={verifying}
+                  disabled={
+                    verifying ||
+                    !registrationPayment ||
+                    ((registrationPayment.requiresAmountConfirmation ||
+                      getPendingPaymentAttempts(registrationPayment)[0]
+                        ?.legacyAmountConfirmationRequired) &&
+                      (user?.role !== "superAdmin" || !confirmedLegacyAmount))
+                  }
                   className="flex-1 px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-300 disabled:cursor-not-allowed"
                 >
                   {verifying ? "Memproses..." : "Terima Pendaftaran"}

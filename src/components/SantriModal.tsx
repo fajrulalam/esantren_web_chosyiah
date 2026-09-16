@@ -13,6 +13,7 @@ interface SantriModalProps {
   onDelete?: (santri: Santri) => Promise<void>;
   isSubmitting: boolean;
   title: string;
+  hidePengurusFields?: boolean;
 }
 
 export default function SantriModal({
@@ -23,6 +24,7 @@ export default function SantriModal({
   onDelete,
   isSubmitting,
   title,
+  hidePengurusFields = false,
 }: SantriModalProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -62,6 +64,7 @@ export default function SantriModal({
           onCancel={onClose}
           isSubmitting={isSubmitting}
           onDelete={onDelete}
+          hidePengurusFields={hidePengurusFields}
         />
       </div>
     </div>,

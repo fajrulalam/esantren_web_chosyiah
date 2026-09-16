@@ -23,31 +23,17 @@ import { ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/20/solid";
 import TagihanModal from "@/components/TagihanModal";
 import StickyHorizontalScroll from "@/components/StickyHorizontalScroll";
 import PaymentModal from "@/components/PaymentModal";
+import type { PaymentHistoryItem, PaymentStatus } from "@/types/santri";
+import {
+  getPendingPaymentAttempts,
+  getPaymentAttempts,
+  normalizePaymentStatus,
+  reviewPaymentAttempt,
+} from "@/firebase/paymentInstallments";
 
-interface SantriPaymentStatus {
-  id: string;
+interface SantriPaymentStatus extends PaymentStatus {
   nama: string;
-  status: string;
-  paid: number;
-  educationLevel: string;
-  educationGrade: string;
-  kamar: string;
-  santriId: string;
-  nomorWaliSantri?: string;
-  nomorTelpon?: string;
-  total: number;
-  history?: any;
   notes?: string;
-}
-
-interface PaymentProof {
-  amount: number;
-  timestamp: any;
-  imageUrl: string;
-  paymentMethod: string;
-  status: string;
-  type: string;
-  inputtedBy: string;
 }
 
 interface RekapDetailViewProps {
@@ -705,6 +691,7 @@ export default function RekapDetailView({
   const [filters, setFilters] = useState({
     kamar: "",
     educationGrade: "",
+    educationLevel: "",
     status: "",
     nama: "",
   });
@@ -729,6 +716,8 @@ export default function RekapDetailView({
   const [showTagihanModal, setShowTagihanModal] = useState(false);
   const [selectedPayment, setSelectedPayment] =
     useState<SantriPaymentStatus | null>(null);
+  const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
+  const [confirmedLegacyAmount, setConfirmedLegacyAmount] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [rejectReasonType, setRejectReasonType] = useState("");
   const [customRejectReason, setCustomRejectReason] = useState("");
@@ -736,6 +725,7 @@ export default function RekapDetailView({
   const [revokeReasonType, setRevokeReasonType] = useState("");
   const [customRevokeReason, setCustomRevokeReason] = useState("");
   const [invoiceTotalAmount, setInvoiceTotalAmount] = useState(0);
+  const [isSystemManagedInvoice, setIsSystemManagedInvoice] = useState(false);
 
   // State for invoice details
   const [invoiceDetails, setInvoiceDetails] = useState({
@@ -789,62 +779,13 @@ export default function RekapDetailView({
     "Lainnya",
   ];
 
-  // Function to fetch actual payment proof from the payment history
-  const getPaymentProofFromHistory = (
-    payment: SantriPaymentStatus | null
-  ): PaymentProof => {
-    if (!payment || !payment.history) {
-      // Return dummy proof if no payment data is available
-      return {
-        amount: 500000,
-        timestamp: { seconds: Date.now() / 1000 },
-        imageUrl: "https://via.placeholder.com/800x600",
-        paymentMethod: "Transfer Bank",
-        status: "Menunggu Verifikasi",
-        type: "Pembayaran Penuh",
-        inputtedBy: "Wali Santri",
-      };
-    }
-
-    // Try to find the latest payment submission in history
-    const historyEntries = Object.values(payment.history);
-    const latestPayment = historyEntries
-      .filter(
-        (entry) =>
-          entry.type === "Bayar Lunas" || entry.type === "Bayar Sebagian"
-      )
-      .sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-      )[0];
-
-    if (latestPayment) {
-      return {
-        amount: latestPayment.amount || payment.total,
-        timestamp: { seconds: new Date(latestPayment.date).getTime() / 1000 },
-        imageUrl:
-          latestPayment.imageUrl || "https://via.placeholder.com/800x600",
-        paymentMethod: latestPayment.paymentMethod || "Transfer Bank",
-        status: "Menunggu Verifikasi",
-        type: latestPayment.type || "Pembayaran Penuh",
-        inputtedBy: latestPayment.inputtedBy || "Wali Santri",
-      };
-    }
-
-    // Return dummy proof if no history entries found
-    return {
-      amount: payment.total,
-      timestamp: { seconds: Date.now() / 1000 },
-      imageUrl: "https://via.placeholder.com/800x600",
-      paymentMethod: "Transfer Bank",
-      status: "Menunggu Verifikasi",
-      type: "Pembayaran Penuh",
-      inputtedBy: "Wali Santri",
-    };
-  };
-
   // Delete invoice function
   const deleteInvoice = async () => {
     if (!paymentId) return;
+    if (isSystemManagedInvoice) {
+      alert("Tagihan Biaya Pendaftaran dikelola sistem dan tidak dapat dihapus.");
+      return;
+    }
 
     if (
       !confirm(
@@ -902,6 +843,10 @@ export default function RekapDetailView({
 
       if (invoiceDoc.exists()) {
         const invoiceData = invoiceDoc.data();
+        setIsSystemManagedInvoice(
+          Boolean(invoiceData.systemManaged) ||
+            invoiceData.systemType === "registration_fee"
+        );
 
         // Default message templates
         const defaultTemplates = {
@@ -997,6 +942,7 @@ export default function RekapDetailView({
         invoiceId = paymentId;
         console.log("Using paymentId as invoiceId:", invoiceId);
       }
+      if (!invoiceId) return;
 
       // Fetch invoice details
       const invoiceDocRef = doc(db, "Invoices", invoiceId);
@@ -1046,9 +992,11 @@ export default function RekapDetailView({
         const payments: SantriPaymentStatus[] = [];
         oldQuerySnapshot.forEach((doc) => {
           const data = doc.data();
-          payments.push({
+          const normalized = normalizePaymentStatus({
             id: doc.id,
-            nama: data.santriName || "Tidak ada nama",
+            invoiceId,
+            paymentName,
+            santriName: data.santriName || "Tidak ada nama",
             status: data.status || "Belum Bayar",
             paid: data.paid || 0,
             educationLevel: data.educationLevel || "Tidak ada data",
@@ -1059,6 +1007,11 @@ export default function RekapDetailView({
             nomorTelpon: data.nomorTelpon || "",
             total: data.total || 0,
             history: data.history || {},
+            timestamp: data.timestamp || Date.now(),
+          } as PaymentStatus);
+          payments.push({
+            ...normalized,
+            nama: normalized.nama || normalized.santriName || "Tidak ada nama",
             notes: data.notes || "",
           });
         });
@@ -1074,11 +1027,18 @@ export default function RekapDetailView({
         const payments: SantriPaymentStatus[] = [];
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          payments.push({
+          const normalized = normalizePaymentStatus({
             id: doc.id,
+            invoiceId: data.invoiceId || invoiceId,
+            paymentName: data.paymentName || paymentName,
             nama: data.nama || data.santriName || "Tidak ada nama",
+            santriName: data.santriName || data.nama || "Tidak ada nama",
             status: data.status || "Belum Lunas",
             paid: data.paid || 0,
+            pendingAmount: data.pendingAmount,
+            schemaVersion: data.schemaVersion,
+            systemType: data.systemType,
+            requiresAmountConfirmation: data.requiresAmountConfirmation,
             educationLevel: data.educationLevel || "Tidak ada data",
             educationGrade: data.educationGrade || "Tidak ada data",
             kamar: data.kamar || "Tidak ada data",
@@ -1087,6 +1047,11 @@ export default function RekapDetailView({
             nomorTelpon: data.nomorTelpon || "",
             total: data.total || 0,
             history: data.history || {},
+            timestamp: data.timestamp || Date.now(),
+          } as PaymentStatus);
+          payments.push({
+            ...normalized,
+            nama: normalized.nama || normalized.santriName || "Tidak ada nama",
             notes: data.notes || "",
           });
         });
@@ -1485,6 +1450,8 @@ export default function RekapDetailView({
       }
     } else if (payment.status === "Menunggu Verifikasi") {
       // Show the payment proof verification modal
+      setSelectedAttemptId(getPendingPaymentAttempts(payment)[0]?.id || null);
+      setConfirmedLegacyAmount("");
       setShowPaymentProofModal(true);
     } else if (payment.status === "Lunas") {
       // Show the payment history modal
@@ -1539,162 +1506,66 @@ export default function RekapDetailView({
   };
 
   // Handle verifying payment proof
-  const handleVerifyPayment = async (approve: boolean) => {
-    if (!selectedPayment) return;
+  const handleVerifyPayment = async (approve: boolean, attemptIdOverride?: string) => {
+    const targetAttemptId = attemptIdOverride || selectedAttemptId;
+    if (!selectedPayment || !targetAttemptId) return;
 
     try {
       setPageLoading(true);
 
-      if (!approve && !rejectReason) {
+      if (!approve && !rejectReasonType) {
         setShowRejectReasonModal(true);
         return;
       }
+      const attempt = selectedPayment.history[targetAttemptId];
+      const finalRejectReason =
+        rejectReasonType === "Lainnya" ? customRejectReason.trim() : rejectReasonType;
+      if (!approve && !finalRejectReason) {
+        alert("Alasan penolakan harus diisi");
+        return;
+      }
 
-      const paymentStatusRef = doc(db, "PaymentStatuses", selectedPayment.id);
+      const needsAmount =
+        selectedPayment.requiresAmountConfirmation ||
+        attempt?.legacyAmountConfirmationRequired ||
+        !Number.isFinite(attempt?.amount);
+      const confirmedAmount = Number(confirmedLegacyAmount.replace(/[^\d]/g, ""));
+      if (approve && needsAmount && user?.role !== "superAdmin") {
+        alert("Hanya Super Admin yang dapat mengonfirmasi nominal pembayaran lama.");
+        return;
+      }
 
-      if (approve) {
-        // Get current payment details
-        const paymentProof = getPaymentProofFromHistory(selectedPayment);
-        const paymentAmount = paymentProof.amount;
-        const isPartialPaymentType = paymentProof.type.includes("Sebagian");
+      await reviewPaymentAttempt({
+        paymentStatusId: selectedPayment.id,
+        attemptId: targetAttemptId,
+        action: approve ? "approve" : "reject",
+        reviewedBy: user?.name || "Admin",
+        reason: approve ? undefined : finalRejectReason,
+        confirmedAmount: needsAmount ? confirmedAmount : undefined,
+        canConfirmLegacyAmount: user?.role === "superAdmin",
+      });
 
-        // Calculate new paid amount (add the payment amount to current paid amount)
-        const newPaidAmount = selectedPayment.paid + paymentAmount;
-
-        // Approve payment and update the paid amount
-        await updateDoc(paymentStatusRef, {
-          status: "Lunas",
-          paid: newPaidAmount, // Update the paid amount when approving
-          history: {
-            ...selectedPayment.history,
-            verification: {
-              timestamp: serverTimestamp(),
-              action: "Verified",
-              by: user?.name || "Admin",
-              date: new Date().toISOString(),
-              id: `verification-${Date.now()}`,
-              status: "Terverifikasi",
-              type: "Verifikasi Pembayaran",
-              amount: paymentAmount,
-            },
-          },
-        });
-
-        // Update the santri status
-        const santriRef = doc(db, "SantriCollection", selectedPayment.santriId);
-        await updateDoc(santriRef, {
-          statusTanggungan: "Lunas",
-        });
-
-        // Instead of using increment, we'll count directly from the updated payments array
-        const approvedPayments = [...santriPayments];
-        const statusIndex = approvedPayments.findIndex(
-          (p) => p.id === selectedPayment.id
-        );
-        if (statusIndex !== -1) {
-          approvedPayments[statusIndex] = {
-            ...approvedPayments[statusIndex],
-            status: "Lunas",
-          };
-        }
-        // Call our counting and sync function to update Firebase
-        await countAndSyncStatusNumbers(approvedPayments);
-
-        // Send WhatsApp confirmation message
-        if (selectedPayment.nomorTelpon) {
-          // Determine if it's a partial payment (paid amount is less than total)
-          const isPartialPayment =
-            selectedPayment.paid + paymentAmount < selectedPayment.total;
-
+      const paymentAmount = needsAmount ? confirmedAmount : Number(attempt?.amount || 0);
+      if (selectedPayment.nomorTelpon) {
+        if (approve) {
+          const isPartialPayment = selectedPayment.paid + paymentAmount < selectedPayment.total;
           openWhatsAppWithApprovalMessage(
             selectedPayment,
             isPartialPayment,
-            isPartialPaymentType,
+            attempt?.type === "Bayar Sebagian",
             paymentAmount
           );
-        }
-      } else {
-        // Prepare the reason text
-        const finalRejectReason =
-          rejectReasonType === "Lainnya"
-            ? customRejectReason
-            : rejectReasonType;
-
-        // Get the latest payment proof to identify the rejected amount
-        const paymentProof = getPaymentProofFromHistory(selectedPayment);
-        const rejectedAmount = paymentProof.amount;
-
-        // Reject payment (don't change the paid amount since it was never updated)
-        await updateDoc(paymentStatusRef, {
-          status: "Belum Lunas",
-          history: {
-            ...selectedPayment.history,
-            rejection: {
-              timestamp: serverTimestamp(),
-              action: "Rejected",
-              reason: finalRejectReason,
-              reasonType: rejectReasonType,
-              by: user?.name || "Admin",
-              date: new Date().toISOString(),
-              id: `rejection-${Date.now()}`,
-              status: "Ditolak",
-              type: "Penolakan Pembayaran",
-              note: finalRejectReason,
-              amount: rejectedAmount, // Store the rejected amount for reference
-            },
-          },
-        });
-
-        // Instead of using increment, we'll count directly from the updated payments array
-        const rejectedPayments = [...santriPayments];
-        const rejectIndex = rejectedPayments.findIndex(
-          (p) => p.id === selectedPayment.id
-        );
-        if (rejectIndex !== -1) {
-          rejectedPayments[rejectIndex] = {
-            ...rejectedPayments[rejectIndex],
-            status: "Belum Lunas",
-          };
-        }
-        // Call our counting and sync function to update Firebase
-        await countAndSyncStatusNumbers(rejectedPayments);
-
-        // Open WhatsApp with the rejection message
-        if (selectedPayment.nomorTelpon) {
+        } else {
           openWhatsAppWithRejectionMessage(selectedPayment, finalRejectReason);
         }
       }
 
-      // Refresh the data
-      const finalUpdatedPayments = [...santriPayments];
-      const paymentIndex = finalUpdatedPayments.findIndex(
-        (p) => p.id === selectedPayment.id
-      );
-
-      if (paymentIndex !== -1) {
-        finalUpdatedPayments[paymentIndex] = {
-          ...finalUpdatedPayments[paymentIndex],
-          status: approve ? "Lunas" : "Belum Lunas",
-        };
-
-        setSantriPayments(finalUpdatedPayments);
-        setFilteredPayments(
-          finalUpdatedPayments.filter((payment) => {
-            if (filters.kamar && payment.kamar !== filters.kamar) return false;
-            if (
-              filters.educationLevel &&
-              payment.educationLevel !== filters.educationLevel
-            )
-              return false;
-            if (filters.status && payment.status !== filters.status)
-              return false;
-            return true;
-          })
-        );
-      }
+      await fetchSantriPaymentStatus();
 
       setShowPaymentProofModal(false);
       setShowRejectReasonModal(false);
+      setSelectedAttemptId(null);
+      setConfirmedLegacyAmount("");
       setRejectReason("");
       setRejectReasonType("");
       setCustomRejectReason("");
@@ -1711,9 +1582,8 @@ export default function RekapDetailView({
     payment: SantriPaymentStatus,
     reason: string
   ) => {
-    const phoneNumber = payment.nomorTelpon.startsWith("+62")
-      ? payment.nomorTelpon.substring(1)
-      : payment.nomorTelpon;
+    const phone = payment.nomorTelpon || "";
+    const phoneNumber = phone.startsWith("+62") ? phone.substring(1) : phone;
 
     // Process the rejection message template with variables
     const message = processTemplate(messageTemplates.rejectMessage, {
@@ -1730,7 +1600,7 @@ export default function RekapDetailView({
 
   // Handle revoking payment status
   const handleRevokeStatus = async () => {
-    if (!selectedPayment) return;
+    if (!selectedPayment || !selectedAttemptId) return;
 
     try {
       setPageLoading(true);
@@ -1749,119 +1619,24 @@ export default function RekapDetailView({
         return;
       }
 
-      // Find the verification or payment entry to determine the amount to revert
-      let amountToRevert = 0;
-
-      if (selectedPayment.history) {
-        // Look for the latest verification entry
-        const historyEntries = Object.values(selectedPayment.history);
-        const verificationEntry = historyEntries.find(
-          (entry) =>
-            entry.type === "Verifikasi Pembayaran" ||
-            entry.action === "Verified"
-        );
-
-        if (verificationEntry && verificationEntry.amount) {
-          amountToRevert = verificationEntry.amount;
-        } else {
-          // If no verification entry with amount, look for the latest payment entry
-          const paymentEntry = historyEntries
-            .filter(
-              (entry) =>
-                entry.type === "Bayar Lunas" || entry.type === "Bayar Sebagian"
-            )
-            .sort(
-              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-            )[0];
-
-          if (paymentEntry && paymentEntry.amount) {
-            amountToRevert = paymentEntry.amount;
-          }
-        }
-      }
-
-      const paymentStatusRef = doc(db, "PaymentStatuses", selectedPayment.id);
-
-      // Calculate the new paid amount after reverting
-      const newPaidAmount = Math.max(0, selectedPayment.paid - amountToRevert);
-
-      // Revert status to Belum Lunas and update paid amount
-      await updateDoc(paymentStatusRef, {
-        status: "Belum Lunas",
-        paid: newPaidAmount, // Update the paid amount by subtracting the reverted amount
-        history: {
-          ...selectedPayment.history,
-          revocation: {
-            timestamp: serverTimestamp(),
-            action: "Revoked",
-            reason: finalRevokeReason,
-            reasonType: revokeReasonType,
-            by: user?.name || "Admin",
-            date: new Date().toISOString(),
-            id: `revocation-${Date.now()}`,
-            status: "Ditolak",
-            type: "Pembatalan Status Lunas",
-            note: finalRevokeReason,
-            amount: amountToRevert, // Store the reverted amount for reference
-          },
-        },
+      await reviewPaymentAttempt({
+        paymentStatusId: selectedPayment.id,
+        attemptId: selectedAttemptId,
+        action: "revoke",
+        reviewedBy: user?.name || "Admin",
+        reason: finalRevokeReason,
       });
-
-      // Update the santri status
-      const santriRef = doc(db, "SantriCollection", selectedPayment.santriId);
-      await updateDoc(santriRef, {
-        statusTanggungan: "Belum Lunas",
-      });
-
-      // Instead of using increment, we'll count directly from the updated payments array
-      const revokedPayments = [...santriPayments];
-      const revokeIndex = revokedPayments.findIndex(
-        (p) => p.id === selectedPayment.id
-      );
-      if (revokeIndex !== -1) {
-        revokedPayments[revokeIndex] = {
-          ...revokedPayments[revokeIndex],
-          status: "Belum Lunas",
-        };
-      }
-      // Call our counting and sync function to update Firebase
-      await countAndSyncStatusNumbers(revokedPayments);
 
       // Open WhatsApp with the revocation message
       if (selectedPayment.nomorTelpon) {
         openWhatsAppWithRevocationMessage(selectedPayment, finalRevokeReason);
       }
 
-      // Refresh the data
-      const statusUpdatedPayments = [...santriPayments];
-      const paymentIndex = statusUpdatedPayments.findIndex(
-        (p) => p.id === selectedPayment.id
-      );
-
-      if (paymentIndex !== -1) {
-        statusUpdatedPayments[paymentIndex] = {
-          ...statusUpdatedPayments[paymentIndex],
-          status: "Belum Lunas",
-        };
-
-        setSantriPayments(statusUpdatedPayments);
-        setFilteredPayments(
-          statusUpdatedPayments.filter((payment) => {
-            if (filters.kamar && payment.kamar !== filters.kamar) return false;
-            if (
-              filters.educationLevel &&
-              payment.educationLevel !== filters.educationLevel
-            )
-              return false;
-            if (filters.status && payment.status !== filters.status)
-              return false;
-            return true;
-          })
-        );
-      }
+      await fetchSantriPaymentStatus();
 
       setShowRevokeStatusModal(false);
       setShowPaymentHistoryModal(false);
+      setSelectedAttemptId(null);
       setRevokeReason("");
       setRevokeReasonType("");
       setCustomRevokeReason("");
@@ -1878,9 +1653,8 @@ export default function RekapDetailView({
     payment: SantriPaymentStatus,
     reason: string
   ) => {
-    const phoneNumber = payment.nomorTelpon.startsWith("+62")
-      ? payment.nomorTelpon.substring(1)
-      : payment.nomorTelpon;
+    const phone = payment.nomorTelpon || "";
+    const phoneNumber = phone.startsWith("+62") ? phone.substring(1) : phone;
 
     // Process the revocation message template with variables
     const message = processTemplate(messageTemplates.revocationMessage, {
@@ -1902,9 +1676,8 @@ export default function RekapDetailView({
     isPartialPaymentType: boolean,
     amount: number
   ) => {
-    const phoneNumber = payment.nomorTelpon.startsWith("+62")
-      ? payment.nomorTelpon.substring(1)
-      : payment.nomorTelpon;
+    const phone = payment.nomorTelpon || "";
+    const phoneNumber = phone.startsWith("+62") ? phone.substring(1) : phone;
 
     let message = "";
 
@@ -2129,9 +1902,10 @@ export default function RekapDetailView({
               >
                 Resync Data
               </button>
-              <button
-                onClick={deleteInvoice}
-                className="relative px-5 py-2.5 rounded-xl text-white font-medium transition-all duration-200
+              {!isSystemManagedInvoice && (
+                <button
+                  onClick={deleteInvoice}
+                  className="relative px-5 py-2.5 rounded-xl text-white font-medium transition-all duration-200
                   bg-red-600 dark:bg-red-700
                   border border-red-500/20 dark:border-red-600/20
                   before:absolute before:inset-0 before:rounded-xl
@@ -2141,9 +1915,10 @@ export default function RekapDetailView({
                   hover:translate-y-[-2px] active:translate-y-0
                   hover:before:from-red-500/80 hover:before:to-red-700/90
                   focus:outline-none focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
-              >
-                Hapus Tagihan
-              </button>
+                >
+                  Hapus Tagihan
+                </button>
+              )}
             </div>
           </div>
 
@@ -2194,7 +1969,13 @@ export default function RekapDetailView({
               {/* Total Santri */}
               <button
                 onClick={() =>
-                  setFilters({ status: "", kamar: "", educationLevel: "" })
+                  setFilters({
+                    status: "",
+                    kamar: "",
+                    educationLevel: "",
+                    educationGrade: "",
+                    nama: "",
+                  })
                 }
                 className={`relative bg-white dark:bg-gray-700 rounded-2xl p-5 transition-all duration-200 cursor-pointer text-left
                   border border-gray-100 dark:border-gray-600
@@ -2445,7 +2226,7 @@ export default function RekapDetailView({
                       </option>
 
                       {/* Individual Rooms in this Group */}
-                      {group.rooms.map((room) => (
+                      {group.rooms.map((room: string) => (
                         <option
                           key={room}
                           value={room}
@@ -2617,7 +2398,13 @@ export default function RekapDetailView({
 
                 <button
                   onClick={() =>
-                    setFilters({ status: "", kamar: "", educationLevel: "" })
+                    setFilters({
+                      status: "",
+                      kamar: "",
+                      educationLevel: "",
+                      educationGrade: "",
+                      nama: "",
+                    })
                   }
                   className="relative inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
                     transition-all duration-200
@@ -2717,6 +2504,8 @@ export default function RekapDetailView({
                             status: "",
                             kamar: "",
                             educationLevel: "",
+                            educationGrade: "",
+                            nama: "",
                           })
                         }
                         className="relative mt-4 px-4 py-2 rounded-xl text-blue-700 dark:text-blue-300 font-medium
@@ -3138,6 +2927,19 @@ export default function RekapDetailView({
                                           </svg>
                                           Unggah Bukti Pembayaran
                                         </button>
+                                        {getPaymentAttempts(payment).length > 0 && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedPayment(payment);
+                                              setShowPaymentHistoryModal(true);
+                                              setOpenDropdownId(null);
+                                            }}
+                                            className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                                          >
+                                            Lihat Riwayat
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
                                   )}
@@ -3208,80 +3010,119 @@ export default function RekapDetailView({
                     </button>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="bg-gray-100 p-4 rounded-lg">
-                      {(() => {
-                        const paymentProof =
-                          getPaymentProofFromHistory(selectedPayment);
-                        return (
-                          <>
-                            <a
-                              href={paymentProof.imageUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
+                  <div className="space-y-4 max-h-[75vh] overflow-y-auto">
+                    {getPendingPaymentAttempts(selectedPayment).map((attempt) => {
+                      const needsAmount =
+                        selectedPayment.requiresAmountConfirmation ||
+                        attempt.legacyAmountConfirmationRequired ||
+                        !Number.isFinite(attempt.amount);
+                      return (
+                        <div key={attempt.id} className="bg-gray-100 p-4 rounded-lg">
+                          {attempt.imageUrl && (
+                            <a href={attempt.imageUrl} target="_blank" rel="noopener noreferrer">
                               <img
-                                src={paymentProof.imageUrl}
+                                src={attempt.imageUrl}
                                 alt="Bukti Pembayaran"
-                                className="w-full h-auto rounded-lg mb-4 cursor-pointer hover:opacity-90 transition-opacity"
+                                className="w-full max-h-80 object-contain rounded-lg mb-4 cursor-pointer hover:opacity-90 transition-opacity"
                               />
                             </a>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <p className="text-sm text-gray-600">
-                                  Jumlah Dibayar
-                                </p>
-                                <p className="text-base font-medium">
-                                  {formatCurrency(paymentProof.amount)}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-gray-600">
-                                  Tanggal Pembayaran
-                                </p>
-                                <p className="text-base font-medium">
-                                  {formatDate(paymentProof.timestamp)}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-gray-600">
-                                  Metode Pembayaran
-                                </p>
-                                <p className="text-base font-medium">
-                                  {paymentProof.paymentMethod}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-gray-600">
-                                  Diinput Oleh
-                                </p>
-                                <p className="text-base font-medium">
-                                  {paymentProof.inputtedBy}
-                                </p>
-                              </div>
+                          )}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-600">Jumlah Dibayar</p>
+                              <p className="text-base font-medium">
+                                {Number.isFinite(attempt.amount)
+                                  ? formatCurrency(Number(attempt.amount))
+                                  : "Belum dikonfirmasi"}
+                              </p>
                             </div>
-                          </>
-                        );
-                      })()}
-                    </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Tanggal Pembayaran</p>
+                              <p className="text-base font-medium">{formatDate(new Date(attempt.date))}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Metode Pembayaran</p>
+                              <p className="text-base font-medium">{attempt.paymentMethod || "Transfer Bank"}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Diinput Oleh</p>
+                              <p className="text-base font-medium">{attempt.inputtedBy || "Wali Santri"}</p>
+                            </div>
+                          </div>
 
-                    <div className="flex justify-end space-x-3">
-                      <button
-                        type="button"
-                        onClick={() => handleVerifyPayment(false)}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                      >
-                        Tolak
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleVerifyPayment(true)}
-                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                      >
-                        Terima
-                      </button>
-                    </div>
+                          {needsAmount && (
+                            <div className="mt-4">
+                              {user?.role === "superAdmin" ? (
+                                <>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Nominal aktual pada bukti pembayaran
+                                  </label>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={confirmedLegacyAmount}
+                                    onChange={(event) =>
+                                      setConfirmedLegacyAmount(
+                                        event.target.value.replace(/[^\d]/g, "")
+                                      )
+                                    }
+                                    placeholder="Masukkan nominal rupiah"
+                                    className="w-full rounded-md border border-gray-300 p-2"
+                                  />
+                                </>
+                              ) : (
+                                <p className="text-sm text-amber-700">
+                                  Nominal pembayaran lama hanya dapat dikonfirmasi oleh Super Admin.
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex justify-end space-x-3 mt-4">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedAttemptId(attempt.id);
+                                handleVerifyPayment(false, attempt.id);
+                              }}
+                              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                            >
+                              Tolak
+                            </button>
+                            <button
+                              type="button"
+                              disabled={needsAmount && user?.role !== "superAdmin"}
+                              onClick={() => {
+                                setSelectedAttemptId(attempt.id);
+                                handleVerifyPayment(true, attempt.id);
+                              }}
+                              className="px-4 py-2 bg-green-600 disabled:bg-gray-400 text-white rounded-md hover:bg-green-700 transition-colors"
+                            >
+                              Terima
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {getPendingPaymentAttempts(selectedPayment).length === 0 && (
+                      <p className="text-center text-gray-500">Tidak ada bukti yang menunggu verifikasi.</p>
+                    )}
+                    {getPaymentAttempts(selectedPayment).some(
+                      (attempt) => attempt.status === "Terverifikasi"
+                    ) && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowPaymentProofModal(false);
+                            setShowPaymentHistoryModal(true);
+                          }}
+                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                        >
+                          Lihat semua riwayat
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3430,9 +3271,9 @@ export default function RekapDetailView({
                                 new Date(b.date).getTime() -
                                 new Date(a.date).getTime()
                             )
-                            .map((historyItem, index) => (
+                            .map((historyItem) => (
                               <div
-                                key={index}
+                                key={historyItem.id}
                                 className="bg-white p-3 rounded-md shadow-sm"
                               >
                                 <div className="flex justify-between items-center mb-2">
@@ -3445,6 +3286,8 @@ export default function RekapDetailView({
                                         ? "bg-green-100 text-green-800"
                                         : historyItem.status === "Ditolak"
                                         ? "bg-red-100 text-red-800"
+                                        : historyItem.status === "Dibatalkan"
+                                        ? "bg-gray-200 text-gray-800"
                                         : "bg-yellow-100 text-yellow-800"
                                     }`}
                                   >
@@ -3481,7 +3324,7 @@ export default function RekapDetailView({
                                         : "Ditangani Oleh"}
                                     </p>
                                     <p className="font-medium">
-                                      {historyItem.by || "Admin"}
+                                      {historyItem.reviewedBy || historyItem.by || "Admin"}
                                     </p>
                                   </div>
 
@@ -3520,6 +3363,22 @@ export default function RekapDetailView({
                                     </div>
                                   )}
                                 </div>
+                                {historyItem.status === "Terverifikasi" &&
+                                  (historyItem.type === "Bayar Lunas" ||
+                                    historyItem.type === "Bayar Sebagian") && (
+                                    <div className="mt-3 flex justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedAttemptId(historyItem.id);
+                                          setShowRevokeStatusModal(true);
+                                        }}
+                                        className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-md hover:bg-red-700"
+                                      >
+                                        Batalkan pembayaran ini
+                                      </button>
+                                    </div>
+                                  )}
                               </div>
                             ))
                         ) : (
@@ -3535,13 +3394,6 @@ export default function RekapDetailView({
                     <div className="flex justify-end space-x-3">
                       <button
                         type="button"
-                        onClick={() => setShowRevokeStatusModal(true)}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                      >
-                        Batalkan Status Lunas
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => setShowPaymentHistoryModal(false)}
                         className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
                       >
@@ -3555,18 +3407,20 @@ export default function RekapDetailView({
           )}
 
           {/* Add TagihanModal for adding new santri to the invoice */}
-          <TagihanModal
-            isOpen={showTagihanModal}
-            onClose={() => setShowTagihanModal(false)}
-            onSuccess={handleTagihanSuccess}
-            existingInvoiceId={paymentId}
-            paymentName={paymentName}
-            nominalTagihan={invoiceTotalAmount}
-            existingSantriIds={santriPayments.map(
-              (payment) => payment.santriId
-            )}
-            editMode={true}
-          />
+          {!isSystemManagedInvoice && (
+            <TagihanModal
+              isOpen={showTagihanModal}
+              onClose={() => setShowTagihanModal(false)}
+              onSuccess={handleTagihanSuccess}
+              existingInvoiceId={paymentId}
+              paymentName={paymentName}
+              nominalTagihan={invoiceTotalAmount}
+              existingSantriIds={santriPayments.map(
+                (payment) => payment.santriId
+              )}
+              editMode={true}
+            />
+          )}
 
           {/* Payment Modal for Admin Upload */}
           {showAdminPaymentModal && selectedPaymentForUpload && (

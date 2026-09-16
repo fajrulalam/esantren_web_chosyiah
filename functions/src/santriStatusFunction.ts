@@ -48,6 +48,21 @@ export const updateCounterOnSantriStatusChange = functions.firestore
         beforeData.statusAktif !== "Aktif" &&
         afterData.statusAktif === "Aktif"
       ) {
+        // Registration-payment approval increments the counter inside the same
+        // transaction that activates the santri. The changed marker prevents
+        // this generic trigger from counting that transition a second time.
+        if (
+          afterData.registrationActivationCounterHandled &&
+          beforeData.registrationActivationCounterHandled !==
+            afterData.registrationActivationCounterHandled
+        ) {
+          functions.logger.info(
+            `Santri ${santriId} activation counter was handled by the registration payment transaction.`,
+            { structuredData: true }
+          );
+          return null;
+        }
+
         // Increment counter for the asrama
         await updateActiveStudentCounter(afterData.kodeAsrama, 1);
         

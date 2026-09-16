@@ -333,7 +333,7 @@ export default function Home() {
                         <div className="p-5">
                             <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-400 mb-2">Makanan Sehat & Harga Terjangkau</h3>
                             <p className="text-sm text-amber-700 dark:text-amber-300">
-                                Menyediakan makanan bergizi, higienis, dan halal dengan menu bervariasi.
+                                Menyediakan makanan bergizi, higienis, dan lezat dengan menu bervariasi.
                             </p>
                         </div>
                     </div>

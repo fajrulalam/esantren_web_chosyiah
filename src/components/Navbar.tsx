@@ -84,6 +84,8 @@ export default function Navbar() {
                                     width={48}
                                     height={48}
                                     className="w-12 h-12"
+                                    priority
+                                    unoptimized
                                 />
                                 <div className="flex flex-col w-48 text-center">
                                     <span className="text-2xl font-bold text-amber-800 dark:text-amber-300 tracking-widest">

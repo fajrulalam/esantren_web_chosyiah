@@ -3,6 +3,12 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
 import { PaymentStatus, PaymentHistoryItem } from '@/types/santri';
+import {
+    getAvailablePaymentAmount,
+    getPendingAmount,
+    isPaymentAttempt,
+    normalizePaymentStatus,
+} from '@/firebase/paymentInstallments';
 
 interface PaymentStatusModalProps {
     closeModal: () => void;
@@ -29,7 +35,10 @@ export default function PaymentStatusModal({ closeModal, paymentId, isMobile }: 
                 const paymentSnapshot = await getDoc(paymentDoc);
                 
                 if (paymentSnapshot.exists()) {
-                    const data = paymentSnapshot.data() as PaymentStatus;
+                    const data = normalizePaymentStatus({
+                        id: paymentSnapshot.id,
+                        ...paymentSnapshot.data(),
+                    } as PaymentStatus);
                     setPaymentData(data);
                     
                     // Convert history object to array and sort by date (newest first)
@@ -150,9 +159,11 @@ export default function PaymentStatusModal({ closeModal, paymentId, isMobile }: 
                 ) : paymentData ? (
                     <>
                         <div className="text-gray-600 mb-4">
-                            Total: {formatCurrency(paymentData.total)} • 
-                            Dibayar: {formatCurrency(paymentData.paid)} • 
-                            Sisa: {formatCurrency(paymentData.total - paymentData.paid)}
+                            Total: {formatCurrency(paymentData.total)} •
+                            Terverifikasi: {formatCurrency(paymentData.paid)} •
+                            Menunggu: {formatCurrency(getPendingAmount(paymentData))} •
+                            Belum dibayar: {formatCurrency(Math.max(0, paymentData.total - paymentData.paid))} •
+                            Dapat diajukan: {formatCurrency(getAvailablePaymentAmount(paymentData))}
                         </div>
                         
                         <div className="max-h-[70vh] overflow-y-auto pr-2 modal-scroll">
@@ -165,8 +176,8 @@ export default function PaymentStatusModal({ closeModal, paymentId, isMobile }: 
                                                     <h4 className="font-medium text-gray-900">{formatDate(item.date)}</h4>
                                                     <div className="flex items-center mt-1">
                                                         <p className="text-gray-700">{item.type}</p>
-                                                        {item.type === 'Bayar Sebagian' && item.amount && (
-                                                            <span className="ml-2 text-gray-700">{formatCurrency(item.amount)}</span>
+                                                        {isPaymentAttempt(item) && Number.isFinite(item.amount) && (
+                                                            <span className="ml-2 text-gray-700">{formatCurrency(Number(item.amount))}</span>
                                                         )}
                                                     </div>
                                                     {item.paymentMethod && (
@@ -179,6 +190,8 @@ export default function PaymentStatusModal({ closeModal, paymentId, isMobile }: 
                                                             ? 'bg-green-100 text-green-600' 
                                                             : item.status === 'Ditolak'
                                                                 ? 'bg-red-100 text-red-600'
+                                                                : item.status === 'Dibatalkan'
+                                                                    ? 'bg-gray-200 text-gray-700'
                                                                 : 'bg-orange-100 text-orange-600'
                                                     }`}>
                                                         {item.status}
@@ -222,18 +235,22 @@ export default function PaymentStatusModal({ closeModal, paymentId, isMobile }: 
                                                             Diinput oleh: {item.inputtedBy}
                                                         </p>
                                                     )}
-                                                    <p className="text-gray-700 mb-2">Bukti Pembayaran:</p>
-                                                    <a 
-                                                        href={item.imageUrl} 
-                                                        target="_blank" 
-                                                        rel="noopener noreferrer"
-                                                    >
-                                                        <img 
-                                                            src={item.imageUrl} 
-                                                            alt="Bukti Pembayaran" 
-                                                            className="w-full max-w-xs mx-auto rounded-lg shadow-sm cursor-pointer hover:opacity-90 transition-opacity" 
-                                                        />
-                                                    </a>
+                                                    {item.imageUrl && (
+                                                        <>
+                                                            <p className="text-gray-700 mb-2">Bukti Pembayaran:</p>
+                                                            <a
+                                                                href={item.imageUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                            >
+                                                                <img
+                                                                    src={item.imageUrl}
+                                                                    alt="Bukti Pembayaran"
+                                                                    className="w-full max-w-xs mx-auto rounded-lg shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                                                />
+                                                            </a>
+                                                        </>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

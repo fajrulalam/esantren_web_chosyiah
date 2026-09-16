@@ -6,6 +6,9 @@
     "dev": "next dev --turbo",
     "build": "next build",
     "build:dev": "NODE_ENV=development next build",
+    "test:installments": "node --test tests/payment-installment-math.test.mjs",
+    "migrate:registration:dry-run": "node scripts/migrate-registration-installments.mjs",
+    "check:registration-installments": "node scripts/check-registration-installments.mjs",
     "start": "next start",
     "lint": "next lint"
   },

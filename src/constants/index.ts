@@ -4,6 +4,33 @@
 export const KODE_ASRAMA = "DU11_ChosyiahJadid";
 // export const KODE_ASRAMA = "DU10_HurunInn";
 
+export type FloorLevel = 1 | 2;
+export type RoomLetter = "A" | "B" | "C" | "D";
+
+export interface DormBlock {
+  id: string;
+  floor: FloorLevel;
+}
+
+export const ROOM_CAPACITY = 2;
+export const ROOM_LETTERS: RoomLetter[] = ["A", "B", "C", "D"];
+export const DORM_BLOCKS: DormBlock[] = [
+  { id: "101", floor: 1 },
+  { id: "104", floor: 1 },
+  { id: "201", floor: 2 },
+  { id: "202", floor: 2 },
+  { id: "203", floor: 2 },
+  { id: "204", floor: 2 },
+  { id: "205", floor: 2 },
+  { id: "206", floor: 2 },
+  { id: "207", floor: 2 },
+];
+
+export const ALL_ROOM_IDS = DORM_BLOCKS.flatMap((block) =>
+  ROOM_LETTERS.map((letter) => `${block.id} ${letter}`)
+);
+export const VALID_ROOM_IDS = new Set(ALL_ROOM_IDS);
+
 // Daftar resmi program studi universitas, dikelompokkan per fakultas.
 // Ini adalah sumber acuan tunggal untuk nilai `programStudi` pada SantriCollection.
 export interface ProgramStudiOption {

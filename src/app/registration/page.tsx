@@ -4,8 +4,12 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { storage, db } from "@/firebase/config";
+import { httpsCallable } from "firebase/functions";
+import { functions, storage } from "@/firebase/config";
+import { useAuth } from "@/firebase/auth";
+import {
+  REGISTRATION_FEE_TOTAL,
+} from "@/firebase/paymentInstallments";
 import { KODE_ASRAMA, PROGRAM_STUDI_LIST } from "@/constants";
 import { formatName, formatNameForId } from "@/utils/nameFormatter";
 import KabupatenSearchSelect from "@/components/registration/KabupatenSearchSelect";
@@ -38,6 +42,7 @@ const PROGRAM_STUDI_SYNONYMS: Record<string, string[]> = {
 const PLACEHOLDER_IMAGE = "/join us.png";
 
 export default function Registration() {
+  const { establishSantriSession } = useAuth();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     email: "",
@@ -55,6 +60,7 @@ export default function Registration() {
 
   const [isProgramStudiCustom, setIsProgramStudiCustom] = useState(false);
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
+  const [registrationPaidAmount, setRegistrationPaidAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registrationComplete, setRegistrationComplete] = useState(false);
   const [registeredData, setRegisteredData] = useState<any>(null);
@@ -88,6 +94,19 @@ export default function Registration() {
   // Handle the registration directly via Firestore
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const paidAmount = Number(registrationPaidAmount.replace(/\D/g, ""));
+    if (
+      !Number.isInteger(paidAmount) ||
+      paidAmount <= 0 ||
+      paidAmount > REGISTRATION_FEE_TOTAL
+    ) {
+      alert(
+        `Masukkan nominal antara Rp1 dan Rp${REGISTRATION_FEE_TOTAL.toLocaleString(
+          "id-ID"
+        )}.`
+      );
+      return;
+    }
     setIsSubmitting(true);
 
     try {
@@ -181,30 +200,40 @@ export default function Registration() {
         // Other required fields from Santri interface
         // Can be updated later by admin
         jenjangPendidikan: "Perguruan Tinggi", // Spelled out as per convention
-        jumlahTunggakan: 0,
+        jumlahTunggakan: 1,
         // Payment related fields
         paymentOption: formData.paymentOption,
         paymentProofUrl: paymentProofUrl,
 
-        // Timestamp fields
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
       };
 
       console.log("Registration data:", santriData);
 
-      // Create a document reference with the custom ID
-      const docRef = doc(db, "SantriCollection", docId);
+      const registerSantri = httpsCallable(functions, "registerSantri");
+      const registrationResult = await registerSantri({
+        santriId: docId,
+        santriData,
+        kodeAsrama: KODE_ASRAMA,
+        registrationPaidAmount: paidAmount,
+        paymentProofUrl,
+      });
+      const createdId =
+        (registrationResult.data as { id?: string })?.id || docId;
 
-      // Set the document with the data
-      await setDoc(docRef, santriData);
+      console.log("Registration written with ID: ", createdId);
 
-      console.log("Document written with ID: ", docRef.id);
+      establishSantriSession({
+        id: createdId,
+        name: formattedName,
+        email: formData.email,
+      });
 
       // Save registered data for WhatsApp link
       setRegisteredData({
-        id: docRef.id,
+        id: createdId,
         ...santriData,
+        registrationSubmittedAmount: paidAmount,
+        registrationFeeTotal: REGISTRATION_FEE_TOTAL,
       });
 
       // Show success message
@@ -332,6 +361,9 @@ export default function Registration() {
                 </a>
                 <Link href="/" className={buttonStyle}>
                   Kembali ke Beranda
+                </Link>
+                <Link href="/payment-history" className={buttonStyle}>
+                  Lihat Riwayat Pembayaran
                 </Link>
               </div>
             </div>
@@ -729,6 +761,66 @@ export default function Registration() {
                   </div>
                 </div>
 
+                {paymentProof && (
+                  <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-amber-200 dark:border-gray-600">
+                    <label className="block mb-2 text-sm font-medium text-amber-800 dark:text-amber-200">
+                      Nominal yang Sudah Dibayar
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-amber-700 dark:text-amber-300">
+                        Rp
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={registrationPaidAmount}
+                        onChange={(event) => {
+                          const digits = event.target.value.replace(/\D/g, "");
+                          if (!digits) {
+                            setRegistrationPaidAmount("");
+                            return;
+                          }
+                          const value = Math.min(
+                            Number(digits),
+                            REGISTRATION_FEE_TOTAL
+                          );
+                          setRegistrationPaidAmount(
+                            new Intl.NumberFormat("id-ID").format(value)
+                          );
+                        }}
+                        className={`${inputStyle} pl-12`}
+                        placeholder="Masukkan nominal pada bukti pembayaran"
+                        required
+                      />
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                      <p className="text-amber-700 dark:text-amber-300">
+                        Total kewajiban:{" "}
+                        <strong>
+                          Rp{REGISTRATION_FEE_TOTAL.toLocaleString("id-ID")}
+                        </strong>
+                      </p>
+                      <p className="text-amber-700 dark:text-amber-300 sm:text-right">
+                        Sisa setelah pembayaran ini:{" "}
+                        <strong>
+                          Rp
+                          {Math.max(
+                            0,
+                            REGISTRATION_FEE_TOTAL -
+                              Number(
+                                registrationPaidAmount.replace(/\D/g, "") || 0
+                              )
+                          ).toLocaleString("id-ID")}
+                        </strong>
+                      </p>
+                    </div>
+                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                      Opsi pembayaran di atas menentukan rencana pembayaran awal;
+                      total biaya pendaftaran tetap Rp3.960.000.
+                    </p>
+                  </div>
+                )}
+
                 <div className="bg-amber-100 p-6 rounded-xl shadow-inner mt-8">
                   <h3 className="text-lg font-bold text-amber-800 mb-4">
                     Informasi Pembayaran
@@ -759,7 +851,9 @@ export default function Registration() {
                   <button
                     type="submit"
                     className={buttonStyle}
-                    disabled={isSubmitting || !paymentProof}
+                    disabled={
+                      isSubmitting || !paymentProof || !registrationPaidAmount
+                    }
                   >
                     {isSubmitting ? "Memproses..." : "Daftar Sekarang"}
                   </button>
