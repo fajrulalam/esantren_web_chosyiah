@@ -595,10 +595,10 @@ export default function DenahKamarPage() {
 
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600 dark:text-gray-300">
             <span className="rounded-full border border-slate-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
-              9 blok
+              {DORM_BLOCKS.length} blok
             </span>
             <span className="rounded-full border border-slate-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
-              36 kamar
+              {ALL_ROOM_IDS.length} kamar
             </span>
             <span className="rounded-full border border-slate-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
               2 orang/kamar

@@ -42,7 +42,7 @@ const HIDDEN_PAGES: HiddenPage[] = [
   {
     href: "/data-santri/denah",
     label: "Denah Kamar",
-    description: "Denah 9 blok asrama dan penempatan santri per kamar. Hanya bisa dibuka lewat tombol di dalam halaman Data Santri.",
+    description: "Denah 10 blok asrama dan penempatan santri per kamar. Hanya bisa dibuka lewat tombol di dalam halaman Data Santri.",
   },
   {
     href: "/attendance/history",

@@ -24,6 +24,7 @@ export const DORM_BLOCKS: DormBlock[] = [
   { id: "205", floor: 2 },
   { id: "206", floor: 2 },
   { id: "207", floor: 2 },
+  { id: "208", floor: 2 },
 ];
 
 export const ALL_ROOM_IDS = DORM_BLOCKS.flatMap((block) =>
