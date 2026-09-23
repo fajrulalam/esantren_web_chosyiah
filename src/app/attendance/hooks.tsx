@@ -36,14 +36,17 @@ export function useStudentsRealtime(kodeAsrama: string | null) {
 
     const q = query(
       collection(db, "SantriCollection"),
-      where("kodeAsrama", "==", kodeAsrama)
+      where("kodeAsrama", "==", kodeAsrama),
+      where("statusAktif", "==", "Aktif")
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      let studentData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as SantriWithAttendance));
+      let studentData = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as SantriWithAttendance))
+        .filter(student => student.statusAktif === 'Aktif');
       
       // Filter students by attendance type's listOfSantriIds if available
       if (currentSession && currentSession.attendanceTypeId) {

@@ -236,29 +236,32 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
     setIsLoadingSantris(true);
     try {
       const santriRef = collection(db, "SantriCollection");
-      // Get all santris from the current asrama
+      // Get all active santris from the current asrama
       const q = query(
         santriRef,
-        where("kodeAsrama", "==", kodeAsrama)
+        where("kodeAsrama", "==", kodeAsrama),
+        where("statusAktif", "==", "Aktif")
       );
       const querySnapshot = await getDocs(q);
 
-      const santriData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        nama: doc.data().nama || '',
-        kamar: doc.data().kamar || '',
-        kelas: doc.data().kelas || doc.data().semester || '',
-        jenjangPendidikan: doc.data().jenjangPendidikan || '',
-        statusAktif: doc.data().statusAktif || '',
-        statusTanggungan: doc.data().statusTanggungan || 'Belum Ada Tagihan',
-        tahunMasuk: doc.data().tahunMasuk || '',
-        programStudi: doc.data().programStudi || '',
-        semester: doc.data().kelas || '',
-        kodeAsrama: doc.data().kodeAsrama,
-        nomorWalisantri: doc.data().nomorWalisantri || '',
-        tanggalLahir: doc.data().tanggalLahir || '',
-        jumlahTunggakan: doc.data().jumlahTunggakan || 0,
-      }));
+      const santriData = querySnapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          nama: doc.data().nama || '',
+          kamar: doc.data().kamar || '',
+          kelas: doc.data().kelas || doc.data().semester || '',
+          jenjangPendidikan: doc.data().jenjangPendidikan || '',
+          statusAktif: doc.data().statusAktif || '',
+          statusTanggungan: doc.data().statusTanggungan || 'Belum Ada Tagihan',
+          tahunMasuk: doc.data().tahunMasuk || '',
+          programStudi: doc.data().programStudi || '',
+          semester: doc.data().kelas || '',
+          kodeAsrama: doc.data().kodeAsrama,
+          nomorWalisantri: doc.data().nomorWalisantri || '',
+          tanggalLahir: doc.data().tanggalLahir || '',
+          jumlahTunggakan: doc.data().jumlahTunggakan || 0,
+        }))
+        .filter(santri => santri.statusAktif === 'Aktif');
 
       setSantris(santriData);
 
@@ -998,13 +1001,10 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                     id="statusAktif"
                     name="statusAktif"
                     value={filters.statusAktif}
-                    onChange={handleFilterChange}
-                    className="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+                    disabled
+                    className="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white cursor-not-allowed"
                   >
-                    <option value="">Semua Status</option>
                     <option value="Aktif">Aktif</option>
-                    <option value="Boyong">Boyong</option>
-                    <option value="Lulus">Lulus</option>
                   </select>
                 </div>
 
@@ -1275,13 +1275,10 @@ export default function SessionSelector({ kodeAsrama, teacherId }: SessionSelect
                     id="statusAktif"
                     name="statusAktif"
                     value={filters.statusAktif}
-                    onChange={handleFilterChange}
-                    className="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+                    disabled
+                    className="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white cursor-not-allowed"
                   >
-                    <option value="">Semua Status</option>
                     <option value="Aktif">Aktif</option>
-                    <option value="Boyong">Boyong</option>
-                    <option value="Lulus">Lulus</option>
                   </select>
                 </div>
 

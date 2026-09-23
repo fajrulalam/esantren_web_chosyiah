@@ -87,6 +87,7 @@ export interface SantriWithAttendance {
   kamar?: string;
   semester?: number | string;
   statusKepulangan?: StatusKepulangan;
+  statusAktif?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

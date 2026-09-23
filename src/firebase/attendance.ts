@@ -70,7 +70,8 @@ export async function createAttendanceSession(
           const santriDoc = await getDoc(doc(db, "SantriCollection", santriId));
           if (
             santriDoc.exists() &&
-            santriDoc.data().kodeAsrama === kodeAsrama
+            santriDoc.data().kodeAsrama === kodeAsrama &&
+            santriDoc.data().statusAktif === "Aktif"
           ) {
             const santriData = santriDoc.data();
             let statusToUse = "absent";
@@ -283,14 +284,17 @@ export async function addSantrisToSession(
   const sessionData = sessionSnap.data();
   const updates: DocumentData = {};
 
-  // For each santri, add them to the studentStatuses if they don't exist
+  // For each santri, add them to the studentStatuses if they don't exist and are active
   for (const santriId of santriIds) {
     if (!sessionData.studentStatuses[santriId]) {
-      updates[`studentStatuses.${santriId}`] = {
-        status: "absent",
-        updatedAt: serverTimestamp(),
-        updatedBy: teacherId,
-      };
+      const santriDoc = await getDoc(doc(db, "SantriCollection", santriId));
+      if (santriDoc.exists() && santriDoc.data().statusAktif === "Aktif") {
+        updates[`studentStatuses.${santriId}`] = {
+          status: "absent",
+          updatedAt: serverTimestamp(),
+          updatedBy: teacherId,
+        };
+      }
     }
   }
 

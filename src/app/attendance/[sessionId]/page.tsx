@@ -186,14 +186,15 @@ export default function AttendanceScreen({ params }: { params: Promise<{ session
       // Get all santris from the current asrama
       const q = query(
         santriRef,
-        where("kodeAsrama", "==", KODE_ASRAMA)
+        where("kodeAsrama", "==", KODE_ASRAMA),
+        where("statusAktif", "==", "Aktif")
       );
       const querySnapshot = await getDocs(q);
 
       // Create a set of santri IDs who are already in the session
       const existingSantriIds = new Set(Object.keys(currentSession.studentStatuses || {}));
 
-      // Filter out santris who are already in the session
+      // Filter out santris who are already in the session and ensure active status
       const santriData = querySnapshot.docs
         .map(doc => ({
           id: doc.id,
@@ -204,7 +205,7 @@ export default function AttendanceScreen({ params }: { params: Promise<{ session
           tahunMasuk: doc.data().tahunMasuk || '',
           kodeAsrama: doc.data().kodeAsrama
         }))
-        .filter(santri => !existingSantriIds.has(santri.id));
+        .filter(santri => !existingSantriIds.has(santri.id) && santri.statusAktif === 'Aktif');
 
       setAllSantris(santriData);
 
@@ -655,13 +656,10 @@ export default function AttendanceScreen({ params }: { params: Promise<{ session
                     id="statusAktif"
                     name="statusAktif"
                     value={filters.statusAktif}
-                    onChange={handleFilterChange}
-                    className="w-full text-sm rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:text-white px-3 py-2"
+                    disabled
+                    className="w-full text-sm rounded-lg border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:text-white px-3 py-2 cursor-not-allowed"
                   >
-                    <option value="">Semua Status</option>
                     <option value="Aktif">Aktif</option>
-                    <option value="Boyong">Boyong</option>
-                    <option value="Lulus">Lulus</option>
                   </select>
                 </div>
 
