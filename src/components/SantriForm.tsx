@@ -643,28 +643,34 @@ export default function SantriForm({
           </div>
         )}
 
-        {!hidePengurusFields && (
-          <div>
-            <label
-              htmlFor="statusAktif"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-200"
-            >
-              Status Aktif
-            </label>
-            <select
-              id="statusAktif"
-              name="statusAktif"
-              value={formData.statusAktif}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
-            >
-              <option value="Aktif">Aktif</option>
-              <option value="Boyong">Boyong</option>
-              <option value="Lulus">Lulus</option>
-              <option value="Dikeluarkan">Dikeluarkan</option>
-            </select>
-          </div>
-        )}
+        <div>
+          <label
+            htmlFor="statusAktif"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-200"
+          >
+            Status Aktif
+          </label>
+          <select
+            id="statusAktif"
+            name="statusAktif"
+            value={formData.statusAktif}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
+          >
+            {formData.statusAktif &&
+              !["Aktif", "Boyong", "Lulus", "Dikeluarkan"].includes(
+                formData.statusAktif
+              ) && (
+                <option value={formData.statusAktif}>
+                  {formData.statusAktif}
+                </option>
+              )}
+            <option value="Aktif">Aktif</option>
+            <option value="Boyong">Boyong</option>
+            <option value="Lulus">Lulus</option>
+            <option value="Dikeluarkan">Dikeluarkan</option>
+          </select>
+        </div>
       </div>
 
       {/* Status Tanggungan field - only show when editing existing santri */}
