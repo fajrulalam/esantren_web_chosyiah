@@ -1,5 +1,7 @@
 import React, { memo, useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
+import toast from 'react-hot-toast';
 import { markAttendance, overrideSickStatus, overrideReturnStatus } from '@/firebase/attendance';
 import useAttendanceStore from '@/app/attendance/store';
 import { useAuth } from '@/firebase/auth';
@@ -57,13 +59,20 @@ interface StudentCardProps {
 
 const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) => {
   const { user, isPreviewing } = useAuth();
+  const [mounted, setMounted] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
   const statusInFlight = useRef(false);
-  const canCompleteIzin = user?.role === "pengurus" && !isPreviewing;
+  const isStaff = !isPreviewing && !!user && ["pengurus", "pengasuh", "superAdmin", "admin"].includes(user.role);
+  const canCompleteIzin = isStaff;
   const { currentSession } = useAttendanceStore();
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [justLongPressed, setJustLongPressed] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   // For display, use the current status from session if available, or calculate it
   const studentStatus = currentSession?.studentStatuses?.[student.id]?.status || 
@@ -161,32 +170,44 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
 
   const handleStatusOverride = async (action: 'recover' | 'returned' | 'present' | 'absent' | 'sick') => {
     if (statusInFlight.current || isPreviewing) return;
-    if ((action === 'recover' || action === 'returned') && !canCompleteIzin) return;
+    if ((action === 'recover' || action === 'returned') && !canCompleteIzin) {
+      toast.error("Hanya pengurus atau admin yang dapat melakukan aksi ini.");
+      return;
+    }
     statusInFlight.current = true;
     setSavingStatus(true);
     setStatusError(null);
+    const effectiveTeacherId = teacherId || user?.uid || '';
     try {
       if (action === 'recover' && student.statusKehadiran === 'Sakit') {
         // Mark as recovered in SantriCollection (changes the base status)
-        await overrideSickStatus(student.id, false, teacherId, student.statusSakit!);
-        if (studentStatus === 'excusedSick') await markAttendance(sessionId, student.id, 'present', teacherId);
+        await overrideSickStatus(student.id, false, effectiveTeacherId, student.statusSakit);
+        await markAttendance(sessionId, student.id, 'present', effectiveTeacherId);
+        toast.success(`Berhasil mencatat ${student.nama} sudah sembuh`);
       } else if (action === 'returned' && student.statusKehadiran === 'Pulang') {
         // Mark as returned in SantriCollection (changes the base status)
-        await overrideReturnStatus(student.id, true, teacherId, student.statusKepulangan!);
-        if (studentStatus === 'excusedPulang') await markAttendance(sessionId, student.id, 'present', teacherId);
+        await overrideReturnStatus(student.id, true, effectiveTeacherId, student.statusKepulangan);
+        await markAttendance(sessionId, student.id, 'present', effectiveTeacherId);
+        toast.success(`Berhasil mencatat ${student.nama} sudah kembali`);
       } else if (action === 'present') {
         // Just mark as present in the attendance session without changing SantriCollection status
-        await markAttendance(sessionId, student.id, 'present', teacherId);
+        await markAttendance(sessionId, student.id, 'present', effectiveTeacherId);
+        toast.success(`Status ${student.nama} diubah menjadi Hadir`);
       } else if (action === 'absent') {
         // Mark as absent in the attendance session
-        await markAttendance(sessionId, student.id, 'absent', teacherId);
+        await markAttendance(sessionId, student.id, 'absent', effectiveTeacherId);
+        toast.success(`Status ${student.nama} diubah menjadi Tidak Hadir`);
       } else if (action === 'sick') {
         // Mark as sick in the attendance session
-        await markAttendance(sessionId, student.id, 'excusedSick', teacherId);
+        await markAttendance(sessionId, student.id, 'excusedSick', effectiveTeacherId);
+        toast.success(`Status ${student.nama} diubah menjadi Sakit`);
       }
       setShowStatusModal(false);
     } catch (error) {
-      setStatusError(error instanceof Error ? error.message : "Gagal menyimpan status.");
+      console.error("Failed to update status:", error);
+      const errMsg = error instanceof Error ? error.message : "Gagal menyimpan status.";
+      setStatusError(errMsg);
+      toast.error(errMsg);
     } finally {
       statusInFlight.current = false;
       setSavingStatus(false);
@@ -281,7 +302,7 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
   };
 
   // --- Modal Styling (Revised Shadows for Dark Mode) ---
-  const modalOverlayStyle = "fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-sm p-4";
+  const modalOverlayStyle = "fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 dark:bg-black/70 backdrop-blur-sm p-4";
   const modalContentStyle = `
       bg-slate-100 dark:bg-slate-800
       p-5 rounded-2xl w-full max-w-sm
@@ -357,7 +378,7 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
         </div>
 
         {/* Status Override Modal */}
-        {showStatusModal && (
+        {showStatusModal && mounted && createPortal(
             <div className={modalOverlayStyle} onClick={() => { if (!savingStatus) setShowStatusModal(false); }}>
               <div className={modalContentStyle} onClick={(e) => e.stopPropagation()}>
                 <h3 className="text-base font-semibold mb-3 text-slate-800 dark:text-slate-100 text-center">
@@ -366,25 +387,28 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
                 <fieldset disabled={savingStatus}>
                 {student.statusKehadiran === 'Sakit' && (
                     <div className="mb-4">
-                      <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 text-center">Santri ini ditandai sedang sakit.</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 text-center">Santri ini ditandai sedang sakit di sistem.</p>
                       
                       <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Status kehadiran sesi ini:</p>
                       <div className="grid grid-cols-3 gap-2 mb-4">
                         <button 
+                          type="button"
                           onClick={() => handleStatusOverride('present')} 
-                          className={`px-2 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium ${studentStatus === 'present' ? 'ring-2 ring-emerald-500' : ''}`}
+                          className={`px-2 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium cursor-pointer transition-all hover:bg-emerald-200 dark:hover:bg-emerald-900/50 ${studentStatus === 'present' ? 'ring-2 ring-emerald-500 font-bold' : ''}`}
                         >
                           Hadir
                         </button>
                         <button 
+                          type="button"
                           onClick={() => handleStatusOverride('absent')} 
-                          className={`px-2 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium ${studentStatus === 'absent' ? 'ring-2 ring-red-500' : ''}`}
+                          className={`px-2 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium cursor-pointer transition-all hover:bg-red-200 dark:hover:bg-red-900/50 ${studentStatus === 'absent' ? 'ring-2 ring-red-500 font-bold' : ''}`}
                         >
                           Tidak Hadir
                         </button>
                         <button 
+                          type="button"
                           onClick={() => handleStatusOverride('sick')} 
-                          className={`px-2 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-medium ${studentStatus === 'excusedSick' ? 'ring-2 ring-amber-500' : ''}`}
+                          className={`px-2 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-medium cursor-pointer transition-all hover:bg-amber-200 dark:hover:bg-amber-900/50 ${studentStatus === 'excusedSick' ? 'ring-2 ring-amber-500 font-bold' : ''}`}
                         >
                           Sakit
                         </button>
@@ -393,19 +417,23 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
                       <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-4">
                         <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Update status di sistem:</p>
                         <button 
+                          type="button"
                           disabled={!canCompleteIzin}
                           onClick={() => handleStatusOverride('recover')} 
-                          className={modalButtonStyle('confirm')}
+                          className={`w-full ${modalButtonStyle('confirm')} ${!canCompleteIzin ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                           <CheckCircleIcon className="w-4 h-4" /> Lapor Sembuh
                         </button>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 text-center">
+                          Mengembalikan status santri ke &quot;Ada&quot; dan mencatat kehadiran sesi ini sebagai Hadir.
+                        </p>
                       </div>
                     </div>
                 )}
                 {student.statusKehadiran === 'Pulang' && (
                     <div className="mb-4">
                       <div className="text-center mb-3">
-                        <p className="text-sm text-slate-600 dark:text-slate-300 mb-1">Santri ini ditandai sedang pulang.</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-300 mb-1">Santri ini ditandai sedang pulang di sistem.</p>
                         {student.statusKepulangan?.rencanaTanggalKembali && (
                             <p className="text-xs text-slate-500 dark:text-slate-400">
                               Rencana kembali: {format(student.statusKepulangan.rencanaTanggalKembali.toDate(), 'dd MMM yy')}
@@ -416,20 +444,23 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
                       <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Status kehadiran sesi ini:</p>
                       <div className="grid grid-cols-3 gap-2 mb-4">
                         <button 
+                          type="button"
                           onClick={() => handleStatusOverride('present')} 
-                          className={`px-2 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium ${studentStatus === 'present' ? 'ring-2 ring-emerald-500' : ''}`}
+                          className={`px-2 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium cursor-pointer transition-all hover:bg-emerald-200 dark:hover:bg-emerald-900/50 ${studentStatus === 'present' ? 'ring-2 ring-emerald-500 font-bold' : ''}`}
                         >
                           Hadir
                         </button>
                         <button 
+                          type="button"
                           onClick={() => handleStatusOverride('absent')} 
-                          className={`px-2 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium ${studentStatus === 'absent' ? 'ring-2 ring-red-500' : ''}`}
+                          className={`px-2 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium cursor-pointer transition-all hover:bg-red-200 dark:hover:bg-red-900/50 ${studentStatus === 'absent' ? 'ring-2 ring-red-500 font-bold' : ''}`}
                         >
                           Tidak Hadir
                         </button>
                         <button 
+                          type="button"
                           onClick={() => handleStatusOverride('sick')} 
-                          className={`px-2 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-medium ${studentStatus === 'excusedPulang' ? 'ring-2 ring-sky-500' : ''}`}
+                          className={`px-2 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-medium cursor-pointer transition-all hover:bg-amber-200 dark:hover:bg-amber-900/50 ${studentStatus === 'excusedPulang' ? 'ring-2 ring-sky-500 font-bold' : ''}`}
                         >
                           Pulang
                         </button>
@@ -438,25 +469,34 @@ const StudentCard = memo(({ student, sessionId, teacherId }: StudentCardProps) =
                       <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-4">
                         <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Update status di sistem:</p>
                         <button 
+                          type="button"
                           disabled={!canCompleteIzin}
                           onClick={() => handleStatusOverride('returned')} 
-                          className={modalButtonStyle('confirm')}
+                          className={`w-full ${modalButtonStyle('confirm')} ${!canCompleteIzin ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                           <CheckCircleIcon className="w-4 h-4" /> Lapor Kembali
                         </button>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 text-center">
+                          Mengembalikan status santri ke &quot;Ada&quot; dan mencatat kehadiran sesi ini sebagai Hadir.
+                        </p>
                       </div>
                     </div>
                 )}
-                {statusError && <p role="alert" className="mt-3 text-sm text-red-600">{statusError}</p>}
-                {savingStatus && <p role="status" className="mt-3 text-sm">Sedang menyimpan laporan. Mohon tunggu.</p>}
+                {statusError && <p role="alert" className="mt-3 text-sm text-red-600 text-center">{statusError}</p>}
+                {savingStatus && <p role="status" className="mt-3 text-sm text-center">Sedang menyimpan laporan. Mohon tunggu...</p>}
                 <div className="mt-4 flex justify-center">
-                  <button onClick={() => setShowStatusModal(false)} className={modalButtonStyle('cancel')}>
+                  <button 
+                    type="button"
+                    onClick={() => setShowStatusModal(false)} 
+                    className={modalButtonStyle('cancel')}
+                  >
                     Tutup
                   </button>
                 </div>
                 </fieldset>
               </div>
-            </div>
+            </div>,
+            document.body
         )}
       </>
   );

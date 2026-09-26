@@ -143,13 +143,14 @@ async function completeIzin(
     if (!snapshot.exists()) throw new Error("Laporan tidak ditemukan.");
     const izin = { ...snapshot.data(), id: snapshot.id } as IzinSakitPulang;
     const ownsReport = user.role === "waliSantri" && user.santriId === izin.santriId;
-    if (!ownsReport && user.role !== "pengurus") {
+    const isStaff = (["pengurus", "admin", "superAdmin", "pengasuh"] as string[]).includes(user.role);
+    if (!ownsReport && !isStaff) {
       throw new Error("Hanya santri yang bersangkutan atau pengurus yang dapat melaporkan selesai.");
     }
-    if (user.role === "pengurus") {
+    if (isStaff) {
       if (auth.currentUser?.uid !== user.uid) throw new Error("Sesi pengurus tidak valid.");
       const profile = await transaction.get(doc(db, "PengurusCollection", user.uid));
-      if (!profile.exists() || profile.data().role !== "pengurus") {
+      if (!profile.exists() || !["pengurus", "admin", "superAdmin", "pengasuh"].includes(profile.data().role)) {
         throw new Error("Akun tidak terdaftar sebagai pengurus.");
       }
       user = { ...user, name: profile.data().name || profile.data().nama, email: profile.data().email || null };

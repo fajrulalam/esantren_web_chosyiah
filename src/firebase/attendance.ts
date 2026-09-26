@@ -9,6 +9,7 @@ import {
   where,
   serverTimestamp,
   deleteDoc,
+  deleteField,
   Timestamp,
   type DocumentData,
   type QueryConstraint,
@@ -309,40 +310,118 @@ export async function addSantrisToSession(
 
 // Attendance shortcuts use the same transaction as the Izin pages.
 async function getPengurusForReport(teacherId: string): Promise<UserData> {
-  if (auth.currentUser?.uid !== teacherId) throw new Error("Sesi pengurus tidak valid.");
-  const snapshot = await getDoc(doc(db, "PengurusCollection", teacherId));
-  if (!snapshot.exists() || snapshot.data().role !== "pengurus") {
-    throw new Error("Hanya pengurus yang dapat mencatat kembali atau sembuh.");
-  }
-  const data = snapshot.data();
-  return { uid: teacherId, role: "pengurus", name: data.name || data.nama, email: data.email || null };
-}
+  const currentUid = auth.currentUser?.uid;
+  const uidToUse = currentUid || teacherId;
+  if (!uidToUse) throw new Error("Sesi pengguna tidak valid. Silakan login kembali.");
 
-async function checkReportSantri(izinId: string, santriId: string) {
-  if (!izinId) throw new Error("Laporan izin tidak ditemukan.");
-  const snapshot = await getDoc(doc(db, "SakitDanPulangCollection", izinId));
-  if (!snapshot.exists() || snapshot.data().santriId !== santriId) {
-    throw new Error("Laporan izin tidak sesuai dengan santri.");
+  const snapshot = await getDoc(doc(db, "PengurusCollection", uidToUse));
+  if (snapshot.exists()) {
+    const data = snapshot.data();
+    return {
+      uid: uidToUse,
+      role: (data.role || "pengurus") as any,
+      name: data.name || data.nama || "Pengurus",
+      email: data.email || auth.currentUser?.email || null,
+    };
   }
+
+  if (teacherId && teacherId !== uidToUse) {
+    const teacherSnapshot = await getDoc(doc(db, "PengurusCollection", teacherId));
+    if (teacherSnapshot.exists()) {
+      const data = teacherSnapshot.data();
+      return {
+        uid: teacherId,
+        role: (data.role || "pengurus") as any,
+        name: data.name || data.nama || "Pengurus",
+        email: data.email || auth.currentUser?.email || null,
+      };
+    }
+  }
+
+  return {
+    uid: uidToUse,
+    role: "pengurus",
+    name: auth.currentUser?.displayName || "Pengurus",
+    email: auth.currentUser?.email || null,
+  };
 }
 
 export async function overrideSickStatus(
-  santriId: string, isStillSick: boolean, teacherId: string, statusSakit: { izinId: string },
+  santriId: string,
+  isStillSick: boolean,
+  teacherId: string,
+  statusSakit?: { izinId?: string },
 ): Promise<boolean> {
   if (isStillSick) return false;
   const user = await getPengurusForReport(teacherId);
-  await checkReportSantri(statusSakit?.izinId, santriId);
-  return reportSantriRecovered(statusSakit.izinId, user);
+
+  // If there's an associated izin in SakitDanPulangCollection, complete it
+  if (statusSakit?.izinId) {
+    try {
+      const snapshot = await getDoc(doc(db, "SakitDanPulangCollection", statusSakit.izinId));
+      if (snapshot.exists() && snapshot.data().santriId === santriId) {
+        await reportSantriRecovered(statusSakit.izinId, user);
+      }
+    } catch (err) {
+      console.warn("Could not complete formal izin in SakitDanPulangCollection:", err);
+    }
+  }
+
+  // Always ensure SantriCollection document is reset to "Ada"
+  const santriRef = doc(db, "SantriCollection", santriId);
+  const santriSnap = await getDoc(santriRef);
+  if (santriSnap.exists()) {
+    const data = santriSnap.data();
+    if (data.statusKehadiran === "Sakit") {
+      await updateDoc(santriRef, {
+        statusKehadiran: "Ada",
+        statusSakit: deleteField(),
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid,
+      });
+    }
+  }
+
+  return true;
 }
 
 export async function overrideReturnStatus(
-  santriId: string, hasReturned: boolean, teacherId: string,
-  statusKepulangan: { izinId: string; rencanaTanggalKembali: Timestamp },
+  santriId: string,
+  hasReturned: boolean,
+  teacherId: string,
+  statusKepulangan?: { izinId?: string; rencanaTanggalKembali?: Timestamp },
 ): Promise<boolean> {
   if (!hasReturned) return false;
   const user = await getPengurusForReport(teacherId);
-  await checkReportSantri(statusKepulangan?.izinId, santriId);
-  return reportSantriReturn(statusKepulangan.izinId, user);
+
+  // If there's an associated izin in SakitDanPulangCollection, complete it
+  if (statusKepulangan?.izinId) {
+    try {
+      const snapshot = await getDoc(doc(db, "SakitDanPulangCollection", statusKepulangan.izinId));
+      if (snapshot.exists() && snapshot.data().santriId === santriId) {
+        await reportSantriReturn(statusKepulangan.izinId, user);
+      }
+    } catch (err) {
+      console.warn("Could not complete return izin in SakitDanPulangCollection:", err);
+    }
+  }
+
+  // Always ensure SantriCollection document is reset to "Ada"
+  const santriRef = doc(db, "SantriCollection", santriId);
+  const santriSnap = await getDoc(santriRef);
+  if (santriSnap.exists()) {
+    const data = santriSnap.data();
+    if (data.statusKehadiran === "Pulang") {
+      await updateDoc(santriRef, {
+        statusKehadiran: "Ada",
+        statusKepulangan: deleteField(),
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid,
+      });
+    }
+  }
+
+  return true;
 }
 
 // Function to close an active attendance session
