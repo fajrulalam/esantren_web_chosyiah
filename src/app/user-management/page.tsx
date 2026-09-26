@@ -15,13 +15,62 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { KODE_ASRAMA } from "@/constants";
 import SearchSelect, {
   SearchSelectOption,
 } from "@/components/registration/SearchSelect";
-import { EyeIcon } from "@heroicons/react/24/outline";
+import { Listbox } from "@headlessui/react";
+import { CheckIcon, ChevronDownIcon, ChevronUpDownIcon } from "@heroicons/react/20/solid";
+import { EyeIcon, BanknotesIcon } from "@heroicons/react/24/outline";
+
+const ROLE_OPTIONS: { value: UserRole; label: string; dotColor: string }[] = [
+  { value: "pengurus", label: "Pengurus", dotColor: "bg-blue-500" },
+  { value: "bendahara", label: "Bendahara", dotColor: "bg-emerald-500" },
+  { value: "pengasuh", label: "Pengasuh", dotColor: "bg-indigo-500" },
+  { value: "superAdmin", label: "Super Admin", dotColor: "bg-purple-500" },
+];
+
+const HONORARY_PRONOUNS = [
+  "Ustad",
+  "Ustadzah",
+  "Ning",
+  "Abah",
+  "Ayah",
+  "Bapak",
+  "Gus",
+  "Pak",
+  "Cak",
+  "Mbak",
+];
+
+function getRoleBadgeClass(role?: string) {
+  switch (role) {
+    case "bendahara":
+      return "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700";
+    case "superAdmin":
+      return "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-700";
+    case "pengasuh":
+      return "bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-700";
+    default:
+      return "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700";
+  }
+}
+
+function getRoleLabel(role?: string) {
+  switch (role) {
+    case "bendahara":
+      return "Bendahara";
+    case "superAdmin":
+      return "Super Admin";
+    case "pengasuh":
+      return "Pengasuh";
+    default:
+      return "Pengurus";
+  }
+}
 
 type ManagedUser = {
   id: string;
@@ -81,8 +130,18 @@ export default function UserManagementPage() {
   const [selectedSantri, setSelectedSantri] =
     useState<SantriCandidate | null>(null);
   const [upgradeEmail, setUpgradeEmail] = useState("");
+  const [upgradeRole, setUpgradeRole] = useState<"pengurus" | "bendahara">("pengurus");
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
+
+  // Dedicated Bendahara state
+  const [selectedBendaharaSantriId, setSelectedBendaharaSantriId] = useState("");
+  const [selectedBendaharaSantri, setSelectedBendaharaSantri] =
+    useState<SantriCandidate | null>(null);
+  const [bendaharaEmail, setBendaharaEmail] = useState("");
+  const [isAssigningBendahara, setIsAssigningBendahara] = useState(false);
+  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
+
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [previewingUserId, setPreviewingUserId] = useState<string | null>(
     null
@@ -189,6 +248,48 @@ export default function UserManagementPage() {
     [allUsers]
   );
 
+  const bendaharaUsers = useMemo(
+    () => users.filter((managedUser) => managedUser.role === "bendahara"),
+    [users]
+  );
+
+  const currentBendaharaSantriIds = useMemo(
+    () =>
+      new Set(
+        bendaharaUsers
+          .map((managedUser) => managedUser.santriId)
+          .filter((santriId): santriId is string => Boolean(santriId))
+      ),
+    [bendaharaUsers]
+  );
+
+  const santrisForBendahara = useMemo(
+    () =>
+      santris.filter(
+        (santri) =>
+          santri.statusAktif === "Aktif" &&
+          !currentBendaharaSantriIds.has(santri.id)
+      ),
+    [santris, currentBendaharaSantriIds]
+  );
+
+  const bendaharaSearchOptions = useMemo<SearchSelectOption[]>(
+    () =>
+      santrisForBendahara.map((santri) => ({
+        kode: santri.id,
+        nama: santri.nama,
+        subtitle: [
+          santri.email || santri.nomorTelpon,
+          allUsers.some((u) => u.santriId === santri.id)
+            ? "Akun staff sudah terhubung"
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" • "),
+      })),
+    [santrisForBendahara, allUsers]
+  );
+
   const upgradeableSantris = useMemo(
     () =>
       santris.filter(
@@ -274,11 +375,12 @@ export default function UserManagementPage() {
     setSelectedSantri(santri || null);
   };
 
-  const openUpgradeModal = () => {
+  const openUpgradeModal = (defaultRole: "pengurus" | "bendahara" = "pengurus") => {
     if (!selectedSantri) return;
 
     setError(null);
     setSuccess(null);
+    setUpgradeRole(defaultRole);
     setUpgradeEmail(selectedSantri.email || "");
     setIsUpgradeModalOpen(true);
   };
@@ -290,6 +392,7 @@ export default function UserManagementPage() {
     setSelectedSantri(null);
     setSelectedSantriId("");
     setUpgradeEmail("");
+    setUpgradeRole("pengurus");
   };
 
   const handleUpgradeSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -350,7 +453,7 @@ export default function UserManagementPage() {
           (managedUser) => managedUser.santriId === selectedSantri.id
         );
       if (hasLinkedUser) {
-        throw new Error("This Santri is already linked to a Pengurus account.");
+        throw new Error("This Santri is already linked to a staff account.");
       }
 
       const emailAlreadyUsed =
@@ -368,7 +471,7 @@ export default function UserManagementPage() {
       const accountData = {
         email: normalizedUpgradeEmail,
         name: currentSantri.nama,
-        role: "pengurus",
+        role: upgradeRole,
         phoneNumber: currentSantri.nomorTelpon || null,
         honoraryPronoun:
           currentSantri.honoraryPronoun || currentSantri.honoraryName || "Mbak",
@@ -377,13 +480,24 @@ export default function UserManagementPage() {
         tanggalLahir:
           currentSantri.tanggalLahir || currentSantri.tglLahir || "",
         santriId: currentSantri.id,
-        accountSource: "santri-upgrade",
+        accountSource: upgradeRole === "bendahara" ? "santri-bendahara" : "santri-upgrade",
         createdAt: serverTimestamp(),
         createdBy: user.uid,
         upgradedAt: serverTimestamp(),
       };
 
       await setDoc(pengurusRef, accountData);
+
+      if (upgradeRole === "bendahara") {
+        try {
+          await updateDoc(doc(db, "SantriCollection", currentSantri.id), {
+            role: "bendahara",
+            isBendahara: true,
+          });
+        } catch (santriErr) {
+          console.warn("Could not update role on SantriCollection doc:", santriErr);
+        }
+      }
 
       const newUser = {
         id: pengurusRef.id,
@@ -397,16 +511,232 @@ export default function UserManagementPage() {
       setAllUsers((currentUsers) => [...currentUsers, newUser]);
       setUsers((currentUsers) => [...currentUsers, newUser]);
       setSuccess(
-        `${currentSantri.nama} has been pre-registered as Pengurus. They must sign in with Google using ${normalizedUpgradeEmail}.`
+        `${currentSantri.nama} has been pre-registered as ${upgradeRole === "bendahara" ? "Bendahara" : "Pengurus"}. They must sign in with Google using ${normalizedUpgradeEmail}.`
       );
       closeUpgradeModal(true);
     } catch (upgradeError) {
-      console.error("Error upgrading Santri to Pengurus:", upgradeError);
+      console.error("Error upgrading Santri account:", upgradeError);
       setError(
         getErrorMessage(upgradeError, "Failed to upgrade the Santri account")
       );
     } finally {
       setIsUpgrading(false);
+    }
+  };
+
+  const handleSelectBendaharaSantri = (santriId: string) => {
+    setSelectedBendaharaSantriId(santriId);
+    const candidate = santris.find((c) => c.id === santriId);
+    setSelectedBendaharaSantri(candidate || null);
+
+    if (candidate) {
+      const existingStaff = allUsers.find((u) => u.santriId === santriId);
+      if (existingStaff?.email) {
+        setBendaharaEmail(existingStaff.email);
+      } else if (candidate.email) {
+        setBendaharaEmail(candidate.email);
+      } else {
+        setBendaharaEmail("");
+      }
+    } else {
+      setBendaharaEmail("");
+    }
+  };
+
+  const handleAssignBendahara = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedBendaharaSantri || !user) return;
+
+    const normalizedEmail = normalizeEmail(bendaharaEmail);
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      setError("Please enter a valid Google email address.");
+      return;
+    }
+
+    setError(null);
+    setSuccess(null);
+    setIsAssigningBendahara(true);
+
+    try {
+      // Check if email already belongs to a DIFFERENT user
+      const existingUserWithEmail = allUsers.find(
+        (u) =>
+          u.email &&
+          normalizeEmail(u.email) === normalizedEmail &&
+          u.santriId !== selectedBendaharaSantri.id
+      );
+      if (existingUserWithEmail) {
+        throw new Error("A user with this email already exists.");
+      }
+
+      // Check if this Santri is already linked to a record in PengurusCollection
+      const existingStaffRecord = allUsers.find(
+        (u) => u.santriId === selectedBendaharaSantri.id
+      );
+
+      if (existingStaffRecord) {
+        // Update their existing record to role "bendahara"
+        await updateDoc(doc(db, "PengurusCollection", existingStaffRecord.id), {
+          role: "bendahara",
+          email: normalizedEmail,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        // Create new record in PengurusCollection
+        const pengurusRef = doc(collection(db, "PengurusCollection"));
+        const accountData = {
+          email: normalizedEmail,
+          name: selectedBendaharaSantri.nama,
+          role: "bendahara",
+          phoneNumber: selectedBendaharaSantri.nomorTelpon || null,
+          honoraryPronoun:
+            selectedBendaharaSantri.honoraryPronoun ||
+            selectedBendaharaSantri.honoraryName ||
+            "Mbak",
+          kodeAsrama: KODE_ASRAMA,
+          namaPanggilan:
+            selectedBendaharaSantri.namaPanggilan || selectedBendaharaSantri.nama,
+          tanggalLahir:
+            selectedBendaharaSantri.tanggalLahir ||
+            selectedBendaharaSantri.tglLahir ||
+            "",
+          santriId: selectedBendaharaSantri.id,
+          accountSource: "santri-bendahara",
+          createdAt: serverTimestamp(),
+          createdBy: user.uid,
+          upgradedAt: serverTimestamp(),
+        };
+
+        await setDoc(pengurusRef, accountData);
+      }
+
+      // Also update SantriCollection doc
+      try {
+        await updateDoc(doc(db, "SantriCollection", selectedBendaharaSantri.id), {
+          role: "bendahara",
+          isBendahara: true,
+        });
+      } catch (santriErr) {
+        console.warn("Could not update role on SantriCollection doc:", santriErr);
+      }
+
+      await loadManagementData();
+
+      setSuccess(
+        `${selectedBendaharaSantri.nama} berhasil ditetapkan sebagai Bendahara. Mereka dapat masuk menggunakan email Google: ${normalizedEmail}`
+      );
+      setSelectedBendaharaSantriId("");
+      setSelectedBendaharaSantri(null);
+      setBendaharaEmail("");
+    } catch (assignError) {
+      console.error("Error assigning Bendahara:", assignError);
+      setError(
+        getErrorMessage(assignError, "Gagal menetapkan santri sebagai Bendahara")
+      );
+    } finally {
+      setIsAssigningBendahara(false);
+    }
+  };
+
+  const handleRemoveBendahara = async (bendaharaUser: ManagedUser) => {
+    if (
+      !window.confirm(
+        `Apakah Anda yakin ingin mencabut status Bendahara untuk ${
+          bendaharaUser.name || bendaharaUser.email || "santri ini"
+        }?`
+      )
+    ) {
+      return;
+    }
+
+    setError(null);
+    setSuccess(null);
+    setDeletingUserId(bendaharaUser.id);
+
+    try {
+      await deleteDoc(doc(db, "PengurusCollection", bendaharaUser.id));
+
+      if (bendaharaUser.santriId) {
+        try {
+          await updateDoc(doc(db, "SantriCollection", bendaharaUser.santriId), {
+            role: "santri",
+            isBendahara: false,
+          });
+        } catch (santriErr) {
+          console.warn("Could not unset isBendahara on Santri doc:", santriErr);
+        }
+      }
+
+      setAllUsers((currentUsers) =>
+        currentUsers.filter((u) => u.id !== bendaharaUser.id)
+      );
+      setUsers((currentUsers) =>
+        currentUsers.filter((u) => u.id !== bendaharaUser.id)
+      );
+      setSuccess(
+        `Status Bendahara untuk ${bendaharaUser.name || bendaharaUser.email} berhasil dicabut.`
+      );
+    } catch (removeError) {
+      console.error("Error removing Bendahara:", removeError);
+      setError(getErrorMessage(removeError, "Gagal mencabut status Bendahara"));
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
+  const handleUpdateRole = async (
+    managedUser: ManagedUser,
+    newRole: UserRole
+  ) => {
+    if (managedUser.role === newRole) return;
+
+    setError(null);
+    setSuccess(null);
+    setUpdatingRoleId(managedUser.id);
+
+    try {
+      await updateDoc(doc(db, "PengurusCollection", managedUser.id), {
+        role: newRole,
+        updatedAt: serverTimestamp(),
+      });
+
+      if (managedUser.santriId) {
+        try {
+          await updateDoc(doc(db, "SantriCollection", managedUser.santriId), {
+            role: newRole === "bendahara" ? "bendahara" : "santri",
+            isBendahara: newRole === "bendahara",
+          });
+        } catch (santriErr) {
+          console.warn("Could not update role on Santri doc:", santriErr);
+        }
+      }
+
+      setAllUsers((currentUsers) =>
+        currentUsers.map((u) =>
+          u.id === managedUser.id ? { ...u, role: newRole } : u
+        )
+      );
+      setUsers((currentUsers) =>
+        currentUsers.map((u) =>
+          u.id === managedUser.id ? { ...u, role: newRole } : u
+        )
+      );
+      setSuccess(
+        `Role untuk ${managedUser.name || managedUser.email} berhasil diubah menjadi ${
+          newRole === "bendahara"
+            ? "Bendahara"
+            : newRole === "superAdmin"
+            ? "Super Admin"
+            : newRole === "pengasuh"
+            ? "Pengasuh"
+            : "Pengurus"
+        }.`
+      );
+    } catch (updateErr) {
+      console.error("Error updating user role:", updateErr);
+      setError(getErrorMessage(updateErr, "Gagal mengubah role user"));
+    } finally {
+      setUpdatingRoleId(null);
     }
   };
 
@@ -427,6 +757,18 @@ export default function UserManagementPage() {
 
     try {
       await deleteDoc(doc(db, "PengurusCollection", managedUser.id));
+
+      if (managedUser.santriId) {
+        try {
+          await updateDoc(doc(db, "SantriCollection", managedUser.santriId), {
+            role: "santri",
+            isBendahara: false,
+          });
+        } catch (santriErr) {
+          console.warn("Could not unset isBendahara on Santri doc:", santriErr);
+        }
+      }
+
       setAllUsers((currentUsers) =>
         currentUsers.filter((currentUser) => currentUser.id !== managedUser.id)
       );
@@ -458,7 +800,13 @@ export default function UserManagementPage() {
         santriId: managedUser.santriId,
       });
 
-      router.push(previewed.role === "waliSantri" ? "/payment-history" : "/rekapitulasi");
+      router.push(
+        previewed.role === "waliSantri"
+          ? "/payment-history"
+          : previewed.role === "bendahara"
+          ? "/cashflow"
+          : "/rekapitulasi"
+      );
     } catch (previewError) {
       console.error("Error starting UI preview:", previewError);
       setError(getErrorMessage(previewError, "Failed to start UI preview"));
@@ -534,8 +882,8 @@ export default function UserManagementPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 shadow-md rounded px-8 pt-6 pb-8 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+        <div className="lg:col-span-4 bg-white dark:bg-gray-800 shadow-md rounded px-6 sm:px-8 pt-6 pb-8">
           <h3 className="text-xl font-semibold mb-4 dark:text-white">
             Create New User
           </h3>
@@ -582,21 +930,68 @@ export default function UserManagementPage() {
             <div className="mb-4">
               <label
                 className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2"
-                htmlFor="role"
+                id="role-label"
               >
                 Role <span className="text-red-500 dark:text-red-400">*</span>
               </label>
-              <select
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-white dark:bg-gray-700 dark:border-gray-600 leading-tight focus:outline-none focus:shadow-outline"
-                id="role"
-                value={role}
-                onChange={(event) => setRole(event.target.value as UserRole)}
-                required
-              >
-                <option value="pengurus">Pengurus</option>
-                <option value="pengasuh">Pengasuh</option>
-                <option value="superAdmin">Super Admin</option>
-              </select>
+              <Listbox value={role} onChange={setRole}>
+                {({ open }) => (
+                  <div className="relative">
+                    <Listbox.Button className="relative w-full cursor-pointer rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-2 pl-3 pr-10 text-left text-sm text-gray-700 dark:text-white shadow leading-tight focus:outline-none focus:shadow-outline">
+                      <span className="flex items-center gap-2 truncate">
+                        <span
+                          className={`inline-block w-2 h-2 rounded-full shrink-0 ${
+                            ROLE_OPTIONS.find((r) => r.value === role)?.dotColor || "bg-blue-500"
+                          }`}
+                        />
+                        <span>{getRoleLabel(role)}</span>
+                      </span>
+                      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                        <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </span>
+                    </Listbox.Button>
+
+                    <Listbox.Options
+                      anchor={{ to: "bottom start", gap: 4 }}
+                      className="z-50 min-w-[var(--button-width)] max-h-60 overflow-auto rounded-md bg-white dark:bg-gray-800 py-1 text-sm shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-gray-200 dark:border-gray-700 focus:outline-none"
+                    >
+                      {ROLE_OPTIONS.map((opt) => (
+                        <Listbox.Option
+                          key={opt.value}
+                          value={opt.value}
+                          className={({ active, selected }) =>
+                            `relative cursor-pointer select-none py-2 pl-3 pr-9 transition-colors flex items-center gap-2 ${
+                              active
+                                ? "bg-blue-50 dark:bg-blue-900/40 text-blue-900 dark:text-blue-200"
+                                : "text-gray-900 dark:text-gray-100"
+                            }`
+                          }
+                        >
+                          {({ selected }) => (
+                            <>
+                              <span
+                                className={`inline-block w-2 h-2 rounded-full shrink-0 ${opt.dotColor}`}
+                              />
+                              <span
+                                className={`block truncate ${
+                                  selected ? "font-semibold" : "font-normal"
+                                }`}
+                              >
+                                {opt.label}
+                              </span>
+                              {selected && (
+                                <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-blue-600 dark:text-blue-400">
+                                  <CheckIcon className="h-4 w-4" aria-hidden="true" />
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </Listbox.Option>
+                      ))}
+                    </Listbox.Options>
+                  </div>
+                )}
+              </Listbox>
             </div>
 
             <div className="mb-4">
@@ -619,28 +1014,58 @@ export default function UserManagementPage() {
             <div className="mb-4">
               <label
                 className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2"
-                htmlFor="honoraryPronoun"
+                id="honoraryPronoun-label"
               >
                 Honorary Pronoun <span className="text-red-500 dark:text-red-400">*</span>
               </label>
-              <select
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-white dark:bg-gray-700 dark:border-gray-600 leading-tight focus:outline-none focus:shadow-outline"
-                id="honoraryPronoun"
-                value={honoraryPronoun}
-                onChange={(event) => setHonoraryPronoun(event.target.value)}
-                required
-              >
-                <option value="Ustad">Ustad</option>
-                <option value="Ustadzah">Ustadzah</option>
-                <option value="Ning">Ning</option>
-                <option value="Abah">Abah</option>
-                <option value="Ayah">Ayah</option>
-                <option value="Bapak">Bapak</option>
-                <option value="Gus">Gus</option>
-                <option value="Pak">Pak</option>
-                <option value="Cak">Cak</option>
-                <option value="Mbak">Mbak</option>
-              </select>
+              <Listbox value={honoraryPronoun} onChange={setHonoraryPronoun}>
+                {({ open }) => (
+                  <div className="relative">
+                    <Listbox.Button className="relative w-full cursor-pointer rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-2 pl-3 pr-10 text-left text-sm text-gray-700 dark:text-white shadow leading-tight focus:outline-none focus:shadow-outline">
+                      <span className="block truncate">{honoraryPronoun}</span>
+                      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                        <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </span>
+                    </Listbox.Button>
+
+                    <Listbox.Options
+                      anchor={{ to: "bottom start", gap: 4 }}
+                      className="z-50 min-w-[var(--button-width)] max-h-60 overflow-auto rounded-md bg-white dark:bg-gray-800 py-1 text-sm shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-gray-200 dark:border-gray-700 focus:outline-none"
+                    >
+                      {HONORARY_PRONOUNS.map((p) => (
+                        <Listbox.Option
+                          key={p}
+                          value={p}
+                          className={({ active, selected }) =>
+                            `relative cursor-pointer select-none py-2 pl-3 pr-9 transition-colors ${
+                              active
+                                ? "bg-blue-50 dark:bg-blue-900/40 text-blue-900 dark:text-blue-200"
+                                : "text-gray-900 dark:text-gray-100"
+                            }`
+                          }
+                        >
+                          {({ selected }) => (
+                            <>
+                              <span
+                                className={`block truncate ${
+                                  selected ? "font-semibold" : "font-normal"
+                                }`}
+                              >
+                                {p}
+                              </span>
+                              {selected && (
+                                <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-blue-600 dark:text-blue-400">
+                                  <CheckIcon className="h-4 w-4" aria-hidden="true" />
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </Listbox.Option>
+                      ))}
+                    </Listbox.Options>
+                  </div>
+                )}
+              </Listbox>
             </div>
 
             <div className="mb-4">
@@ -688,7 +1113,7 @@ export default function UserManagementPage() {
           </form>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 shadow-md rounded px-8 pt-6 pb-8 mb-4">
+        <div className="lg:col-span-8 bg-white dark:bg-gray-800 shadow-md rounded px-6 sm:px-8 pt-6 pb-8">
           <h3 className="text-xl font-semibold mb-2 dark:text-white">
             Existing Users
           </h3>
@@ -704,16 +1129,16 @@ export default function UserManagementPage() {
               <table className="min-w-full bg-white dark:bg-gray-800">
                 <thead>
                   <tr className="bg-gray-100 dark:bg-gray-700">
-                    <th className="py-2 px-4 border-b dark:border-gray-600 text-left dark:text-gray-200">
+                    <th className="py-2.5 px-4 border-b dark:border-gray-600 text-left dark:text-gray-200">
                       Name
                     </th>
-                    <th className="py-2 px-4 border-b dark:border-gray-600 text-left dark:text-gray-200">
+                    <th className="py-2.5 px-4 border-b dark:border-gray-600 text-left dark:text-gray-200">
                       Email
                     </th>
-                    <th className="py-2 px-4 border-b dark:border-gray-600 text-left dark:text-gray-200">
+                    <th className="py-2.5 px-4 border-b dark:border-gray-600 text-left dark:text-gray-200">
                       Role
                     </th>
-                    <th className="py-2 px-4 border-b dark:border-gray-600 text-center dark:text-gray-200">
+                    <th className="py-2.5 px-4 border-b dark:border-gray-600 text-center dark:text-gray-200 whitespace-nowrap">
                       Actions
                     </th>
                   </tr>
@@ -722,18 +1147,91 @@ export default function UserManagementPage() {
                   {users.map((managedUser) => (
                     <tr
                       key={managedUser.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <td className="py-2 px-4 border-b dark:border-gray-600">
+                      <td className="py-2.5 px-4 border-b dark:border-gray-600 font-medium">
                         {managedUser.name || "-"}
                       </td>
-                      <td className="py-2 px-4 border-b dark:border-gray-600">
+                      <td className="py-2.5 px-4 border-b dark:border-gray-600 text-sm">
                         {managedUser.email || "-"}
                       </td>
-                      <td className="py-2 px-4 border-b dark:border-gray-600">
-                        {managedUser.role || "-"}
+                      <td className="py-2.5 px-4 border-b dark:border-gray-600 whitespace-nowrap">
+                        {managedUser.id === user.uid ? (
+                          <span
+                            className={`text-xs font-semibold rounded px-2.5 py-1 border transition-colors inline-flex items-center ${getRoleBadgeClass(
+                              managedUser.role
+                            )}`}
+                          >
+                            {getRoleLabel(managedUser.role)}
+                          </span>
+                        ) : (
+                          <Listbox
+                            value={(managedUser.role || "pengurus") as UserRole}
+                            onChange={(newRole) => void handleUpdateRole(managedUser, newRole)}
+                            disabled={updatingRoleId === managedUser.id}
+                          >
+                            {({ open }) => (
+                              <div className="relative inline-block text-left">
+                                <Listbox.Button
+                                  disabled={updatingRoleId === managedUser.id}
+                                  className={`text-xs font-semibold rounded px-2.5 py-1 border transition-colors inline-flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 ${getRoleBadgeClass(
+                                    managedUser.role
+                                  )} ${
+                                    updatingRoleId === managedUser.id
+                                      ? "opacity-50 cursor-not-allowed"
+                                      : "cursor-pointer hover:brightness-95"
+                                  }`}
+                                >
+                                  <span>{getRoleLabel(managedUser.role)}</span>
+                                  {updatingRoleId === managedUser.id ? (
+                                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                  ) : (
+                                    <ChevronDownIcon
+                                      className={`h-3.5 w-3.5 opacity-70 transition-transform ${
+                                        open ? "rotate-180" : ""
+                                      }`}
+                                    />
+                                  )}
+                                </Listbox.Button>
+
+                                <Listbox.Options
+                                  anchor={{ to: "bottom start", gap: 4 }}
+                                  className="z-50 min-w-[170px] rounded-lg bg-white dark:bg-gray-800 py-1 text-xs shadow-xl ring-1 ring-black/10 dark:ring-white/10 border border-gray-200 dark:border-gray-700 focus:outline-none"
+                                >
+                                  {ROLE_OPTIONS.map((opt) => (
+                                    <Listbox.Option
+                                      key={opt.value}
+                                      value={opt.value}
+                                      className={({ active, selected }) =>
+                                        `relative cursor-pointer select-none py-2 pl-3 pr-8 transition-colors flex items-center gap-2 ${
+                                          active
+                                            ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white"
+                                            : "text-gray-700 dark:text-gray-200"
+                                        } ${selected ? "font-semibold" : "font-normal"}`
+                                      }
+                                    >
+                                      {({ selected }) => (
+                                        <>
+                                          <span
+                                            className={`inline-block w-2 h-2 rounded-full shrink-0 ${opt.dotColor}`}
+                                          />
+                                          <span className="block truncate">{opt.label}</span>
+                                          {selected && (
+                                            <span className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-blue-600 dark:text-blue-400">
+                                              <CheckIcon className="h-4 w-4" aria-hidden="true" />
+                                            </span>
+                                          )}
+                                        </>
+                                      )}
+                                    </Listbox.Option>
+                                  ))}
+                                </Listbox.Options>
+                              </div>
+                            )}
+                          </Listbox>
+                        )}
                       </td>
-                      <td className="py-2 px-4 border-b dark:border-gray-600 text-center">
+                      <td className="py-2.5 px-4 border-b dark:border-gray-600 text-center whitespace-nowrap">
                         <div className="flex justify-center gap-2">
                           <button
                             onClick={() => handleStartPreview(managedUser)}
@@ -778,9 +1276,185 @@ export default function UserManagementPage() {
         </div>
       </div>
 
+      {/* Bendahara Management Section */}
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded px-8 pt-6 pb-8 mb-6 border-t-4 border-emerald-500">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            <BanknotesIcon className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-xl font-semibold dark:text-white">
+              Kelola Bendahara (Akses Cashflow)
+            </h3>
+          </div>
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+            {bendaharaUsers.length} Bendahara Ditugaskan
+          </span>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-6 max-w-3xl">
+          Bendahara adalah santri yang diberikan hak akses untuk membuka dan mengelola menu Laporan Arus Kas (Cashflow).
+          Super Admin dapat memilih satu atau lebih santri sebagai Bendahara.
+        </p>
+
+        {/* Current Bendaharas List */}
+        <div className="mb-6">
+          <h4 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">
+            Daftar Bendahara Saat Ini ({bendaharaUsers.length})
+          </h4>
+          {bendaharaUsers.length === 0 ? (
+            <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-dashed border-gray-300 dark:border-gray-600 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Belum ada santri yang ditugaskan sebagai Bendahara. Pilih santri aktif di bawah untuk menambahkan Bendahara.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-emerald-50/40 dark:bg-gray-700/30 rounded-lg overflow-hidden border border-emerald-200 dark:border-emerald-800/60">
+                <thead>
+                  <tr className="bg-emerald-100/70 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-200 text-xs font-bold uppercase tracking-wider">
+                    <th className="py-2.5 px-4 text-left">Nama Santri</th>
+                    <th className="py-2.5 px-4 text-left">Email Login Google</th>
+                    <th className="py-2.5 px-4 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-emerald-100 dark:divide-emerald-900/30 text-sm">
+                  {bendaharaUsers.map((b) => (
+                    <tr
+                      key={b.id}
+                      className="hover:bg-emerald-100/50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <td className="py-2.5 px-4 font-medium dark:text-white">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                          <span>{b.name || "-"}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-4 dark:text-gray-300 text-sm">
+                        {b.email || "-"}
+                      </td>
+                      <td className="py-2.5 px-4 text-center">
+                        <div className="flex justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleStartPreview(b)}
+                            title={`Preview UI sebagai ${b.name || b.email}`}
+                            className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-1 px-3 rounded text-xs transition-colors disabled:opacity-60"
+                            disabled={b.id === user.uid || previewingUserId === b.id}
+                          >
+                            <EyeIcon className="h-3.5 w-3.5" />
+                            Preview
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleRemoveBendahara(b)}
+                            disabled={deletingUserId === b.id}
+                            className="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-xs transition-colors disabled:opacity-60"
+                          >
+                            {deletingUserId === b.id ? "Mencabut..." : "Cabut Bendahara"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Assign New Bendahara Box */}
+        <div className="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-700/40">
+          <h4 className="text-base font-semibold mb-2 dark:text-white">
+            Pilih Santri Menjadi Bendahara
+          </h4>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Pilih santri aktif untuk diberikan peran Bendahara. Mereka akan dapat mengakses menu Cashflow.
+          </p>
+
+          {isLoadingData ? (
+            <p className="text-gray-600 dark:text-gray-300 text-sm">Memuat daftar santri...</p>
+          ) : (
+            <div className="max-w-2xl space-y-4">
+              <div>
+                <label
+                  htmlFor="santriToBendahara"
+                  className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2"
+                >
+                  Santri Aktif
+                </label>
+                <SearchSelect
+                  id="santriToBendahara"
+                  options={bendaharaSearchOptions}
+                  value={selectedBendaharaSantriId}
+                  onChange={(santriId) => handleSelectBendaharaSantri(santriId)}
+                  inputClassName="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-white dark:bg-gray-700 dark:border-gray-600 leading-tight focus:outline-none focus:shadow-outline disabled:opacity-60"
+                  placeholder="Cari santri berdasarkan nama, email, atau no telpon..."
+                  disabledPlaceholder="Tidak ada santri aktif yang tersedia"
+                  disabled={santrisForBendahara.length === 0 || isAssigningBendahara}
+                  maxResults={100}
+                />
+              </div>
+
+              {selectedBendaharaSantri && (
+                <form onSubmit={handleAssignBendahara} className="space-y-4 pt-2">
+                  <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-200">
+                    <p className="font-semibold text-base">{selectedBendaharaSantri.nama}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                      Nomor telepon: {selectedBendaharaSantri.nomorTelpon || "Belum tersedia"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="bendaharaEmail"
+                      className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2"
+                    >
+                      Email Google untuk Login <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="bendaharaEmail"
+                      type="email"
+                      value={bendaharaEmail}
+                      onChange={(e) => setBendaharaEmail(e.target.value)}
+                      placeholder="santri@gmail.com"
+                      required
+                      disabled={isAssigningBendahara}
+                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-white dark:bg-gray-700 dark:border-gray-600 leading-tight focus:outline-none focus:shadow-outline"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Santri akan masuk menggunakan login Google dengan email ini untuk mengakses laporan Cashflow.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="submit"
+                      disabled={isAssigningBendahara || !bendaharaEmail.trim()}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded focus:outline-none focus:shadow-outline transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+                    >
+                      {isAssigningBendahara ? "Menetapkan..." : "Tetapkan sebagai Bendahara"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedBendaharaSantriId("");
+                        setSelectedBendaharaSantri(null);
+                        setBendaharaEmail("");
+                      }}
+                      disabled={isAssigningBendahara}
+                      className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold py-2 px-4 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="bg-white dark:bg-gray-800 shadow-md rounded px-8 pt-6 pb-8 mb-6">
         <h3 className="text-xl font-semibold mb-2 dark:text-white">
-          Upgrade Santri to Pengurus
+          Upgrade Santri to Staff / Pengurus
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-4 max-w-3xl">
           Select an active Santri to pre-register the same person as a Pengurus.
@@ -828,11 +1502,11 @@ export default function UserManagementPage() {
 
             <button
               type="button"
-              onClick={openUpgradeModal}
+              onClick={() => openUpgradeModal()}
               disabled={!selectedSantri || isUpgrading}
               className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Upgrade to Pengurus
+              Upgrade Santri
             </button>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
               {upgradeableSantris.length} active Santri account(s) available.
@@ -942,32 +1616,108 @@ export default function UserManagementPage() {
               Upgrade {selectedSantri.nama}?
             </h3>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              This creates a Pengurus access record linked to the existing Santri
-              record. Enter the Google email this person will use to sign in.
+              Pilih peran dan masukkan email Google yang akan digunakan santri ini untuk masuk ke sistem.
             </p>
 
             <form onSubmit={handleUpgradeSubmit} className="mt-5">
-              <label
-                htmlFor="upgradeEmail"
-                className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2"
-              >
-                Google email <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="upgradeEmail"
-                type="email"
-                value={upgradeEmail}
-                onChange={(event) => setUpgradeEmail(event.target.value)}
-                placeholder="user@example.com"
-                required
-                autoFocus
-                disabled={isUpgrading}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-white dark:bg-gray-700 dark:border-gray-600 leading-tight focus:outline-none focus:shadow-outline disabled:opacity-60"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                The email is normalized to lowercase and must not already belong
-                to another Pengurus account.
-              </p>
+              <div className="mb-4">
+                <label
+                  id="upgradeRoleLabel"
+                  className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2"
+                >
+                  Pilih Role <span className="text-red-500">*</span>
+                </label>
+                <Listbox value={upgradeRole} onChange={setUpgradeRole}>
+                  {({ open }) => (
+                    <div className="relative">
+                      <Listbox.Button className="relative w-full cursor-pointer rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-2 pl-3 pr-10 text-left text-sm text-gray-700 dark:text-white shadow leading-tight focus:outline-none focus:shadow-outline">
+                        <span className="flex items-center gap-2 truncate">
+                          <span
+                            className={`inline-block w-2 h-2 rounded-full shrink-0 ${
+                              upgradeRole === "bendahara" ? "bg-emerald-500" : "bg-blue-500"
+                            }`}
+                          />
+                          <span>
+                            {upgradeRole === "bendahara"
+                              ? "Bendahara (Akses Laporan Cashflow)"
+                              : "Pengurus (Akses Penuh Staff)"}
+                          </span>
+                        </span>
+                        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                          <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                        </span>
+                      </Listbox.Button>
+
+                      <Listbox.Options
+                        anchor={{ to: "bottom start", gap: 4 }}
+                        className="z-50 min-w-[var(--button-width)] max-h-60 overflow-auto rounded-md bg-white dark:bg-gray-800 py-1 text-sm shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-gray-200 dark:border-gray-700 focus:outline-none"
+                      >
+                        {[
+                          {
+                            value: "pengurus" as const,
+                            label: "Pengurus (Akses Penuh Staff)",
+                            dot: "bg-blue-500",
+                          },
+                          {
+                            value: "bendahara" as const,
+                            label: "Bendahara (Akses Laporan Cashflow)",
+                            dot: "bg-emerald-500",
+                          },
+                        ].map((opt) => (
+                          <Listbox.Option
+                            key={opt.value}
+                            value={opt.value}
+                            className={({ active, selected }) =>
+                              `relative cursor-pointer select-none py-2 pl-3 pr-9 transition-colors flex items-center gap-2 ${
+                                active
+                                  ? "bg-blue-50 dark:bg-blue-900/40 text-blue-900 dark:text-blue-200"
+                                  : "text-gray-900 dark:text-gray-100"
+                              }`
+                            }
+                          >
+                            {({ selected }) => (
+                              <>
+                                <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${opt.dot}`} />
+                                <span className={`block truncate ${selected ? "font-semibold" : "font-normal"}`}>
+                                  {opt.label}
+                                </span>
+                                {selected && (
+                                  <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-blue-600 dark:text-blue-400">
+                                    <CheckIcon className="h-4 w-4" aria-hidden="true" />
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </Listbox.Option>
+                        ))}
+                      </Listbox.Options>
+                    </div>
+                  )}
+                </Listbox>
+              </div>
+
+              <div className="mb-4">
+                <label
+                  htmlFor="upgradeEmail"
+                  className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2"
+                >
+                  Email Google <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="upgradeEmail"
+                  type="email"
+                  value={upgradeEmail}
+                  onChange={(event) => setUpgradeEmail(event.target.value)}
+                  placeholder="user@example.com"
+                  required
+                  autoFocus
+                  disabled={isUpgrading}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-white dark:bg-gray-700 dark:border-gray-600 leading-tight focus:outline-none focus:shadow-outline disabled:opacity-60"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Email dinormalisasi ke huruf kecil dan tidak boleh terdaftar pada akun lain.
+                </p>
+              </div>
 
               <div className="mt-6 flex justify-end gap-3">
                 <button
@@ -984,7 +1734,11 @@ export default function UserManagementPage() {
                   className="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
                   aria-busy={isUpgrading}
                 >
-                  {isUpgrading ? "Upgrading..." : "Confirm Upgrade"}
+                  {isUpgrading
+                    ? "Menyimpan..."
+                    : `Konfirmasi (${
+                        upgradeRole === "bendahara" ? "Bendahara" : "Pengurus"
+                      })`}
                 </button>
               </div>
             </form>

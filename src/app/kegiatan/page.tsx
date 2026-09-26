@@ -154,8 +154,8 @@ export default function KegiatanPage() {
     // Role-based access control
     useEffect(() => {
         if (!authLoading && user) {
-            if (user.role === "waliSantri") {
-                router.push("/payment-history");
+            if (user.role === "waliSantri" || user.role === "bendahara") {
+                router.push(user.role === "bendahara" ? "/cashflow" : "/payment-history");
             }
         } else if (!authLoading && !user) {
             router.push("/login");
@@ -494,7 +494,7 @@ export default function KegiatanPage() {
     };
 
     if (authLoading) return <div className="flex justify-center items-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div></div>;
-    if (!user || user.role === "waliSantri") return null;
+    if (!user || user.role === "waliSantri" || user.role === "bendahara") return null;
 
     return (
         <div className="container mx-auto px-4 py-8 max-w-5xl">

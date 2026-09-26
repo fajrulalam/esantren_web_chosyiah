@@ -38,7 +38,7 @@ export default function NewIzinPage() {
     e.preventDefault();
     if (inFlight.current || isPreviewing) return;
     
-    if (!user || user.role !== "waliSantri" || !user.santriId) {
+    if (!user || (user.role !== "waliSantri" && user.role !== "bendahara") || !user.santriId) {
       setError("Anda tidak memiliki akses untuk mengirimkan laporan.");
       return;
     }
@@ -104,15 +104,15 @@ export default function NewIzinPage() {
     }
   };
 
-  // Redirect if not waliSantri. Done in an effect (not during render) so we
+  // Redirect if not waliSantri or bendahara. Done in an effect (not during render) so we
   // don't update the router while NewIzinPage itself is still rendering.
   useEffect(() => {
-    if (!loading && (!user || user.role !== "waliSantri")) {
+    if (!loading && (!user || (user.role !== "waliSantri" && user.role !== "bendahara"))) {
       router.push("/");
     }
   }, [loading, user, router]);
 
-  if (!loading && (!user || user.role !== "waliSantri")) {
+  if (!loading && (!user || (user.role !== "waliSantri" && user.role !== "bendahara"))) {
     return null;
   }
   

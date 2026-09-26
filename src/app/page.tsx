@@ -212,6 +212,8 @@ export default function Home() {
             // Example redirection logic, adjust as needed
             if (user.role === 'waliSantri') {
                 router.push('/payment-history');
+            } else if (user.role === 'bendahara') {
+                router.push('/cashflow');
             } else {
                 router.push('/rekapitulasi'); // Default dashboard or relevant page
             }

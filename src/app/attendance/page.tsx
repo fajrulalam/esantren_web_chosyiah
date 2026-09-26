@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/firebase/auth';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
@@ -11,10 +13,20 @@ import LateReturnAlerts from '@/components/attendance/LateReturnAlerts';
 import NetworkStatusIndicator from '@/components/attendance/NetworkStatus';
 
 export default function AttendanceHome() {
+    const { user: authUser, loading: authLoading } = useAuth();
+    const router = useRouter();
     const [teacherId, setTeacherId] = useState<string | null>(null);
     const [teacherName, setTeacherName] = useState<string>('');
     const { setKodeAsrama } = useAttendanceStore();
     const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (!authLoading && authUser) {
+            if (authUser.role === "waliSantri" || authUser.role === "bendahara") {
+                router.push(authUser.role === "bendahara" ? "/cashflow" : "/payment-history");
+            }
+        }
+    }, [authUser, authLoading, router]);
 
     // Load teacher info on mount
     useEffect(() => {

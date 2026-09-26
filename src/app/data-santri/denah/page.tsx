@@ -399,8 +399,8 @@ export default function DenahKamarPage() {
       return;
     }
 
-    if (user.role === "waliSantri") {
-      router.replace("/payment-history");
+    if (user.role === "waliSantri" || user.role === "bendahara") {
+      router.replace(user.role === "bendahara" ? "/cashflow" : "/payment-history");
       return;
     }
 

@@ -23,7 +23,7 @@ const actor = (user: UserData, timestamp: Timestamp, fallbackName = "Santri"): I
 export async function createIzinApplication(
   input: NewIzinReport, user: UserData, reportId?: string,
 ): Promise<string> {
-  if (user.role !== "waliSantri" || !user.santriId) {
+  if ((user.role !== "waliSantri" && user.role !== "bendahara") || !user.santriId) {
     throw new Error("Hanya santri yang dapat melaporkan izinnya sendiri.");
   }
   validateIzinReport(input);
@@ -142,7 +142,7 @@ async function completeIzin(
     const snapshot = await transaction.get(izinRef);
     if (!snapshot.exists()) throw new Error("Laporan tidak ditemukan.");
     const izin = { ...snapshot.data(), id: snapshot.id } as IzinSakitPulang;
-    const ownsReport = user.role === "waliSantri" && user.santriId === izin.santriId;
+    const ownsReport = (user.role === "waliSantri" || user.role === "bendahara") && user.santriId === izin.santriId;
     const isStaff = (["pengurus", "admin", "superAdmin", "pengasuh"] as string[]).includes(user.role);
     if (!ownsReport && !isStaff) {
       throw new Error("Hanya santri yang bersangkutan atau pengurus yang dapat melaporkan selesai.");

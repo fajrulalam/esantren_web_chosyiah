@@ -21,7 +21,7 @@ export default function IzinDetail({ id, admin = false }: { id: string; admin?: 
   const base = admin ? "/izin-admin" : "/izin-santri";
   const hasAccess = !!user && (admin
     ? ["pengurus", "pengasuh", "superAdmin"].includes(user.role)
-    : user.role === "waliSantri" && !!user.santriId);
+    : (user.role === "waliSantri" || user.role === "bendahara") && !!user.santriId);
 
   useEffect(() => {
     if (loading) return;
@@ -79,7 +79,7 @@ export default function IzinDetail({ id, admin = false }: { id: string; admin?: 
           </>}
           {completedAt && <div><dt className="text-gray-500 dark:text-gray-400">{izin.izinType === "Pulang" ? "Tanggal Kembali" : "Tanggal Sembuh"}</dt><dd className="mt-1">{formatDate(completedAt)}</dd></div>}
           {completionActor && <div><dt className="text-gray-500 dark:text-gray-400">Dicatat oleh</dt><dd className="mt-1">
-            {completionActor.name || (completionActor.role === "waliSantri" ? "Santri" : "Pengurus")}
+            {completionActor.name || (completionActor.role === "waliSantri" || completionActor.role === "bendahara" ? "Santri" : "Pengurus")}
             {completionActor.timestamp && <span className="mt-1 block text-gray-500 dark:text-gray-400">{formatDate(completionActor.timestamp)}</span>}
           </dd></div>}
         </dl>

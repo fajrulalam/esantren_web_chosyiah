@@ -362,8 +362,8 @@ export default function DataSantriPage() {
     if (!loading) {
       if (!user) {
         router.push("/login");
-      } else if (user.role === "waliSantri") {
-        router.push("/payment-history");
+      } else if (user.role === "waliSantri" || user.role === "bendahara") {
+        router.push(user.role === "bendahara" ? "/cashflow" : "/payment-history");
       } else {
         setIsAuthorized(true);
         fetchSantris();

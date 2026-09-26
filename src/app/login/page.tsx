@@ -35,6 +35,8 @@ export default function Login() {
     if (user && !loading) {
       if (user.role === "waliSantri") {
         router.push("/payment-history");
+      } else if (user.role === "bendahara") {
+        router.push("/cashflow");
       } else {
         router.push("/rekapitulasi");
       }
@@ -69,7 +71,6 @@ export default function Login() {
         // Both name and phone matched - direct login successful
         setNameFound(true);
         setPhoneCorrect(true);
-        router.push("/payment-history");
         return;
       }
 
@@ -144,7 +145,6 @@ export default function Login() {
 
     try {
       await signInWithGoogle();
-      router.push("/rekapitulasi");
     } catch (err: any) {
       if (err.code === "auth/user-cancelled") {
         setError(

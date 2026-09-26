@@ -20,7 +20,7 @@ export default function PaymentHistoryPage() {
         if (!loading) {
             if (!user) {
                 router.push('/login');
-            } else if (user.role !== 'waliSantri') {
+            } else if (user.role !== 'waliSantri' && user.role !== 'bendahara') {
                 router.push('/rekapitulasi');
             } else {
                 setIsAuthorized(true);

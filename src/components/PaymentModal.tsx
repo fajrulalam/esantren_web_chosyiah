@@ -186,7 +186,7 @@ export default function PaymentModal({
       contentType: file.type,
       customMetadata: {
         uploadedBy:
-          user?.role === "waliSantri" ? "Wali Santri" : "Admin",
+          user?.role === "waliSantri" || user?.role === "bendahara" ? "Santri" : "Admin",
         santriId: santriId,
         paymentId: paymentId,
         originalFileName: file.name,
@@ -257,8 +257,8 @@ export default function PaymentModal({
       );
 
       const inputtedBy =
-        user?.role === "waliSantri"
-          ? user.name || santriName || "Wali Santri"
+        user?.role === "waliSantri" || user?.role === "bendahara"
+          ? user.name || santriName || "Santri"
           : user?.name || "Admin";
 
       await submitPaymentAttempt({

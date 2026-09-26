@@ -1,4 +1,3 @@
-import { useNetworkStatus } from '@/app/attendance/hooks';
 import { useState, useEffect } from 'react';
 
 export default function NetworkStatusIndicator() {
@@ -29,31 +28,17 @@ export default function NetworkStatusIndicator() {
     };
   }, []);
   
-  // During SSR or first render, return a placeholder with the same dimensions
-  if (!isClient) {
-    return (
-      <div className="network-status rounded-md px-3 py-1 text-sm font-medium opacity-0">
-        <span className="flex items-center">
-          <span className="mr-1 h-2 w-2 rounded-full"></span>
-          Loading
-        </span>
-      </div>
-    );
+  // Do not show anything when online or during SSR
+  if (!isClient || onlineStatus) {
+    return null;
   }
 
   return (
-    <div className={`network-status ${onlineStatus ? 'online' : 'offline'} rounded-md px-3 py-1 text-sm font-medium`}>
-      {onlineStatus ? (
-        <span className="flex items-center text-green-600 dark:text-green-400">
-          <span className="mr-1 h-2 w-2 rounded-full bg-green-600 dark:bg-green-400"></span>
-          Online
-        </span>
-      ) : (
-        <span className="flex items-center text-amber-600 dark:text-amber-400">
-          <span className="mr-1 h-2 w-2 rounded-full bg-amber-600 dark:bg-amber-400"></span>
-          Offline - Changes will sync when reconnected
-        </span>
-      )}
+    <div className="network-status offline rounded-md px-3 py-1 text-sm font-medium">
+      <span className="flex items-center text-amber-600 dark:text-amber-400">
+        <span className="mr-1 h-2 w-2 rounded-full bg-amber-600 dark:bg-amber-400"></span>
+        Offline - Changes will sync when reconnected
+      </span>
     </div>
   );
 }

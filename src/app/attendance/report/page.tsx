@@ -9,7 +9,8 @@ import { format } from 'date-fns';
 import { generateAttendanceReport, getAttendanceTypes } from '@/firebase/attendance';
 import { AttendanceReport, AttendanceType } from '@/types/attendance';
 import { KODE_ASRAMA } from '@/constants';
-import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
+import { Listbox } from '@headlessui/react';
+import { ChevronUpIcon, ChevronDownIcon, ChevronUpDownIcon, CheckIcon } from '@heroicons/react/20/solid';
 
 type SortField = 'nama' | 'presentCount' | 'absentCount' | 'sickCount' | 'pulangCount' | 'dispenCount' | 'studentSessionCount' | 'attendanceRate';
 type SortDirection = 'asc' | 'desc';
@@ -195,30 +196,133 @@ export default function AttendanceReportScreen() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div className="form-group">
               <label className="block text-sm font-medium mb-2">Tipe Absensi</label>
-              <select
-                  value={selectedAttendanceTypeId}
-                  onChange={(e) => setSelectedAttendanceTypeId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
-                  disabled={isLoadingTypes}
+              <Listbox
+                value={selectedAttendanceTypeId}
+                onChange={setSelectedAttendanceTypeId}
+                disabled={isLoadingTypes}
               >
-                <option value="">Semua Tipe Absensi</option>
-                {attendanceTypes.map(type => (
-                    <option key={type.id} value={type.id}>{type.name}</option>
-                ))}
-              </select>
+                <div className="relative">
+                  <Listbox.Button className="relative w-full cursor-pointer rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 py-2 pl-3 pr-10 text-left text-sm text-gray-900 dark:text-white shadow-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="block truncate">
+                      {selectedAttendanceTypeId
+                        ? attendanceTypes.find((t) => t.id === selectedAttendanceTypeId)?.name || 'Semua Tipe Absensi'
+                        : 'Semua Tipe Absensi'}
+                    </span>
+                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                      <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                    </span>
+                  </Listbox.Button>
+
+                  <Listbox.Options className="absolute left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white dark:bg-gray-800 py-1 text-sm shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-gray-200 dark:border-gray-700 focus:outline-none">
+                    <Listbox.Option
+                      value=""
+                      className={({ active }) =>
+                        `relative cursor-pointer select-none py-2 pl-3 pr-9 transition-colors ${
+                          active
+                            ? 'bg-indigo-50 text-indigo-900 dark:bg-indigo-900/40 dark:text-white'
+                            : 'text-gray-900 dark:text-gray-100'
+                        }`
+                      }
+                    >
+                      {({ selected }) => (
+                        <>
+                          <span className={`block truncate ${selected ? 'font-semibold text-indigo-600 dark:text-indigo-400' : 'font-normal'}`}>
+                            Semua Tipe Absensi
+                          </span>
+                          {selected && (
+                            <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-indigo-600 dark:text-indigo-400">
+                              <CheckIcon className="h-4 w-4" aria-hidden="true" />
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </Listbox.Option>
+
+                    {attendanceTypes.map((type) => (
+                      <Listbox.Option
+                        key={type.id}
+                        value={type.id}
+                        className={({ active }) =>
+                          `relative cursor-pointer select-none py-2 pl-3 pr-9 transition-colors ${
+                            active
+                              ? 'bg-indigo-50 text-indigo-900 dark:bg-indigo-900/40 dark:text-white'
+                              : 'text-gray-900 dark:text-gray-100'
+                          }`
+                        }
+                      >
+                        {({ selected }) => (
+                          <>
+                            <span className={`block truncate ${selected ? 'font-semibold text-indigo-600 dark:text-indigo-400' : 'font-normal'}`}>
+                              {type.name}
+                            </span>
+                            {selected && (
+                              <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-indigo-600 dark:text-indigo-400">
+                                <CheckIcon className="h-4 w-4" aria-hidden="true" />
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </Listbox.Option>
+                    ))}
+                  </Listbox.Options>
+                </div>
+              </Listbox>
             </div>
 
             <div className="form-group">
               <label className="block text-sm font-medium mb-2">Jenis Sesi</label>
-              <select
-                  value={sessionType}
-                  onChange={(e) => setSessionType(e.target.value as 'all' | 'scheduled' | 'incidental')}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+              <Listbox
+                value={sessionType}
+                onChange={setSessionType}
               >
-                <option value="all">Semua Jenis Sesi</option>
-                <option value="scheduled">Terjadwal</option>
-                <option value="incidental">Insidental</option>
-              </select>
+                <div className="relative">
+                  <Listbox.Button className="relative w-full cursor-pointer rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 py-2 pl-3 pr-10 text-left text-sm text-gray-900 dark:text-white shadow-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                    <span className="block truncate">
+                      {sessionType === 'scheduled'
+                        ? 'Terjadwal'
+                        : sessionType === 'incidental'
+                        ? 'Insidental'
+                        : 'Semua Jenis Sesi'}
+                    </span>
+                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                      <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                    </span>
+                  </Listbox.Button>
+
+                  <Listbox.Options className="absolute left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white dark:bg-gray-800 py-1 text-sm shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-gray-200 dark:border-gray-700 focus:outline-none">
+                    {[
+                      { value: 'all', label: 'Semua Jenis Sesi' },
+                      { value: 'scheduled', label: 'Terjadwal' },
+                      { value: 'incidental', label: 'Insidental' },
+                    ].map((opt) => (
+                      <Listbox.Option
+                        key={opt.value}
+                        value={opt.value}
+                        className={({ active }) =>
+                          `relative cursor-pointer select-none py-2 pl-3 pr-9 transition-colors ${
+                            active
+                              ? 'bg-indigo-50 text-indigo-900 dark:bg-indigo-900/40 dark:text-white'
+                              : 'text-gray-900 dark:text-gray-100'
+                          }`
+                        }
+                      >
+                        {({ selected }) => (
+                          <>
+                            <span className={`block truncate ${selected ? 'font-semibold text-indigo-600 dark:text-indigo-400' : 'font-normal'}`}>
+                              {opt.label}
+                            </span>
+                            {selected && (
+                              <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-indigo-600 dark:text-indigo-400">
+                                <CheckIcon className="h-4 w-4" aria-hidden="true" />
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </Listbox.Option>
+                    ))}
+                  </Listbox.Options>
+                </div>
+              </Listbox>
             </div>
           </div>
 

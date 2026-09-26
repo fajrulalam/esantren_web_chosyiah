@@ -15,11 +15,11 @@ function RekapitulasiViewContent() {
   useEffect(() => {
     if (loading) return;
     if (!user) router.push("/login");
-    else if (user.role === "waliSantri") router.push("/payment-history");
+    else if (user.role === "waliSantri" || user.role === "bendahara") router.push(user.role === "bendahara" ? "/cashflow" : "/payment-history");
     else if (!paymentId) router.push("/rekapitulasi");
   }, [loading, paymentId, router, user]);
 
-  if (loading || !user || user.role === "waliSantri" || !paymentId) {
+  if (loading || !user || user.role === "waliSantri" || user.role === "bendahara" || !paymentId) {
     return <div className="min-h-screen bg-gray-50 dark:bg-gray-900" />;
   }
 

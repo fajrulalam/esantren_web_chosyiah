@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase/auth';
 import { useState, useEffect } from 'react';
-import DarkModeToggle from '@/components/DarkModeToggle';
 
 export default function Navbar() {
     const { user, logOut, isPreviewing } = useAuth();
@@ -134,6 +133,14 @@ export default function Navbar() {
                                             >
                                                 Izin Santri
                                             </Link>
+                                            {['pengurus', 'superAdmin'].includes(user.role) && (
+                                                <Link
+                                                    href="/cashflow"
+                                                    className={isActive('/cashflow') ? activeClass : inactiveClass}
+                                                >
+                                                    Cashflow
+                                                </Link>
+                                            )}
                                             {user.role === 'superAdmin' && (
                                                 <Link
                                                     href="/user-management"
@@ -150,14 +157,34 @@ export default function Navbar() {
                                                     Voucher Asrama
                                                 </Link>
                                             )}
-                                            {user.role === 'superAdmin' && (
-                                                <Link
-                                                    href="/debug"
-                                                    className={isActive('/debug') ? activeClass : inactiveClass}
-                                                >
-                                                    Debug
-                                                </Link>
-                                            )}
+
+                                        </>
+                                    ) : user.role === 'bendahara' ? (
+                                        <>
+                                            <Link
+                                                href="/payment-history"
+                                                className={isActive('/payment-history') ? activeClass : inactiveClass}
+                                            >
+                                                History Pembayaran
+                                            </Link>
+                                            <Link
+                                                href="/my-vouchers"
+                                                className={isActive('/my-vouchers') ? activeClass : inactiveClass}
+                                            >
+                                                Voucher 375
+                                            </Link>
+                                            <Link
+                                                href="/izin-santri"
+                                                className={isActive('/izin-santri') ? activeClass : inactiveClass}
+                                            >
+                                                Izin Sakit/Pulang
+                                            </Link>
+                                            <Link
+                                                href="/cashflow"
+                                                className={isActive('/cashflow') ? activeClass : inactiveClass}
+                                            >
+                                                Cashflow
+                                            </Link>
                                         </>
                                     ) : user.role === 'waliSantri' ? (
                                         <>
@@ -197,7 +224,6 @@ export default function Navbar() {
                                             </Link>
                                         </>
                                     )}
-                                    <DarkModeToggle />
                                     <button
                                         onClick={handleLogout}
                                         className={`${buttonClasses} bg-red-100 text-red-900 hover:bg-red-200 active:bg-red-300 border-red-200`}
@@ -210,17 +236,15 @@ export default function Navbar() {
                                     <Link href="/login" className={buttonClasses}>
                                         Masuk
                                     </Link>
-                                    <DarkModeToggle />
                                 </>
                             )}
                         </div>
 
                         {/* Mobile menu button */}
                         <div className="md:hidden flex items-center">
-                            <DarkModeToggle />
                             <button
                                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                                className="ml-2 inline-flex items-center justify-center p-2 rounded-xl text-amber-800 dark:text-gray-200 hover:bg-amber-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                                className="inline-flex items-center justify-center p-2 rounded-xl text-amber-800 dark:text-gray-200 hover:bg-amber-100 dark:hover:bg-gray-700 transition-colors duration-200"
                                 aria-controls="mobile-menu"
                                 aria-expanded={isMenuOpen}
                             >
@@ -282,6 +306,15 @@ export default function Navbar() {
                                             >
                                                 Izin Santri
                                             </Link>
+                                            {['pengurus', 'superAdmin'].includes(user.role) && (
+                                                <Link
+                                                    href="/cashflow"
+                                                    className={`block ${isActive('/cashflow') ? activeClass : inactiveClass}`}
+                                                    onClick={() => setIsMenuOpen(false)}
+                                                >
+                                                    Cashflow
+                                                </Link>
+                                            )}
                                             {user.role === 'superAdmin' && (
                                                 <Link
                                                     href="/user-management"
@@ -300,15 +333,38 @@ export default function Navbar() {
                                                     Voucher Asrama
                                                 </Link>
                                             )}
-                                            {user.role === 'superAdmin' && (
-                                                <Link
-                                                    href="/debug"
-                                                    className={`block ${isActive('/debug') ? activeClass : inactiveClass}`}
-                                                    onClick={() => setIsMenuOpen(false)}
-                                                >
-                                                    Debug
-                                                </Link>
-                                            )}
+
+                                        </>
+                                    ) : user.role === 'bendahara' ? (
+                                        <>
+                                            <Link
+                                                href="/payment-history"
+                                                className={`block ${isActive('/payment-history') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                History Pembayaran
+                                            </Link>
+                                            <Link
+                                                href="/my-vouchers"
+                                                className={`block ${isActive('/my-vouchers') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Voucher 375
+                                            </Link>
+                                            <Link
+                                                href="/izin-santri"
+                                                className={`block ${isActive('/izin-santri') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Izin Sakit/Pulang
+                                            </Link>
+                                            <Link
+                                                href="/cashflow"
+                                                className={`block ${isActive('/cashflow') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Cashflow
+                                            </Link>
                                         </>
                                     ) : user.role === 'waliSantri' ? (
                                         <>

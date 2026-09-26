@@ -12,7 +12,7 @@ import { auth, googleProvider, db } from "./config";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
 // User roles
-export type UserRole = "waliSantri" | "pengurus" | "pengasuh" | "superAdmin";
+export type UserRole = "waliSantri" | "pengurus" | "pengasuh" | "superAdmin" | "bendahara";
 
 // User interface
 export interface UserData {
@@ -55,6 +55,7 @@ interface AuthContextProps {
     id: string;
     name: string;
     email?: string | null;
+    role?: UserRole;
   }) => void;
   checkSantriName: (namaSantri: string) => Promise<boolean>;
   checkSantriPhone: (namaSantri: string, nomorTelpon: string) => Promise<boolean>;
@@ -93,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (stored) {
         const parsed = JSON.parse(stored) as UserData;
         setPreviewUser(parsed);
-        if (parsed.role === "waliSantri") {
+        if (parsed.role === "waliSantri" || parsed.role === "bendahara") {
           setSantriName(parsed.name || null);
         }
       }
@@ -122,9 +123,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     setPreviewUser(preview);
-    // A few waliSantri screens (payment history, izin) show this alongside
+    // A few waliSantri and bendahara screens (payment history, izin) show this alongside
     // the profile, the same way a real Santri self-login would set it.
-    setSantriName(preview.role === "waliSantri" ? preview.name || null : null);
+    setSantriName(
+      preview.role === "waliSantri" || preview.role === "bendahara"
+        ? preview.name || null
+        : null
+    );
     try {
       sessionStorage.setItem(UI_PREVIEW_STORAGE_KEY, JSON.stringify(preview));
     } catch (error) {
@@ -158,7 +163,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           role: userData.role as UserRole,
-          name: userData.name || ""
+          name: userData.name || "",
+          santriId: userData.santriId || undefined,
         };
       }
       
@@ -188,8 +194,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           role: pengurusData.role as UserRole,
-          name: pengurusData.name || ""
+          name: pengurusData.name || "",
+          santriId: pengurusData.santriId || undefined,
         };
+      }
+
+      // If not found in PengurusCollection, check if email is linked to a Santri with bendahara role
+      if (firebaseUser.email) {
+        try {
+          const santriCollectionRef = collection(db, "SantriCollection");
+          const santriQuery = query(
+            santriCollectionRef,
+            where("email", "==", firebaseUser.email)
+          );
+          const santriSnapshot = await getDocs(santriQuery);
+          if (!santriSnapshot.empty) {
+            const santriDoc = santriSnapshot.docs[0];
+            const santriData = santriDoc.data();
+            if (santriData.role === "bendahara" || santriData.isBendahara) {
+              return {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                role: "bendahara" as UserRole,
+                name: santriData.nama || "",
+                santriId: santriDoc.id,
+              };
+            }
+          }
+        } catch (santriErr) {
+          console.warn("Could not check SantriCollection for bendahara role:", santriErr);
+        }
       }
       
       // Default to waliSantri if no role found in PengurusCollection
@@ -429,11 +463,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           console.log("Santri found:", santriData.nama);
           
+          // Check if this santri has bendahara role
+          let role: UserRole = "waliSantri";
+          if (santriData.role === "bendahara" || santriData.isBendahara) {
+            role = "bendahara";
+          } else {
+            try {
+              const pengurusQuery = query(
+                collection(firestore, "PengurusCollection"),
+                where("santriId", "==", santriId),
+                where("role", "==", "bendahara")
+              );
+              const pSnap = await getDocs(pengurusQuery);
+              if (!pSnap.empty) {
+                role = "bendahara";
+              }
+            } catch (pErr) {
+              console.warn("Could not check PengurusCollection for bendahara:", pErr);
+            }
+          }
+
           // Create user data object
           const userData = {
             uid: `wali_${santriId}`,
-            email: null,
-            role: "waliSantri" as UserRole,
+            email: santriData.email || null,
+            role: role,
+            name: santriData.nama,
             santriId: santriId
           };
           
@@ -471,11 +526,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     id: string;
     name: string;
     email?: string | null;
+    role?: UserRole;
   }) => {
     const userData: UserData = {
       uid: `wali_${santri.id}`,
       email: santri.email ?? null,
-      role: "waliSantri",
+      role: santri.role || "waliSantri",
       name: santri.name,
       santriId: santri.id,
     };

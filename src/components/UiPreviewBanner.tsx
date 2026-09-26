@@ -9,6 +9,7 @@ const ROLE_LABELS: Record<string, string> = {
   pengurus: "Pengurus",
   pengasuh: "Pengasuh",
   superAdmin: "Super Admin",
+  bendahara: "Bendahara",
 };
 
 export default function UiPreviewBanner() {

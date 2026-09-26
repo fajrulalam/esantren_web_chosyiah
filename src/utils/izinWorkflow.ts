@@ -18,7 +18,7 @@ export function isIzinOngoing(izin: IzinSakitPulang): boolean {
 
 export function canReportIzinCompletion(izin: IzinSakitPulang, user: UserData | null): boolean {
   return !!user && isIzinOngoing(izin) &&
-    (user.role === "pengurus" || (user.role === "waliSantri" && user.santriId === izin.santriId));
+    (user.role === "pengurus" || ((user.role === "waliSantri" || user.role === "bendahara") && user.santriId === izin.santriId));
 }
 
 export function izinStatusLabel(izin: IzinSakitPulang): string {

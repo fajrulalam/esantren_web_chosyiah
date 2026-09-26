@@ -45,7 +45,7 @@ export default function PaymentHistory() {
                 let santriDocData: any = null;
                 
                 // Get santri ID and data efficiently
-                if (user.role === 'waliSantri' && user.santriId) {
+                if ((user.role === 'waliSantri' || user.role === 'bendahara') && user.santriId) {
                     santriId = user.santriId;
                     // Fetch santri data in parallel with payment data
                     const santriDoc = doc(db, "SantriCollection", santriId);

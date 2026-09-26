@@ -58,8 +58,8 @@ export default function MyVouchersPage() {
   useEffect(() => {
     if (!user) return;
 
-    // For waliSantri users, use santriId; for other users, use uid
-    const userId = user.role === 'waliSantri' && user.santriId ? user.santriId : user.uid;
+    // For waliSantri or bendahara users, use santriId; for other users, use uid
+    const userId = (user.role === 'waliSantri' || user.role === 'bendahara') && user.santriId ? user.santriId : user.uid;
     if (!userId) return;
 
     const vouchersRef = collection(db, 'vouchers');

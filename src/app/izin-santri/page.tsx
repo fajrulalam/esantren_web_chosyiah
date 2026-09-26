@@ -36,7 +36,7 @@ export default function IzinSantriPage() {
     const loadIzinData = async () => {
       if (loading) return;
 
-      if (!user || user.role !== "waliSantri" || !user.santriId) {
+      if (!user || (user.role !== "waliSantri" && user.role !== "bendahara") || !user.santriId) {
         setError("Anda tidak memiliki akses ke halaman ini.");
         setIsLoading(false);
         return;
@@ -56,16 +56,16 @@ export default function IzinSantriPage() {
     loadIzinData();
   }, [user, loading]);
 
-  // Redirect if not waliSantri. Done in an effect (not during render) so we
+  // Redirect if not waliSantri or bendahara. Done in an effect (not during render) so we
   // don't update the router while IzinSantriPage itself is still rendering.
   useEffect(() => {
-    if (!loading && (!user || user.role !== "waliSantri")) {
+    if (!loading && (!user || (user.role !== "waliSantri" && user.role !== "bendahara"))) {
       router.push("/");
     }
   }, [loading, user, router]);
 
-  // If user is not waliSantri, the effect above will redirect to home.
-  if (!loading && (!user || user.role !== "waliSantri")) {
+  // If user is not waliSantri or bendahara, the effect above will redirect to home.
+  if (!loading && (!user || (user.role !== "waliSantri" && user.role !== "bendahara"))) {
     return null;
   }
 
