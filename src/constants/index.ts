@@ -2,6 +2,11 @@
 
 // Kode Asrama yang digunakan dalam aplikasi
 export const KODE_ASRAMA = "DU11_ChosyiahJadid";
+
+// Santri name + phone login (no Firebase session). Turned off at the phone-login
+// cutover, together with ALLOW_UNAUTHENTICATED_SANTRI in functions/src/access.ts
+// and the firebase-rules/cutover rules. See firebase-rules/CUTOVER.md.
+export const PHONE_LOGIN_ENABLED = true;
 // export const KODE_ASRAMA = "DU10_HurunInn";
 
 export type FloorLevel = 1 | 2;

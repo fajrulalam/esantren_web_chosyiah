@@ -17,6 +17,7 @@ import { db, functions } from "@/firebase/config";
 import { formatName } from "@/utils/nameFormatter";
 import { httpsCallable } from "firebase/functions";
 
+import { jsonHeadersWithAuth } from "@/firebase/functionHeaders";
 interface Santri {
   id: string;
   nama: string;
@@ -382,9 +383,7 @@ export default function TagihanModal({
               "https://us-central1-e-santren.cloudfunctions.net/addSantrisToInvoiceHttp",
               {
                 method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
+                headers: await jsonHeadersWithAuth(),
                 body: JSON.stringify({
                   data: {
                     invoiceId: existingInvoiceId,
@@ -415,9 +414,7 @@ export default function TagihanModal({
               "https://us-central1-e-santren.cloudfunctions.net/removeSantrisFromInvoiceHttp",
               {
                 method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
+                headers: await jsonHeadersWithAuth(),
                 body: JSON.stringify({
                   data: {
                     invoiceId: existingInvoiceId,

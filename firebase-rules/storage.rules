@@ -1,0 +1,58 @@
+rules_version = '2';
+
+// Transition rules: phone-login santri and registering visitors have no Firebase
+// session, so their upload paths stay open (with type and size limits). Stored
+// files are shown through tokenized download URLs, which rules don't affect.
+// See ACCESS_AUDIT.md; the phone-login cutover replaces this file with
+// cutover/storage.rules.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isImageOrPdf() {
+      return request.resource.contentType.matches('image/.*')
+        || request.resource.contentType == 'application/pdf';
+    }
+
+    function under(megabytes) {
+      return request.resource.size < megabytes * 1024 * 1024;
+    }
+
+    // getDownloadURL right after an anonymous upload needs read access; limit
+    // it to fresh files so older uploads can't be fetched by guessing paths.
+    function justUploaded() {
+      return request.time < resource.timeCreated + duration.value(15, 'm');
+    }
+
+    match /public-uploads/registration-proofs/{file} {
+      allow create: if isImageOrPdf() && under(25);
+      allow get: if signedIn() || justUploaded();
+    }
+
+    match /payment_proofs/{santri}/{file} {
+      allow create: if isImageOrPdf() && under(25);
+      allow get: if signedIn() || justUploaded();
+    }
+
+    match /public-uploads/facility-reports/{owner}/{file} {
+      allow create: if request.resource.contentType == 'image/jpeg' && under(2);
+      allow get: if signedIn() || justUploaded();
+    }
+
+    match /public-uploads/facility-report-proofs/{uid}/{file} {
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.contentType == 'image/jpeg' && under(2);
+      allow get: if signedIn();
+    }
+
+    // Kegiatan PDF reports; re-exporting a date range overwrites the same file.
+    match /reports/{file} {
+      allow create, update: if signedIn()
+        && request.resource.contentType == 'application/pdf' && under(25);
+      allow get: if signedIn();
+    }
+  }
+}

@@ -32,6 +32,7 @@ import {
 } from "@/firebase/paymentInstallments";
 import { formatRupiahInput } from "@/utils/paymentInstallmentMath";
 
+import { jsonHeadersWithAuth } from "@/firebase/functionHeaders";
 interface SantriPaymentStatus extends PaymentStatus {
   nama: string;
   notes?: string;
@@ -806,9 +807,7 @@ export default function RekapDetailView({
         "https://us-central1-e-santren.cloudfunctions.net/deleteInvoiceHttp",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: await jsonHeadersWithAuth(),
           body: JSON.stringify({
             data: {
               invoiceId: paymentId,

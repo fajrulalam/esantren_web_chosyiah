@@ -1,9 +1,9 @@
 rules_version = '2';
 
-// Transition rules: santri still log in with name + phone, which has no Firebase
-// session, so anything a phone-login santri does must stay open to visitors.
-// Everything only staff do requires a staff session. See ACCESS_AUDIT.md; the
-// phone-login cutover replaces this file with cutover/firestore.rules.
+// Lockdown rules for after the phone-login cutover: every santri is signed in
+// with Firebase (Google or email link) and carries a `santriId` claim set by the
+// linkSantriAccount function, so each santri reaches only their own data.
+// Publish with: firebase deploy --only firestore:rules,storage --config firebase.cutover.json
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -16,20 +16,38 @@ service cloud.firestore {
     }
 
     function staffRole() {
-      return get(staffPath()).data.role;
+      return signedIn() && exists(staffPath()) ? get(staffPath()).data.role : null;
     }
 
     function isStaff() {
-      return signedIn() && exists(staffPath())
-        && staffRole() in ['pengurus', 'pengasuh', 'superAdmin'];
+      return staffRole() in ['pengurus', 'pengasuh', 'superAdmin'];
     }
 
     function isSuperAdmin() {
-      return signedIn() && exists(staffPath()) && staffRole() == 'superAdmin';
+      return staffRole() == 'superAdmin';
     }
 
     function linkedSantriId() {
       return signedIn() && 'santriId' in request.auth.token ? request.auth.token.santriId : null;
+    }
+
+    function isSantri() {
+      return linkedSantriId() != null;
+    }
+
+    function ownsSantri(santriId) {
+      return isSantri() && linkedSantriId() == santriId;
+    }
+
+    // The bendahara is a santri flagged on their own record, or a staff account
+    // with the bendahara role.
+    function isBendahara() {
+      return staffRole() == 'bendahara' || (isSantri() && santriIsBendahara(linkedSantriId()));
+    }
+
+    function santriIsBendahara(santriId) {
+      let santri = get(/databases/$(database)/documents/SantriCollection/$(santriId)).data;
+      return santri.get('isBendahara', false) == true || santri.get('role', '') == 'bendahara';
     }
 
     function changesOnly(keys) {
@@ -39,35 +57,38 @@ service cloud.firestore {
     // ---- Santri -------------------------------------------------------------
 
     match /SantriCollection/{santriId} {
-      // The phone login looks santri up by name and phone before any session exists.
-      allow read: if true;
-      allow create, delete: if isStaff();
+      allow get: if isStaff() || ownsSantri(santriId);
+      allow list, create, delete: if isStaff();
       allow update: if isStaff()
-        // Izin reports by santri only move these attendance projections.
-        || (changesOnly(['statusKehadiran', 'statusKepulangan', 'statusSakit'])
+        // Izin reports by the santri only move these attendance projections.
+        || (ownsSantri(santriId)
+            && changesOnly(['statusKehadiran', 'statusKepulangan', 'statusSakit'])
             && (!('statusKehadiran' in request.resource.data)
                 || request.resource.data.statusKehadiran in ['Ada', 'Pulang', 'Sakit']));
     }
 
     match /SakitDanPulangCollection/{izinId} {
-      allow read: if true;
+      // resource == null: reporting reads the (not yet existing) report in a transaction.
+      allow get: if isStaff() || resource == null || ownsSantri(resource.data.santriId);
+      allow list: if isStaff() || ownsSantri(resource.data.santriId);
       allow create: if isStaff()
-        || (request.resource.data.santriId is string
+        || (ownsSantri(request.resource.data.santriId)
             && request.resource.data.izinType in ['Pulang', 'Sakit']
             && request.resource.data.status in ['Proses Pulang', 'Dalam Masa Sakit']);
       allow update: if isStaff()
-        // Santri report their own return / recovery.
-        || (changesOnly(['status', 'sudahKembali', 'tanggalKembali', 'kembaliSesuaiRencana',
-                         'returnReportedBy', 'tanggalSembuh', 'recoveryReportedBy'])
+        || (ownsSantri(resource.data.santriId)
+            && changesOnly(['status', 'sudahKembali', 'tanggalKembali', 'kembaliSesuaiRencana',
+                            'returnReportedBy', 'tanggalSembuh', 'recoveryReportedBy'])
             && request.resource.data.status in ['Sudah Kembali', 'Sudah Sembuh']);
       allow delete: if isStaff();
     }
 
     match /FacilityReports/{reportId} {
-      allow read: if true;
-      allow create: if request.resource.data.id == reportId
+      // Every santri sees all reports, so a problem is reported once.
+      allow read: if isStaff() || isSantri();
+      allow create: if ownsSantri(request.resource.data.santriId)
+        && request.resource.data.id == reportId
         && request.resource.data.status == 'pending'
-        && request.resource.data.santriId is string
         && request.resource.data.place is string
         && request.resource.data.place.size() <= 160
         && request.resource.data.description is string
@@ -75,10 +96,9 @@ service cloud.firestore {
         && request.resource.data.photos is list
         && request.resource.data.photos.size() <= 5
         && request.resource.data.resolutionPhotos.size() == 0;
-      // Review and proof-of-fix are the super admin's.
       allow update: if isSuperAdmin();
-      // Santri withdraw a report until it has been processed.
-      allow delete: if isSuperAdmin() || resource.data.status == 'pending';
+      allow delete: if isSuperAdmin()
+        || (ownsSantri(resource.data.santriId) && resource.data.status == 'pending');
     }
 
     // ---- Staff accounts -------------------------------------------------------
@@ -88,50 +108,41 @@ service cloud.firestore {
       allow list: if isStaff()
         // First sign-in: a staff member finds the invitation sent to their email.
         || (signedIn() && resource.data.email == request.auth.token.email)
-        // A linked santri checks whether they hold the bendahara role.
-        || (linkedSantriId() != null && resource.data.santriId == linkedSantriId());
+        // A santri checks whether they hold the bendahara role.
+        || (isSantri() && resource.data.santriId == linkedSantriId());
       allow create: if isSuperAdmin() || isInvitationClaim(userId);
       allow update, delete: if isSuperAdmin();
     }
 
-    // The staff member copies their invitation to a document keyed by their uid.
+    // The staff member copies the invitation sent to their email to /{uid}.
     function isInvitationClaim(userId) {
       let data = request.resource.data;
+      let invite = get(/databases/$(database)/documents/PengurusCollection/$(data.inviteId)).data;
       return signedIn() && request.auth.uid == userId
         && data.uid == request.auth.uid
         && data.email == request.auth.token.email
-        && data.role in ['pengurus', 'pengasuh', 'superAdmin', 'bendahara']
-        && (
-          // Updated client: names the invitation, which must match.
-          (data.inviteId is string && isMatchingInvitation(data))
-          // Current client doesn't send it; removed once the updated client is live.
-          || !('inviteId' in data)
-        );
-    }
-
-    function isMatchingInvitation(data) {
-      let invite = get(/databases/$(database)/documents/PengurusCollection/$(data.inviteId)).data;
-      return invite.email == request.auth.token.email && invite.role == data.role;
+        && data.inviteId is string
+        && invite.email == request.auth.token.email
+        && invite.role == data.role;
     }
 
     // ---- Money ------------------------------------------------------------------
 
     match /Invoices/{invoiceId} {
-      // Santri open their own invoices by id from payment history.
-      allow get: if true;
+      allow get: if isStaff() || isSantri();
       allow list, write: if isStaff();
     }
 
     match /PaymentStatuses/{paymentId} {
-      allow read: if true;
+      allow read: if isStaff() || ownsSantri(resource.data.santriId);
       // Santri payments go through the submitPaymentInstallment function.
       allow write: if isStaff();
     }
 
-    // The bendahara still uses phone login, so cashflow stays open until cutover.
     match /CashflowTransactions/{transactionId} {
-      allow read, delete: if true;
-      allow create, update: if request.resource.data.type in ['income', 'expense']
+      allow read, delete: if isStaff() || isBendahara();
+      allow create, update: if (isStaff() || isBendahara())
+        && request.resource.data.type in ['income', 'expense']
         && request.resource.data.account in ['cash', 'emoney']
         && request.resource.data.amount is number
         && request.resource.data.amount > 0
@@ -141,13 +152,14 @@ service cloud.firestore {
     }
 
     match /CashflowSettings/{monthId} {
-      allow read: if true;
-      allow create, update: if request.resource.data.openingCash is number
+      allow read: if isStaff() || isBendahara();
+      allow create, update: if (isStaff() || isBendahara())
+        && request.resource.data.openingCash is number
         && request.resource.data.openingEmoney is number;
     }
 
     match /vouchers/{voucherId} {
-      allow read: if true;
+      allow read: if isStaff() || ownsSantri(resource.data.userId);
       allow write: if isSuperAdmin();
     }
 

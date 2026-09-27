@@ -18,6 +18,8 @@ import {
   getInvoicePaymentStatuses as getInvoicePaymentStatusesQuery
 } from "./queryUtils";
 import { corsHandler } from "./corsConfig";
+import { linkSantriAccount as linkSantriAccountFunc } from "./santriAccount";
+import { requireSantriOrStaff, requireStaff, staffRequestError } from "./access";
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -28,6 +30,9 @@ if (!admin.apps.length) {
 export const processInvoiceCreation = functions.firestore
     .document("Invoices/{invoiceId}")
     .onCreate(createPaymentStatusesOnInvoiceCreation);
+
+// Links a santri's Google / email-link account to their SantriCollection record
+export const linkSantriAccount = linkSantriAccountFunc;
 
 // Export the counter maintenance functions
 export const updateSantriCounter = updateCounterOnSantriStatusChange;
@@ -48,6 +53,9 @@ export const deleteInvoiceFunction = deleteInvoice;
 // Create a new HTTP function with CORS support
 export const deleteInvoiceHttp = functions.https.onRequest((request, response) => {
   return corsHandler(request, response, async () => {
+    const denied = await staffRequestError(request);
+    if (denied) return response.status(denied.status).json(denied.body);
+
     try {
       // Extract data from the request
       const { invoiceId } = request.body.data || {};
@@ -162,6 +170,9 @@ export const removeSantrisFromInvoiceFunction = removeSantrisFromInvoice;
 // Create new HTTP functions with CORS support
 export const addSantrisToInvoiceHttp = functions.https.onRequest((request, response) => {
   return corsHandler(request, response, async () => {
+    const denied = await staffRequestError(request);
+    if (denied) return response.status(denied.status).json(denied.body);
+
     try {
       // Extract data from the request
       const { invoiceId, santriIds } = request.body.data || {};
@@ -360,6 +371,9 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
 
 export const removeSantrisFromInvoiceHttp = functions.https.onRequest((request, response) => {
   return corsHandler(request, response, async () => {
+    const denied = await staffRequestError(request);
+    if (denied) return response.status(denied.status).json(denied.body);
+
     try {
       // Extract data from the request
       const { invoiceId, santriIds } = request.body.data || {};
@@ -483,6 +497,7 @@ export const testCors = functions.https.onRequest((request, response) => {
 
 // Debug function to check santri document structure
 export const debugSantriStructure = functions.region('us-central1').https.onCall(async (data, context) => {
+  await requireStaff(context);
   try {
     const { santriId } = data;
     
@@ -685,6 +700,11 @@ export const registerSantri = functions.https.onCall(async (data, context) => {
 // balance enforcement happens again inside this Admin SDK transaction.
 export const submitPaymentInstallment = functions.https.onCall(async (data, context) => {
   const paymentStatusId = String(data.paymentStatusId || '');
+  // Only the santri who owns this payment (or staff) may submit against it.
+  if (paymentStatusId) {
+    const payment = await admin.firestore().collection('PaymentStatuses').doc(paymentStatusId).get();
+    await requireSantriOrStaff(context, String(payment.data()?.santriId || ''));
+  }
   const attemptId = String(data.attemptId || '');
   const amount = Number(data.amount);
   const imageUrl = String(data.imageUrl || '');

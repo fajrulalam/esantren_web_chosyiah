@@ -1,0 +1,74 @@
+rules_version = '2';
+
+// Lockdown rules for after the phone-login cutover. Santri upload only while
+// signed in with a linked account; staff are checked against Firestore
+// (cross-service rules). Registering visitors still have no account, so the
+// registration proof upload stays open with type and size limits.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function linkedSantriId() {
+      return signedIn() && 'santriId' in request.auth.token ? request.auth.token.santriId : null;
+    }
+
+    function staffRole() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/PengurusCollection/$(request.auth.uid))
+        ? firestore.get(/databases/(default)/documents/PengurusCollection/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isStaff() {
+      return staffRole() in ['pengurus', 'pengasuh', 'superAdmin'];
+    }
+
+    function isImageOrPdf() {
+      return request.resource.contentType.matches('image/.*')
+        || request.resource.contentType == 'application/pdf';
+    }
+
+    function under(megabytes) {
+      return request.resource.size < megabytes * 1024 * 1024;
+    }
+
+    // getDownloadURL right after upload needs read access; limit it to fresh files.
+    function justUploaded() {
+      return request.time < resource.timeCreated + duration.value(15, 'm');
+    }
+
+    match /public-uploads/registration-proofs/{file} {
+      allow create: if isImageOrPdf() && under(25);
+      allow get: if isStaff() || justUploaded();
+    }
+
+    // The folder is the santri's name, which rules can't tie to the account, so
+    // any linked santri (or staff) may upload; reads are fresh-only or staff.
+    match /payment_proofs/{santri}/{file} {
+      allow create: if (linkedSantriId() != null || isStaff()) && isImageOrPdf() && under(25);
+      allow get: if isStaff() || (linkedSantriId() != null && justUploaded());
+    }
+
+    match /public-uploads/facility-reports/{owner}/{file} {
+      allow create: if linkedSantriId() == owner
+        && request.resource.contentType == 'image/jpeg' && under(2);
+      allow get: if isStaff() || linkedSantriId() != null;
+    }
+
+    match /public-uploads/facility-report-proofs/{uid}/{file} {
+      allow create: if signedIn() && request.auth.uid == uid && staffRole() == 'superAdmin'
+        && request.resource.contentType == 'image/jpeg' && under(2);
+      allow get: if isStaff() || linkedSantriId() != null;
+    }
+
+    // Kegiatan PDF reports; re-exporting a date range overwrites the same file.
+    match /reports/{file} {
+      allow create, update: if isStaff()
+        && request.resource.contentType == 'application/pdf' && under(25);
+      allow get: if isStaff();
+    }
+  }
+}

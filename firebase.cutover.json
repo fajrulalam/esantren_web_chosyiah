@@ -7,10 +7,10 @@
     ]
   },
   "firestore": {
-    "rules": "firebase-rules/firestore.rules"
+    "rules": "firebase-rules/cutover/firestore.rules"
   },
   "storage": {
-    "rules": "firebase-rules/storage.rules"
+    "rules": "firebase-rules/cutover/storage.rules"
   },
   "emulators": {
     "firestore": {

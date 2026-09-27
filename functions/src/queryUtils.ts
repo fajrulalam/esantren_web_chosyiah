@@ -1,4 +1,5 @@
 import * as functions from "firebase-functions";
+import { requireSantriOrStaff, requireStaff } from "./access";
 import * as admin from "firebase-admin";
 
 // Initialize Firebase Admin if not already initialized
@@ -21,6 +22,7 @@ export const getSantriPaymentHistory = functions.https.onCall(
           "The function must be called while authenticated."
         );
       }
+      await requireSantriOrStaff(context, String(data?.santriId || ''));
 
       const { santriId } = data;
       
@@ -76,6 +78,7 @@ export const getInvoicePaymentStatuses = functions.https.onCall(
           "The function must be called while authenticated."
         );
       }
+      await requireStaff(context);
 
       const { invoiceId, status, educationLevel } = data;
       

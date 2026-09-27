@@ -1,4 +1,5 @@
 import * as functions from "firebase-functions";
+import { requireSantriOrStaff, requireStaff } from "./access";
 import * as admin from "firebase-admin";
 import { getActiveStudentCount } from "./counterUtils";
 
@@ -319,6 +320,7 @@ export const createPaymentStatusesOnInvoiceCreation = async (
  * Deletes an invoice and all associated payment statuses
  */
 export const deleteInvoice = functions.region(region).https.onCall(async (data, context) => {
+  await requireStaff(context);
   const { invoiceId } = data;
   
   if (!invoiceId) {
@@ -422,6 +424,7 @@ export const deleteInvoice = functions.region(region).https.onCall(async (data, 
  * Adds new santris to an existing invoice
  */
 export const addSantrisToInvoice = functions.region(region).https.onCall(async (data, context) => {
+  await requireStaff(context);
   const { invoiceId, santriIds } = data;
   
   if (!invoiceId || !santriIds || !Array.isArray(santriIds) || santriIds.length === 0) {
@@ -621,6 +624,7 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
  * Removes santris from an existing invoice
  */
 export const removeSantrisFromInvoice = functions.region(region).https.onCall(async (data, context) => {
+  await requireStaff(context);
   const { invoiceId, santriIds } = data;
   
   if (!invoiceId || !santriIds || !Array.isArray(santriIds) || santriIds.length === 0) {
@@ -728,6 +732,7 @@ export const removeSantrisFromInvoice = functions.region(region).https.onCall(as
  */
 export const getSantriPaymentHistory = functions.region(region).https
   .onCall(async (data, context) => {
+  await requireSantriOrStaff(context, String(data?.santriId || ''));
   const { santriId } = data;
   
   if (!santriId) {
@@ -807,6 +812,7 @@ export const getSantriPaymentHistory = functions.region(region).https
  */
 export const getInvoicePaymentStatuses = functions.region(region).https
   .onCall(async (data, context) => {
+  await requireStaff(context);
   const { invoiceId, filters } = data;
   
   if (!invoiceId) {

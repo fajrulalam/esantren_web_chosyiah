@@ -7,6 +7,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
 import { functions, storage } from "@/firebase/config";
 import { useAuth } from "@/firebase/auth";
+import { PHONE_LOGIN_ENABLED } from "@/constants";
 import {
   REGISTRATION_FEE_TOTAL,
 } from "@/firebase/paymentInstallments";
@@ -42,7 +43,9 @@ const PROGRAM_STUDI_SYNONYMS: Record<string, string[]> = {
 const PLACEHOLDER_IMAGE = "/join us.png";
 
 export default function Registration() {
-  const { establishSantriSession } = useAuth();
+  const { establishSantriSession, sendSantriSignInLink } = useAuth();
+  // After the phone-login cutover, new santri get a sign-in link instead of a local session.
+  const [signInEmail, setSignInEmail] = useState<{ email: string; sent: boolean } | null>(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     email: "",
@@ -222,11 +225,22 @@ export default function Registration() {
 
       console.log("Registration written with ID: ", createdId);
 
-      establishSantriSession({
-        id: createdId,
-        name: formattedName,
-        email: formData.email,
-      });
+      if (PHONE_LOGIN_ENABLED) {
+        establishSantriSession({
+          id: createdId,
+          name: formattedName,
+          email: formData.email,
+        });
+      } else {
+        const email = formData.email.trim().toLowerCase();
+        try {
+          await sendSantriSignInLink(email);
+          setSignInEmail({ email, sent: true });
+        } catch (linkError) {
+          console.warn("Could not send the sign-in link after registration:", linkError);
+          setSignInEmail({ email, sent: false });
+        }
+      }
 
       // Save registered data for WhatsApp link
       setRegisteredData({
@@ -340,6 +354,13 @@ export default function Registration() {
                 ustadzah untuk verifikasi dan informasi kamu mendapat kamar
                 mana. Atau, hubungi mereka langsung saja!
               </p>
+              {signInEmail && (
+                <p className="text-amber-800 dark:text-amber-200 mb-8 -mt-4 text-sm">
+                  {signInEmail.sent
+                    ? `Kami sudah mengirim link masuk ke ${signInEmail.email}. Buka email itu untuk masuk ke akun santri Anda.`
+                    : `Untuk masuk, buka halaman Masuk lalu pilih Google atau link email dengan ${signInEmail.email}.`}
+                </p>
+              )}
               <div className="flex flex-col md:flex-row gap-4 justify-center">
                 <a
                   href={getWhatsAppLink()}

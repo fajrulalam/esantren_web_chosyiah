@@ -98,7 +98,8 @@ export default function Navbar() {
                         </div>
 
                         {/* Desktop navigation */}
-                        <div className="hidden md:flex items-center space-x-4">
+                        {/* Super Admin has the most links; tighter gaps keep Logout on screen on laptop widths. */}
+                        <div className={`hidden md:flex items-center ${user?.role === 'superAdmin' ? 'space-x-1 2xl:space-x-4' : 'space-x-4'}`}>
                             {user ? (
                                 <>
                                     {['pengurus', 'pengasuh', 'superAdmin'].includes(user.role) ? (
@@ -157,6 +158,14 @@ export default function Navbar() {
                                                     Voucher Asrama
                                                 </Link>
                                             )}
+                                            {user.role === 'superAdmin' && (
+                                                <Link
+                                                    href="/fasilitas-admin"
+                                                    className={isActive('/fasilitas-admin') ? activeClass : inactiveClass}
+                                                >
+                                                    Fasilitas
+                                                </Link>
+                                            )}
 
                                         </>
                                     ) : user.role === 'bendahara' ? (
@@ -178,6 +187,12 @@ export default function Navbar() {
                                                 className={isActive('/izin-santri') ? activeClass : inactiveClass}
                                             >
                                                 Izin Sakit/Pulang
+                                            </Link>
+                                            <Link
+                                                href="/fasilitas-santri"
+                                                className={isActive('/fasilitas-santri') ? activeClass : inactiveClass}
+                                            >
+                                                Lapor Fasilitas
                                             </Link>
                                             <Link
                                                 href="/cashflow"
@@ -206,6 +221,12 @@ export default function Navbar() {
                                             >
                                                 Izin Sakit/Pulang
                                             </Link>
+                                            <Link
+                                                href="/fasilitas-santri"
+                                                className={isActive('/fasilitas-santri') ? activeClass : inactiveClass}
+                                            >
+                                                Lapor Fasilitas
+                                            </Link>
                                         </>
                                     ) : (
                                         // Santri navigation (users from SantriCollection)
@@ -221,6 +242,12 @@ export default function Navbar() {
                                                 className={isActive('/izin-santri') ? activeClass : inactiveClass}
                                             >
                                                 Izin Sakit/Pulang
+                                            </Link>
+                                            <Link
+                                                href="/fasilitas-santri"
+                                                className={isActive('/fasilitas-santri') ? activeClass : inactiveClass}
+                                            >
+                                                Lapor Fasilitas
                                             </Link>
                                         </>
                                     )}
@@ -333,6 +360,15 @@ export default function Navbar() {
                                                     Voucher Asrama
                                                 </Link>
                                             )}
+                                            {user.role === 'superAdmin' && (
+                                                <Link
+                                                    href="/fasilitas-admin"
+                                                    className={`block ${isActive('/fasilitas-admin') ? activeClass : inactiveClass}`}
+                                                    onClick={() => setIsMenuOpen(false)}
+                                                >
+                                                    Fasilitas
+                                                </Link>
+                                            )}
 
                                         </>
                                     ) : user.role === 'bendahara' ? (
@@ -357,6 +393,13 @@ export default function Navbar() {
                                                 onClick={() => setIsMenuOpen(false)}
                                             >
                                                 Izin Sakit/Pulang
+                                            </Link>
+                                            <Link
+                                                href="/fasilitas-santri"
+                                                className={`block ${isActive('/fasilitas-santri') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Lapor Fasilitas
                                             </Link>
                                             <Link
                                                 href="/cashflow"
@@ -389,6 +432,13 @@ export default function Navbar() {
                                             >
                                                 Izin Sakit/Pulang
                                             </Link>
+                                            <Link
+                                                href="/fasilitas-santri"
+                                                className={`block ${isActive('/fasilitas-santri') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Lapor Fasilitas
+                                            </Link>
                                         </>
                                     ) : (
                                         // Santri navigation (users from SantriCollection)
@@ -406,6 +456,13 @@ export default function Navbar() {
                                                 onClick={() => setIsMenuOpen(false)}
                                             >
                                                 Izin Sakit/Pulang
+                                            </Link>
+                                            <Link
+                                                href="/fasilitas-santri"
+                                                className={`block ${isActive('/fasilitas-santri') ? activeClass : inactiveClass}`}
+                                                onClick={() => setIsMenuOpen(false)}
+                                            >
+                                                Lapor Fasilitas
                                             </Link>
                                         </>
                                     )}

@@ -16,7 +16,8 @@ export default function SantriSemesterSync() {
   const userRole = user?.role;
 
   useEffect(() => {
-    if (loading || !userRole || userRole === "waliSantri") return;
+    // Only staff may write santri records; santri and bendahara sessions skip it.
+    if (loading || !userRole || !["pengurus", "pengasuh", "superAdmin"].includes(userRole)) return;
 
     let isMounted = true;
 

@@ -1,10 +1,51 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/firebase/auth";
+import { PHONE_LOGIN_ENABLED } from "@/constants";
 import Image from "next/image";
+
+function GoogleIcon() {
+  return (
+    <svg
+      className="w-5 h-5 mr-3"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M23.766 12.2764C23.766 11.4607 23.6999 10.6406 23.5588 9.83807H12.24V14.4591H18.7217C18.4528 15.9494 17.5885 17.2678 16.323 18.1056V21.1039H20.19C22.4608 19.0139 23.766 15.9274 23.766 12.2764Z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12.2401 24.0008C15.4766 24.0008 18.2059 22.9382 20.1945 21.1039L16.3276 18.1055C15.2517 18.8375 13.8627 19.252 12.2445 19.252C9.11388 19.252 6.45946 17.1399 5.50705 14.3003H1.5166V17.3912C3.55371 21.4434 7.7029 24.0008 12.2401 24.0008Z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.50253 14.3003C4.99987 12.8099 4.99987 11.1961 5.50253 9.70575V6.61481H1.51649C-0.18551 10.0056 -0.18551 14.0004 1.51649 17.3912L5.50253 14.3003Z"
+        fill="#FBBC04"
+      />
+      <path
+        d="M12.2401 4.74966C13.9509 4.7232 15.6044 5.36697 16.8434 6.54867L20.2695 3.12262C18.1001 1.0855 15.2208 -0.034466 12.2401 0.000808666C7.7029 0.000808666 3.55371 2.55822 1.5166 6.61481L5.50264 9.70575C6.45064 6.86173 9.10947 4.74966 12.2401 4.74966Z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
+function OrDivider({ label }: { label: string }) {
+  return (
+    <div className="relative flex items-center justify-center my-6">
+      <div className="border-t-2 border-amber-200 dark:border-gray-700 flex-grow mr-3"></div>
+      <span className="text-amber-700 dark:text-amber-400 text-sm">{label}</span>
+      <div className="border-t-2 border-amber-200 dark:border-gray-700 flex-grow ml-3"></div>
+    </div>
+  );
+}
+
+const firebaseErrorCode = (error: unknown) => (error as { code?: string })?.code || "";
 
 export default function Login() {
   const [userType, setUserType] = useState<"waliSantri" | "staff">(
@@ -18,6 +59,14 @@ export default function Login() {
   const [nameFound, setNameFound] = useState<boolean | null>(null);
   const [phoneCorrect, setPhoneCorrect] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  // Santri Google / email-link sign-in
+  const [linkEmail, setLinkEmail] = useState("");
+  const [linkSentTo, setLinkSentTo] = useState<string | null>(null);
+  const [canResendLink, setCanResendLink] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [needsLinkEmail, setNeedsLinkEmail] = useState(false);
+  const [santriSigningIn, setSantriSigningIn] = useState(false);
+  const linkChecked = useRef(false);
   const router = useRouter();
 
   const {
@@ -28,6 +77,11 @@ export default function Login() {
     loading,
     checkSantriName,
     checkSantriPhone,
+    authError,
+    clearAuthError,
+    signInSantriWithGoogle,
+    sendSantriSignInLink,
+    completeSantriSignInLink,
   } = useAuth();
 
   // Redirect if user is already logged in
@@ -42,6 +96,119 @@ export default function Login() {
       }
     }
   }, [user, loading, router]);
+
+  // A failed link-up ends the sign-in attempt.
+  useEffect(() => {
+    if (authError) setSantriSigningIn(false);
+  }, [authError]);
+
+  // Opening the emailed sign-in link lands here; finish signing in.
+  const finishEmailLink = async (email?: string) => {
+    setError("");
+    setSantriSigningIn(true);
+    // The one-time code stays in the address bar only while the email still
+    // has to be confirmed; otherwise it is dropped once used or rejected.
+    let keepLinkInUrl = false;
+    try {
+      const result = await completeSantriSignInLink(email);
+      if (result === "not-a-link") {
+        keepLinkInUrl = true;
+        setSantriSigningIn(false);
+      } else if (result === "needs-email") {
+        keepLinkInUrl = true;
+        setNeedsLinkEmail(true);
+        setSantriSigningIn(false);
+      } else {
+        setNeedsLinkEmail(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setSantriSigningIn(false);
+      const code = firebaseErrorCode(err);
+      if (code === "auth/invalid-email") {
+        keepLinkInUrl = true;
+        setNeedsLinkEmail(true);
+        setError("Email tidak sesuai dengan link yang dibuka. Masukkan email yang menerima link.");
+      } else {
+        setNeedsLinkEmail(false);
+        setError(
+          code === "auth/invalid-action-code" || code === "auth/expired-action-code"
+            ? "Link masuk sudah kedaluwarsa atau sudah dipakai. Silakan kirim link baru."
+            : "Gagal masuk dengan link email. Silakan coba lagi."
+        );
+      }
+    }
+    if (!keepLinkInUrl) window.history.replaceState(null, "", "/login/");
+  };
+
+  useEffect(() => {
+    if (linkChecked.current) return;
+    linkChecked.current = true;
+    void finishEmailLink();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSantriGoogleLogin = async () => {
+    setError("");
+    clearAuthError();
+    setSantriSigningIn(true);
+    try {
+      await signInSantriWithGoogle();
+    } catch (err) {
+      setSantriSigningIn(false);
+      const code = firebaseErrorCode(err);
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return;
+      console.error(err);
+      setError(
+        code === "auth/popup-blocked"
+          ? "Popup diblokir browser. Izinkan popup lalu coba lagi, atau gunakan link email."
+          : "Gagal masuk dengan Google. Coba lagi atau gunakan link email."
+      );
+    }
+  };
+
+  const sendLink = async (rawEmail: string) => {
+    const email = rawEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Masukkan alamat email yang valid.");
+      return;
+    }
+    setError("");
+    clearAuthError();
+    setIsLoading(true);
+    try {
+      await sendSantriSignInLink(email);
+      setLinkSentTo(email.toLowerCase());
+      // Short cooldown so repeated taps don't burn through the email quota.
+      setCanResendLink(false);
+      window.setTimeout(() => setCanResendLink(true), 30000);
+    } catch (err) {
+      console.error(err);
+      const code = firebaseErrorCode(err);
+      setError(
+        code === "auth/invalid-email"
+          ? "Format email tidak valid."
+          : code === "auth/quota-exceeded"
+          ? "Batas pengiriman email tercapai. Coba lagi nanti atau masuk dengan Google."
+          : code === "auth/operation-not-allowed"
+          ? "Masuk dengan link email belum diaktifkan. Hubungi pengurus."
+          : "Gagal mengirim link. Periksa koneksi lalu coba lagi."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSendLink = (e: React.FormEvent) => {
+    e.preventDefault();
+    void sendLink(linkEmail);
+  };
+
+  const switchTab = (type: "waliSantri" | "staff") => {
+    setUserType(type);
+    setError("");
+    clearAuthError();
+  };
 
   const handleWaliSantriLogin = async () => {
     if (!namaSantri || !phoneNumber) {
@@ -212,6 +379,20 @@ export default function Login() {
         dark:shadow-[inset_2px_2px_5px_#92400e,inset_-2px_-2px_5px_#fcd34d]
     `;
 
+  const googleButtonStyle = `
+        w-full flex items-center justify-center
+        py-4 px-6 rounded-xl
+        bg-white text-gray-700
+        border-2 border-amber-200
+        shadow-[4px_4px_8px_#d6d0c4,-4px_-4px_8px_#fffef4]
+        hover:shadow-[6px_6px_12px_#d6d0c4,-6px_-6px_12px_#fffef4]
+        active:shadow-[2px_2px_4px_#d6d0c4,-2px_-2px_4px_#fffef4]
+        active:translate-x-[1px] active:translate-y-[1px]
+        transition-all duration-300
+        font-medium
+        disabled:opacity-70 disabled:cursor-not-allowed
+    `;
+
   const inactiveTabStyle = `
         ${tabStyle}
         bg-amber-50 dark:bg-gray-700 text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300
@@ -238,28 +419,166 @@ export default function Login() {
             className={
               userType === "waliSantri" ? activeTabStyle : inactiveTabStyle
             }
-            onClick={() => setUserType("waliSantri")}
+            onClick={() => switchTab("waliSantri")}
           >
             Santri
           </button>
           <button
             className={userType === "staff" ? activeTabStyle : inactiveTabStyle}
-            onClick={() => setUserType("staff")}
+            onClick={() => switchTab("staff")}
           >
             Staff / Admin
           </button>
         </div>
 
-        {error &&
+        {authError && (
+          <div
+            role="alert"
+            className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 rounded-xl border-2 border-red-200 dark:border-red-800/50 shadow-inner"
+          >
+            {authError}
+          </div>
+        )}
+
+        {error && !authError &&
           !(
             nameFound === false ||
             (nameFound === true && phoneCorrect === false)
           ) && (
-            <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 rounded-xl border-2 border-red-200 dark:border-red-800/50 shadow-inner">
+            <div
+              role="alert"
+              className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 rounded-xl border-2 border-red-200 dark:border-red-800/50 shadow-inner"
+            >
               {error}
             </div>
           )}
 
+        {userType === "waliSantri" && (
+          <div>
+            {needsLinkEmail ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void finishEmailLink(confirmEmail);
+                }}
+              >
+                <div className="mb-4 p-4 rounded-xl bg-amber-100 dark:bg-gray-900 border-2 border-amber-200 dark:border-gray-700 text-sm text-amber-900 dark:text-amber-300">
+                  Link masuk dibuka di browser yang berbeda. Masukkan email
+                  yang menerima link untuk melanjutkan.
+                </div>
+                <label
+                  htmlFor="confirm-link-email"
+                  className="block mb-2 text-sm font-medium text-amber-800 dark:text-amber-400"
+                >
+                  Email Santri
+                </label>
+                <input
+                  id="confirm-link-email"
+                  type="email"
+                  autoComplete="email"
+                  className={inputStyle}
+                  value={confirmEmail}
+                  onChange={(e) => setConfirmEmail(e.target.value)}
+                  placeholder="nama@gmail.com"
+                  disabled={santriSigningIn}
+                />
+                <button type="submit" className={buttonStyle} disabled={santriSigningIn || !confirmEmail.trim()}>
+                  {santriSigningIn ? "Memproses..." : "Lanjutkan Masuk"}
+                </button>
+              </form>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className={googleButtonStyle}
+                  onClick={() => void handleSantriGoogleLogin()}
+                  disabled={santriSigningIn || isLoading}
+                >
+                  <GoogleIcon />
+                  Masuk dengan Google
+                </button>
+                <p className="mt-2 text-xs text-center text-amber-700 dark:text-amber-400">
+                  Jika halaman ini dibuka dari WhatsApp atau Instagram, buka
+                  dulu di Chrome atau Safari.
+                </p>
+
+                <OrDivider label="atau lewat email" />
+
+                {linkSentTo ? (
+                  <div
+                    role="status"
+                    className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800/50 text-sm text-green-800 dark:text-green-300"
+                  >
+                    <p className="font-medium">
+                      Link masuk sudah dikirim ke {linkSentTo}.
+                    </p>
+                    <p className="mt-1 text-xs">
+                      Buka email tersebut lalu ketuk link untuk masuk. Periksa
+                      folder Spam jika belum ada.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void sendLink(linkSentTo)}
+                        disabled={!canResendLink || isLoading}
+                        className="px-3 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLoading ? "Mengirim..." : canResendLink ? "Kirim ulang" : "Kirim ulang (tunggu 30 detik)"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLinkSentTo(null)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium underline"
+                      >
+                        Ganti email
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSendLink}>
+                    <label
+                      htmlFor="santri-link-email"
+                      className="block mb-2 text-sm font-medium text-amber-800 dark:text-amber-400"
+                    >
+                      Email Santri
+                    </label>
+                    <input
+                      id="santri-link-email"
+                      type="email"
+                      autoComplete="email"
+                      className={inputStyle}
+                      value={linkEmail}
+                      onChange={(e) => setLinkEmail(e.target.value)}
+                      placeholder="nama@gmail.com"
+                      disabled={isLoading || santriSigningIn}
+                    />
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                      Gunakan email yang terdaftar di data santri. Kami kirim
+                      link untuk masuk, tanpa password.
+                    </p>
+                    <button
+                      type="submit"
+                      className={buttonStyle}
+                      disabled={isLoading || santriSigningIn}
+                    >
+                      {isLoading ? "Mengirim..." : "Kirim Link Masuk"}
+                    </button>
+                  </form>
+                )}
+              </>
+            )}
+
+            {santriSigningIn && !authError && !needsLinkEmail && (
+              <p role="status" className="mt-4 text-sm text-center text-amber-800 dark:text-amber-300">
+                Menghubungkan akun ke data santri...
+              </p>
+            )}
+
+            {PHONE_LOGIN_ENABLED && <OrDivider label="atau cara lama" />}
+          </div>
+        )}
+
+        {(userType === "staff" || PHONE_LOGIN_ENABLED) && (
         <form onSubmit={handleSubmit}>
           {userType === "waliSantri" ? (
             <>
@@ -377,7 +696,7 @@ export default function Login() {
 
               <div className="mb-6">
                 <label className="block mb-2 text-sm font-medium text-amber-800">
-                  Nomor WhatsApp (Wali Santri)
+                  Nomor WhatsApp Santri
                 </label>
                 <div className="flex relative">
                   <div className="flex-shrink-0">
@@ -528,63 +847,34 @@ export default function Login() {
             </>
           )}
 
-          <button type="submit" className={buttonStyle} disabled={isLoading}>
+          <button type="submit" className={buttonStyle} disabled={isLoading || santriSigningIn}>
             {isLoading ? "Memproses..." : "Masuk"}
           </button>
 
+          {userType === "waliSantri" && (
+            <p className="mt-3 text-xs text-center text-amber-700 dark:text-amber-400">
+              Masuk dengan nama &amp; nomor WhatsApp akan segera dihentikan.
+              Gunakan Google atau link email di atas.
+            </p>
+          )}
+
           {userType === "staff" && (
             <div className="mt-6">
-              <div className="relative flex items-center justify-center mb-6">
-                <div className="border-t-2 border-amber-200 flex-grow mr-3"></div>
-                <span className="text-amber-700 text-sm">Atau</span>
-                <div className="border-t-2 border-amber-200 flex-grow ml-3"></div>
-              </div>
+              <OrDivider label="Atau" />
 
               <button
                 type="button"
-                className={`
-                                    w-full flex items-center justify-center 
-                                    py-4 px-6 rounded-xl
-                                    bg-white text-gray-700 
-                                    border-2 border-amber-200
-                                    shadow-[4px_4px_8px_#d6d0c4,-4px_-4px_8px_#fffef4]
-                                    hover:shadow-[6px_6px_12px_#d6d0c4,-6px_-6px_12px_#fffef4]
-                                    active:shadow-[2px_2px_4px_#d6d0c4,-2px_-2px_4px_#fffef4]
-                                    active:translate-x-[1px] active:translate-y-[1px]
-                                    transition-all duration-300
-                                    font-medium
-                                `}
+                className={googleButtonStyle}
                 onClick={handleGoogleLogin}
                 disabled={isLoading}
               >
-                <svg
-                  className="w-5 h-5 mr-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M23.766 12.2764C23.766 11.4607 23.6999 10.6406 23.5588 9.83807H12.24V14.4591H18.7217C18.4528 15.9494 17.5885 17.2678 16.323 18.1056V21.1039H20.19C22.4608 19.0139 23.766 15.9274 23.766 12.2764Z"
-                    fill="#4285F4"
-                  />
-                  <path
-                    d="M12.2401 24.0008C15.4766 24.0008 18.2059 22.9382 20.1945 21.1039L16.3276 18.1055C15.2517 18.8375 13.8627 19.252 12.2445 19.252C9.11388 19.252 6.45946 17.1399 5.50705 14.3003H1.5166V17.3912C3.55371 21.4434 7.7029 24.0008 12.2401 24.0008Z"
-                    fill="#34A853"
-                  />
-                  <path
-                    d="M5.50253 14.3003C4.99987 12.8099 4.99987 11.1961 5.50253 9.70575V6.61481H1.51649C-0.18551 10.0056 -0.18551 14.0004 1.51649 17.3912L5.50253 14.3003Z"
-                    fill="#FBBC04"
-                  />
-                  <path
-                    d="M12.2401 4.74966C13.9509 4.7232 15.6044 5.36697 16.8434 6.54867L20.2695 3.12262C18.1001 1.0855 15.2208 -0.034466 12.2401 0.000808666C7.7029 0.000808666 3.55371 2.55822 1.5166 6.61481L5.50264 9.70575C6.45064 6.86173 9.10947 4.74966 12.2401 4.74966Z"
-                    fill="#EA4335"
-                  />
-                </svg>
+                <GoogleIcon />
                 Login dengan Google
               </button>
             </div>
           )}
         </form>
+        )}
 
         <div className="mt-8 text-center">
           <Link

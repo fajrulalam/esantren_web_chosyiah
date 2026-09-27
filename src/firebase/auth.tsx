@@ -1,15 +1,21 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { 
-  signInWithEmailAndPassword, 
-  signInWithPopup, 
-  signOut, 
+import {
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
   onAuthStateChanged,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+  GoogleAuthProvider,
   User as FirebaseUser
 } from "firebase/auth";
-import { auth, googleProvider, db } from "./config";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
+import { auth, googleProvider, db, functions } from "./config";
+import { PHONE_LOGIN_ENABLED } from "@/constants";
+import { collection, doc, getDoc, getDocs, query, setDoc, where, type DocumentData } from "firebase/firestore";
 
 // User roles
 export type UserRole = "waliSantri" | "pengurus" | "pengasuh" | "superAdmin" | "bendahara";
@@ -34,6 +40,79 @@ export interface UiPreviewTarget {
 }
 
 const UI_PREVIEW_STORAGE_KEY = "esantren_ui_preview_user";
+// Remembers which address a sign-in link was sent to, so opening the link in
+// the same browser doesn't ask for the email again.
+const EMAIL_FOR_SIGN_IN_KEY = "esantren_email_for_sign_in";
+
+// Shared phones often hold several Google accounts; always let the santri pick.
+const santriGoogleProvider = new GoogleAuthProvider();
+santriGoogleProvider.setCustomParameters({ prompt: "select_account" });
+
+export type EmailLinkResult = "completed" | "needs-email" | "not-a-link";
+
+// A santri is a bendahara if their santri record says so, or if a
+// PengurusCollection bendahara entry points at them.
+async function isSantriBendahara(santriId: string, santri: DocumentData): Promise<boolean> {
+  if (santri.role === "bendahara" || santri.isBendahara) return true;
+  try {
+    const pengurusSnapshot = await getDocs(query(
+      collection(db, "PengurusCollection"),
+      where("santriId", "==", santriId),
+      where("role", "==", "bendahara"),
+    ));
+    return !pengurusSnapshot.empty;
+  } catch (error) {
+    console.warn("Could not check PengurusCollection for bendahara:", error);
+    return false;
+  }
+}
+
+function linkErrorMessage(error: unknown): string {
+  const code = (error as { code?: string })?.code || "";
+  const message = error instanceof Error ? error.message : "";
+  // The linking function words its own not-found / duplicate messages for santri.
+  if (message && ["functions/not-found", "functions/failed-precondition", "functions/unauthenticated"].includes(code)) {
+    return message;
+  }
+  return "Gagal menautkan akun ke data santri. Coba lagi beberapa saat lagi.";
+}
+
+/**
+ * Santri sign in with Google or an email link. The linkSantriAccount function
+ * ties the Firebase account to the santri record with the same verified email
+ * and stores its id as the `santriId` custom claim. Throws a message meant for
+ * the login page when the account can't be linked.
+ */
+async function resolveSantriUser(firebaseUser: FirebaseUser): Promise<UserData> {
+  const claims = (await firebaseUser.getIdTokenResult()).claims;
+  let santriId = typeof claims.santriId === "string" ? claims.santriId : null;
+  let santriDoc = santriId ? await getDoc(doc(db, "SantriCollection", santriId)) : null;
+
+  // First sign-in, or the linked record was merged or deleted: link again by email.
+  if (!santriDoc?.exists()) {
+    try {
+      const result = await httpsCallable<void, { santriId: string }>(functions, "linkSantriAccount")();
+      santriId = result.data.santriId;
+    } catch (error) {
+      // Usually expected (email not on file); the login page shows the reason.
+      console.warn("Could not link santri account:", error);
+      throw new Error(linkErrorMessage(error));
+    }
+    // Refresh the ID token so the new claim reaches security rules right away.
+    await firebaseUser.getIdToken(true);
+    santriDoc = await getDoc(doc(db, "SantriCollection", santriId));
+    if (!santriDoc.exists()) throw new Error("Data santri tidak ditemukan.");
+  }
+
+  const santri = santriDoc.data();
+  return {
+    uid: firebaseUser.uid,
+    email: firebaseUser.email,
+    role: (await isSantriBendahara(santriDoc.id, santri)) ? "bendahara" : "waliSantri",
+    name: santri.nama || "",
+    santriId: santriDoc.id,
+  };
+}
 
 interface AuthContextProps {
   // Effective user: the previewed user while a superAdmin UI preview is
@@ -76,6 +155,16 @@ interface AuthContextProps {
   // backend/service-account involvement.
   startUiPreview: (target: UiPreviewTarget) => UserData;
   stopUiPreview: () => void;
+  // Set when a santri signed in with Google or an email link but the account
+  // couldn't be tied to a santri record; that sign-in is undone.
+  authError: string | null;
+  clearAuthError: () => void;
+  signInSantriWithGoogle: () => Promise<void>;
+  sendSantriSignInLink: (email: string) => Promise<void>;
+  // Finishes an email-link sign-in when the current URL is one. Returns
+  // "needs-email" when the link was opened in a different browser, since
+  // Firebase then needs the address confirmed.
+  completeSantriSignInLink: (email?: string) => Promise<EmailLinkResult>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -85,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [santriName, setSantriName] = useState<string | null>(null);
   const [previewUser, setPreviewUser] = useState<UserData | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Restore an in-progress UI preview (e.g. after a page refresh). Scoped to
   // sessionStorage so it never survives closing the tab.
@@ -149,8 +239,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Get user role from Firestore
-  const getUserRole = async (firebaseUser: FirebaseUser) => {
+  // Staff are found in PengurusCollection; every other Firebase sign-in is a
+  // santri, resolved by resolveSantriUser (which throws if it can't be linked).
+  const getUserRole = async (firebaseUser: FirebaseUser): Promise<UserData | null> => {
     try {
       // First try to look up the user by UID (for existing users)
       const userDocRef = doc(db, "PengurusCollection", firebaseUser.uid);
@@ -169,7 +260,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       // If not found by UID, try to find by email (for pre-registered users)
-      const { collection, query, where, getDocs } = await import('firebase/firestore');
       const pengurusCollectionRef = collection(db, "PengurusCollection");
       const pengurusQuery = query(
         pengurusCollectionRef,
@@ -187,6 +277,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await setDoc(doc(db, "PengurusCollection", firebaseUser.uid), {
           ...pengurusData,
           uid: firebaseUser.uid,  // Add the UID to the document
+          // Lets security rules check this copy against the invitation it came from.
+          inviteId: pengurusDoc.id,
           lastLogin: new Date()
         });
         
@@ -198,44 +290,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           santriId: pengurusData.santriId || undefined,
         };
       }
-
-      // If not found in PengurusCollection, check if email is linked to a Santri with bendahara role
-      if (firebaseUser.email) {
-        try {
-          const santriCollectionRef = collection(db, "SantriCollection");
-          const santriQuery = query(
-            santriCollectionRef,
-            where("email", "==", firebaseUser.email)
-          );
-          const santriSnapshot = await getDocs(santriQuery);
-          if (!santriSnapshot.empty) {
-            const santriDoc = santriSnapshot.docs[0];
-            const santriData = santriDoc.data();
-            if (santriData.role === "bendahara" || santriData.isBendahara) {
-              return {
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                role: "bendahara" as UserRole,
-                name: santriData.nama || "",
-                santriId: santriDoc.id,
-              };
-            }
-          }
-        } catch (santriErr) {
-          console.warn("Could not check SantriCollection for bendahara role:", santriErr);
-        }
-      }
-      
-      // Default to waliSantri if no role found in PengurusCollection
-      return {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        role: "waliSantri" as UserRole
-      };
     } catch (error) {
       console.error("Error getting user role:", error);
       return null;
     }
+
+    return resolveSantriUser(firebaseUser);
   };
 
   // Listen for auth state changes
@@ -243,15 +303,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
-        const userData = await getUserRole(firebaseUser);
-        setUser(userData);
+        try {
+          const userData = await getUserRole(firebaseUser);
+          setUser(userData);
+          // Santri pages read the santri's name from here, as with phone login.
+          setSantriName(
+            userData?.santriId && (userData.role === "waliSantri" || userData.role === "bendahara")
+              ? userData.name || null
+              : null
+          );
+          if (userData) setAuthError(null);
+        } catch (error) {
+          // Not tied to any santri (or staff) record: undo the sign-in and say why.
+          setAuthError(error instanceof Error ? error.message : "Gagal masuk.");
+          setUser(null);
+          setSantriName(null);
+          await signOut(auth).catch((signOutError) => console.error("Error signing out:", signOutError));
+        }
       } else {
         // Check for wali santri data in localStorage
         try {
           const savedUser = localStorage.getItem('waliSantriUser');
           const savedSantriName = localStorage.getItem('santriName');
-          
-          if (savedUser && savedSantriName) {
+
+          if (!PHONE_LOGIN_ENABLED) {
+            // After the cutover, old phone-login sessions must sign in again.
+            localStorage.removeItem('waliSantriUser');
+            localStorage.removeItem('santriName');
+            setUser(null);
+          } else if (savedUser && savedSantriName) {
             const userData = JSON.parse(savedUser) as UserData;
             setUser(userData);
             setSantriName(savedSantriName);
@@ -388,6 +468,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Sign in as wali santri (special case - no auth)
   const signInAsSantri = async (namaSantri: string, nomorTelpon: string) => {
+    if (!PHONE_LOGIN_ENABLED) return false;
     try {
       setLoading(true);
       
@@ -464,24 +545,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log("Santri found:", santriData.nama);
           
           // Check if this santri has bendahara role
-          let role: UserRole = "waliSantri";
-          if (santriData.role === "bendahara" || santriData.isBendahara) {
-            role = "bendahara";
-          } else {
-            try {
-              const pengurusQuery = query(
-                collection(firestore, "PengurusCollection"),
-                where("santriId", "==", santriId),
-                where("role", "==", "bendahara")
-              );
-              const pSnap = await getDocs(pengurusQuery);
-              if (!pSnap.empty) {
-                role = "bendahara";
-              }
-            } catch (pErr) {
-              console.warn("Could not check PengurusCollection for bendahara:", pErr);
-            }
-          }
+          const role: UserRole = (await isSantriBendahara(santriId, santriData)) ? "bendahara" : "waliSantri";
 
           // Create user data object
           const userData = {
@@ -528,6 +592,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email?: string | null;
     role?: UserRole;
   }) => {
+    // After the cutover, new santri sign in with the email they registered with.
+    if (!PHONE_LOGIN_ENABLED) return;
     const userData: UserData = {
       uid: `wali_${santri.id}`,
       email: santri.email ?? null,
@@ -576,6 +642,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const clearAuthError = () => setAuthError(null);
+
+  // Santri Google sign-in; linking to the santri record happens in the
+  // auth state listener above.
+  const signInSantriWithGoogle = async () => {
+    setAuthError(null);
+    await signInWithPopup(auth, santriGoogleProvider);
+  };
+
+  // Passwordless sign-in: Firebase emails a one-time link back to /login.
+  const sendSantriSignInLink = async (email: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    setAuthError(null);
+    auth.languageCode = "id";
+    await sendSignInLinkToEmail(auth, normalizedEmail, {
+      url: `${window.location.origin}/login/`,
+      handleCodeInApp: true,
+    });
+    try {
+      localStorage.setItem(EMAIL_FOR_SIGN_IN_KEY, normalizedEmail);
+    } catch (error) {
+      console.warn("Could not remember the sign-in email:", error);
+    }
+  };
+
+  const completeSantriSignInLink = async (email?: string): Promise<EmailLinkResult> => {
+    const href = window.location.href;
+    if (!isSignInWithEmailLink(auth, href)) return "not-a-link";
+    let storedEmail = "";
+    try {
+      storedEmail = localStorage.getItem(EMAIL_FOR_SIGN_IN_KEY) || "";
+    } catch {
+      // Storage unavailable: fall back to asking for the email.
+    }
+    const signInEmail = (email || storedEmail).trim().toLowerCase();
+    if (!signInEmail) return "needs-email";
+    setAuthError(null);
+    await signInWithEmailLink(auth, signInEmail, href);
+    try {
+      localStorage.removeItem(EMAIL_FOR_SIGN_IN_KEY);
+    } catch {
+      // Nothing to clean up.
+    }
+    return "completed";
   };
 
   // Sign out
@@ -756,7 +868,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     createNewUser,
     logOut,
     startUiPreview,
-    stopUiPreview
+    stopUiPreview,
+    authError,
+    clearAuthError,
+    signInSantriWithGoogle,
+    sendSantriSignInLink,
+    completeSantriSignInLink,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
