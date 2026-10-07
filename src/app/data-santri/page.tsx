@@ -609,9 +609,12 @@ export default function DataSantriPage() {
         const formattedName = formatName(syncedFormData.nama);
         console.log("Formatted name:", formattedName);
 
-        // Prepare update data - only include statusTanggungan if it's provided
+        // statusTanggungan is derived from the payment records by the Cloud
+        // Functions. Never write it from here: the form only holds the value from
+        // when it was opened, so saving would overwrite a fresher one.
         const updateData = removeUndefinedFields({
           ...syncedFormData,
+          statusTanggungan: undefined,
           nama: formattedName, // Use properly formatted name
           kodeAsrama: KODE_ASRAMA,
           ...(syncedFormData.statusAktif === "Aktif" &&
@@ -619,11 +622,6 @@ export default function DataSantriPage() {
             ? { semesterAutoUpdatedPeriod: getCurrentAcademicSemesterKey() }
             : {}),
         });
-
-        // Include statusTanggungan if it's provided in the form data
-        if (syncedFormData.statusTanggungan) {
-          updateData.statusTanggungan = syncedFormData.statusTanggungan;
-        }
 
         // Update existing santri with formatted name and synchronized fields
         const santriRef = doc(db, "SantriCollection", selectedSantri.id);

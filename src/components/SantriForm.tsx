@@ -53,7 +53,6 @@ export default function SantriForm({
     jenjangPendidikan: "Semester 1",
     programStudi: "",
     statusAktif: "Aktif",
-    statusTanggungan: "Belum Ada Tagihan",
     tanggalLahir: "",
     nomorTelpon: defaultPhoneFormat,
     catatan: "",
@@ -98,7 +97,6 @@ export default function SantriForm({
         jenjangPendidikan: santri.jenjangPendidikan,
         programStudi: santri.programStudi || "",
         statusAktif: santri.statusAktif,
-        statusTanggungan: santri.statusTanggungan,
         tanggalLahir: santri.tanggalLahir,
         nomorTelpon: santri.nomorWalisantri || "", // Use same number for both fields
         catatan: santri.catatan || "",
@@ -673,27 +671,18 @@ export default function SantriForm({
         </div>
       </div>
 
-      {/* Status Tanggungan field - only show when editing existing santri */}
+      {/* Status Tanggungan - read-only; computed from the payment records */}
       {santri && !hidePengurusFields && (
         <div>
-          <label
-            htmlFor="statusTanggungan"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-200"
-          >
+          <span className="block text-sm font-medium text-gray-700 dark:text-gray-200">
             Status Tanggungan
-          </label>
-          <select
-            id="statusTanggungan"
-            name="statusTanggungan"
-            value={formData.statusTanggungan || "Belum Ada Tagihan"}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white"
-          >
-            <option value="Belum Lunas">Belum Lunas</option>
-            <option value="Belum Ada Tagihan">Belum Ada Tagihan</option>
-            <option value="Lunas">Lunas</option>
-            <option value="Menunggu Verifikasi">Menunggu Verifikasi</option>
-          </select>
+          </span>
+          <p className="mt-1 text-sm text-gray-900 dark:text-white">
+            {santri.statusTanggungan || "Belum Ada Tagihan"}
+          </p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Dihitung otomatis dari tagihan dan pembayaran santri.
+          </p>
         </div>
       )}
 

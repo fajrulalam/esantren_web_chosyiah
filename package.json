@@ -7,6 +7,8 @@
     "build": "next build",
     "build:dev": "NODE_ENV=development next build",
     "test:installments": "node --test tests/payment-installment-math.test.mjs",
+    "test:tanggungan": "node --test tests/santri-tanggungan.test.mjs",
+    "reconcile:tanggungan:dry-run": "node scripts/reconcile-santri-tanggungan.mjs",
     "test:facility-reports": "node --test tests/facility-reports.test.mjs",
     "test:santri-email-match": "node --test tests/santri-email-match.test.mjs",
     "migrate:registration:dry-run": "node scripts/migrate-registration-installments.mjs",

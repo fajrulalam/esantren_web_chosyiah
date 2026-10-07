@@ -20,6 +20,11 @@ import {
 import { corsHandler } from "./corsConfig";
 import { linkSantriAccount as linkSantriAccountFunc } from "./santriAccount";
 import { requireSantriOrStaff, requireStaff, staffRequestError } from "./access";
+import { syncSantriTanggunganBulk } from "./santriTanggungan";
+import {
+  deriveSantriTanggungan,
+  PaymentStatusSummaryInput,
+} from "./santriTanggunganMath";
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -96,50 +101,20 @@ export const deleteInvoiceHttp = functions.https.onRequest((request, response) =
         if (paymentStatusesQuery.empty) {
           console.warn(`No payment statuses found for invoice: ${invoiceId}. Proceeding with invoice deletion only.`);
         } else {
-          // 3. For each payment status, update the santri's jumlahTunggakan
+          // 3. Delete the payment statuses, remembering which santri were affected
           const batch = admin.firestore().batch();
-
-          // Keep track of santris to update
-          const santriUpdates = new Map();
+          const affectedSantriIds = new Set<string>();
 
           paymentStatusesQuery.forEach((doc) => {
-            const data = doc.data();
-            const santriId = data.santriId;
-
-            // Delete the payment status
             batch.delete(doc.ref);
-
-            // Add santri to updates list
-            if (!santriUpdates.has(santriId)) {
-              santriUpdates.set(santriId, {
-                ref: admin.firestore().collection('SantriCollection').doc(santriId),
-                currentStatus: data.status
-              });
-            }
+            affectedSantriIds.add(doc.data().santriId);
           });
 
           // 4. Commit the batch deletion of payment statuses
           await batch.commit();
 
-          // 5. Update each santri's jumlahTunggakan and statusTanggungan
-          for (const [_, santriData] of santriUpdates.entries()) {
-            const santriDoc = await santriData.ref.get();
-
-            if (santriDoc.exists) {
-              const santriDocData = santriDoc.data();
-              const currentTunggakan = santriDocData.jumlahTunggakan || 0;
-
-              // Decrement jumlahTunggakan
-              const newTunggakan = Math.max(0, currentTunggakan - 1);
-
-              // Update santri document
-              await santriData.ref.update({
-                jumlahTunggakan: newTunggakan,
-                // If no more outstanding payments, set status to Lunas
-                statusTanggungan: newTunggakan === 0 ? "Lunas" : "Belum Lunas"
-              });
-            }
-          }
+          // 5. Recompute each affected santri's tanggungan from their remaining records
+          await syncSantriTanggunganBulk([...affectedSantriIds]);
         }
 
         // 6. Finally, delete the invoice
@@ -215,7 +190,7 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
         );
 
         const santriDocs = await Promise.all(fetchSantriPromises);
-        const santriList = [];
+        let santriList = [];
         let missingCount = 0;
 
         santriDocs.forEach(doc => {
@@ -265,23 +240,34 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
           });
         }
 
-        // 3. Update all selected students' statusTanggungan and increment jumlahTunggakan
-        console.log(
-            `Updating statusTanggungan for ${santriList.length} santris`,
-            { structuredData: true }
+        // Skip santri who already have a payment record on this invoice. Writing a
+        // fresh record would reset their paid amount and payment history.
+        const existingRecords = await admin.firestore().getAll(
+          ...santriList.map((santri) =>
+            admin.firestore().collection("PaymentStatuses").doc(`${invoiceId}_${santri.id}`)
+          )
         );
-
-        const updateStatusPromises = santriList.map((santri) => {
-          return admin.firestore().collection("SantriCollection").doc(santri.id).update({
-            statusTanggungan: "Belum Lunas",
-            jumlahTunggakan: admin.firestore.FieldValue.increment(1)
+        const alreadyOnInvoice = new Set(
+          existingRecords.filter((record) => record.exists).map((record) => record.id)
+        );
+        if (alreadyOnInvoice.size > 0) {
+          console.warn(
+              `${alreadyOnInvoice.size} santris already have a payment record on invoice ${invoiceId}. Skipping.`,
+              { structuredData: true }
+          );
+          santriList = santriList.filter(
+            (santri) => !alreadyOnInvoice.has(`${invoiceId}_${santri.id}`)
+          );
+        }
+        if (santriList.length === 0) {
+          return response.status(200).json({
+            success: true,
+            message: 'All selected santris are already on this invoice.',
+            addedCount: 0
           });
-        });
+        }
 
-        // Execute all status updates in parallel
-        await Promise.all(updateStatusPromises);
-
-        // 4. First fetch all santri documents to ensure we have the latest data
+        // 3. First fetch all santri documents to ensure we have the latest data
         console.log(`Fetching updated santri data for ${santriList.length} santris`);
         
         // Create a map to store the updated santri data
@@ -322,7 +308,8 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
           
           console.log(`Setting educationGrade for ${santri.id} to: ${educationGrade}`);
           
-          batch.set(paymentStatusRef, {
+          // create() (not set()) so a record added by a concurrent call is never overwritten
+          batch.create(paymentStatusRef, {
             invoiceId: invoiceId,
             santriId: santri.id,
             santriName: santri.nama,
@@ -343,6 +330,9 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
         
         // Commit all the new payment statuses
         await batch.commit();
+
+        // 4. Recompute the added santri's tanggungan now that their records exist
+        await syncSantriTanggunganBulk(santriList.map((santri) => santri.id));
 
         // 5. Update the invoice with new santri count
         await admin.firestore().collection('Invoices').doc(invoiceId).update({
@@ -408,6 +398,7 @@ export const removeSantrisFromInvoiceHttp = functions.https.onRequest((request, 
         // 2. Delete the payment status documents for each santri
         const batch = admin.firestore().batch();
         let deletedCount = 0;
+        const removedSantriIds: string[] = [];
 
         for (const santriId of santriIds) {
           const paymentStatusId = `${invoiceId}_${santriId}`;
@@ -424,25 +415,7 @@ export const removeSantrisFromInvoiceHttp = functions.https.onRequest((request, 
             if (status !== "Lunas" && status !== "Menunggu Verifikasi") {
               batch.delete(paymentStatusRef);
               deletedCount++;
-
-              // Update the santri's jumlahTunggakan and statusTanggungan
-              const santriRef = admin.firestore().collection("SantriCollection").doc(santriId);
-              const santriDoc = await santriRef.get();
-
-              if (santriDoc.exists) {
-                const santriData = santriDoc.data();
-                const currentTunggakan = santriData?.jumlahTunggakan || 0;
-
-                // Decrement jumlahTunggakan
-                const newTunggakan = Math.max(0, currentTunggakan - 1);
-
-                // Update santri document
-                await santriRef.update({
-                  jumlahTunggakan: newTunggakan,
-                  // If no more outstanding payments, set status to Lunas
-                  statusTanggungan: newTunggakan === 0 ? "Lunas" : "Belum Lunas"
-                });
-              }
+              removedSantriIds.push(santriId);
             } else {
               console.warn(
                   `Cannot remove santri ${santriId} from invoice ${invoiceId} because payment status is ${status}`,
@@ -452,9 +425,11 @@ export const removeSantrisFromInvoiceHttp = functions.https.onRequest((request, 
           }
         }
 
-        // Commit the batch deletion of payment statuses
+        // Commit the batch deletion of payment statuses, then recompute the removed
+        // santri's tanggungan from the records they still have
         if (deletedCount > 0) {
           await batch.commit();
+          await syncSantriTanggunganBulk(removedSantriIds);
         }
 
         // 3. Update the invoice with new santri count and remove santri IDs from the list
@@ -1016,29 +991,23 @@ export const reviewPaymentInstallment = functions.https.onCall(async (data, cont
     const newWaiting = pendingAmount > 0;
     const oldFull = Number(payment.paid || 0) === total;
     const newFull = paid === total && !newWaiting;
-    let jumlahTunggakan = 0;
-    let hasPending = false;
+    // The reviewed record is not written yet, so substitute its new values.
+    const santriPayments: PaymentStatusSummaryInput[] = [];
     santriPaymentStatusesSnapshot?.forEach((snapshot) => {
-      const statusData = snapshot.id === paymentStatusId
-        ? {
-            ...snapshot.data(),
-            paid,
-            pendingAmount,
-            status,
-            requiresAmountConfirmation: false,
-          }
-        : snapshot.data();
-      if (Number(statusData.paid || 0) !== Number(statusData.total || 0)) {
-        jumlahTunggakan += 1;
-      }
-      if (
-        statusData.status === 'Menunggu Verifikasi' ||
-        Number(statusData.pendingAmount || 0) > 0 ||
-        statusData.requiresAmountConfirmation
-      ) {
-        hasPending = true;
-      }
+      santriPayments.push(
+        snapshot.id === paymentStatusId
+          ? {
+              ...snapshot.data(),
+              paid,
+              pendingAmount,
+              status,
+              requiresAmountConfirmation: false,
+            }
+          : snapshot.data()
+      );
     });
+    const { jumlahTunggakan, statusTanggungan } =
+      deriveSantriTanggungan(santriPayments);
 
     transaction.update(paymentRef, {
       paid,
@@ -1073,11 +1042,7 @@ export const reviewPaymentInstallment = functions.https.onCall(async (data, cont
       );
       transaction.update(santriRef, {
         jumlahTunggakan,
-        statusTanggungan: hasPending
-          ? 'Menunggu Verifikasi'
-          : jumlahTunggakan > 0
-          ? 'Belum Lunas'
-          : 'Lunas',
+        statusTanggungan,
         ...(shouldActivate
           ? {
               statusAktif: 'Aktif',
