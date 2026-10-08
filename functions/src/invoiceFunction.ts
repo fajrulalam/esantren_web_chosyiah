@@ -1,6 +1,7 @@
 import * as functions from "firebase-functions";
 import { requireSantriOrStaff, requireStaff } from "./access";
 import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { getActiveStudentCount } from "./counterUtils";
 import { syncSantriTanggunganBulk } from "./santriTanggungan";
 
@@ -276,7 +277,7 @@ export const createPaymentStatusesOnInvoiceCreation = async (
           paid: 0,
           total: nominal,
           history: {},
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
         });
       }
 
@@ -561,7 +562,7 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
         paid: 0,
         total: nominal,
         history: {},
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       });
     }
 
@@ -573,8 +574,8 @@ export const addSantrisToInvoice = functions.region(region).https.onCall(async (
 
     // 5. Update the invoice with new santri count
     await db.collection('Invoices').doc(invoiceId).update({
-      numberOfSantriInvoiced: admin.firestore.FieldValue.increment(santriList.length),
-      selectedSantriIds: admin.firestore.FieldValue.arrayUnion(...santriList.map(s => s.id))
+      numberOfSantriInvoiced: FieldValue.increment(santriList.length),
+      selectedSantriIds: FieldValue.arrayUnion(...santriList.map(s => s.id))
     });
 
     return { 
@@ -663,7 +664,7 @@ export const removeSantrisFromInvoice = functions.region(region).https.onCall(as
 
     // 3. Update the invoice with new santri count and remove santri IDs from the list
     await db.collection('Invoices').doc(invoiceId).update({
-      numberOfSantriInvoiced: admin.firestore.FieldValue.increment(-deletedCount),
+      numberOfSantriInvoiced: FieldValue.increment(-deletedCount),
       selectedSantriIds: invoiceDoc.data()?.selectedSantriIds.filter(
         (id: string) => !santriIds.includes(id)
       ) || []

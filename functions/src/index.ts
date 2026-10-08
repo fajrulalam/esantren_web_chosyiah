@@ -1,5 +1,6 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import {
   createPaymentStatusesOnInvoiceCreation,
   deleteInvoice,
@@ -324,7 +325,7 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
             paid: 0,
             total: nominal,
             history: {},
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
           });
         }
         
@@ -336,8 +337,8 @@ export const addSantrisToInvoiceHttp = functions.https.onRequest((request, respo
 
         // 5. Update the invoice with new santri count
         await admin.firestore().collection('Invoices').doc(invoiceId).update({
-          numberOfSantriInvoiced: admin.firestore.FieldValue.increment(santriList.length),
-          selectedSantriIds: admin.firestore.FieldValue.arrayUnion(...santriList.map(s => s.id))
+          numberOfSantriInvoiced: FieldValue.increment(santriList.length),
+          selectedSantriIds: FieldValue.arrayUnion(...santriList.map(s => s.id))
         });
 
         return response.status(200).json({
@@ -434,7 +435,7 @@ export const removeSantrisFromInvoiceHttp = functions.https.onRequest((request, 
 
         // 3. Update the invoice with new santri count and remove santri IDs from the list
         await admin.firestore().collection('Invoices').doc(invoiceId).update({
-          numberOfSantriInvoiced: admin.firestore.FieldValue.increment(-deletedCount),
+          numberOfSantriInvoiced: FieldValue.increment(-deletedCount),
           selectedSantriIds: invoiceDoc.data()?.selectedSantriIds.filter(
               (id) => !santriIds.includes(id)
           ) || []
@@ -574,8 +575,8 @@ const registerSantriImpl = async (data: any) => {
       registrationSubmittedAmount: amount,
       registrationPaymentStatusId: paymentStatusId,
       registrationInitialPaymentId: attemptId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     };
 
     const existingIds = invoiceSnapshot.exists
@@ -602,12 +603,12 @@ const registerSantriImpl = async (data: any) => {
           ? Number(invoiceSnapshot.data()?.numberOfWaitingVerification || 0)
           : 0) + 1,
       timestamp: invoiceSnapshot.exists
-        ? invoiceSnapshot.data()?.timestamp || admin.firestore.FieldValue.serverTimestamp()
-        : admin.firestore.FieldValue.serverTimestamp(),
+        ? invoiceSnapshot.data()?.timestamp || FieldValue.serverTimestamp()
+        : FieldValue.serverTimestamp(),
       createdAt: invoiceSnapshot.exists
-        ? invoiceSnapshot.data()?.createdAt || admin.firestore.FieldValue.serverTimestamp()
-        : admin.firestore.FieldValue.serverTimestamp(),
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        ? invoiceSnapshot.data()?.createdAt || FieldValue.serverTimestamp()
+        : FieldValue.serverTimestamp(),
+      lastUpdated: FieldValue.serverTimestamp(),
     }, { merge: true });
     transaction.set(paymentRef, {
       invoiceId,
@@ -639,8 +640,8 @@ const registerSantriImpl = async (data: any) => {
           inputtedBy: 'Pendaftar',
         },
       },
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
   });
 
@@ -767,19 +768,19 @@ export const submitPaymentInstallment = functions.https.onCall(async (data, cont
       pendingAmount: pendingAmount + amount,
       status: 'Menunggu Verifikasi',
       schemaVersion: 2,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
     if (invoiceRef && invoiceSnapshot?.exists && pendingAmount === 0) {
       transaction.update(invoiceRef, {
         numberOfWaitingVerification:
           Math.max(0, Number(invoiceSnapshot.data()?.numberOfWaitingVerification || 0)) + 1,
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        lastUpdated: FieldValue.serverTimestamp(),
       });
     }
     if (santriRef && santriSnapshot?.exists) {
       transaction.update(santriRef, {
         statusTanggungan: 'Menunggu Verifikasi',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
     }
   });
@@ -1016,7 +1017,7 @@ export const reviewPaymentInstallment = functions.https.onCall(async (data, cont
       history,
       schemaVersion: 2,
       requiresAmountConfirmation: false,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
     if (invoiceRef && invoiceSnapshot?.exists) {
       transaction.update(invoiceRef, {
@@ -1032,7 +1033,7 @@ export const reviewPaymentInstallment = functions.https.onCall(async (data, cont
             (newFull ? 1 : 0) -
             (oldFull ? 1 : 0)
         ),
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        lastUpdated: FieldValue.serverTimestamp(),
       });
     }
     if (santriRef && santriSnapshot?.exists) {
@@ -1052,14 +1053,14 @@ export const reviewPaymentInstallment = functions.https.onCall(async (data, cont
                 : {}),
             }
           : {}),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
     }
     if (shouldActivate && santriSnapshot?.exists && counterRef) {
       const kodeAsrama = santriSnapshot.data()?.kodeAsrama;
       transaction.set(counterRef, {
         [kodeAsrama]: Number(counterSnapshot?.data()?.[kodeAsrama] || 0) + 1,
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        lastUpdated: FieldValue.serverTimestamp(),
       }, { merge: true });
     }
   });

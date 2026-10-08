@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import * as functions from "firebase-functions";
 
 // Initialize Firebase Admin if not already initialized
@@ -8,7 +9,6 @@ if (!admin.apps.length) {
 
 // Get Firestore instance and store reference to firestore object
 const db = admin.firestore();
-const FieldValue = admin.firestore.FieldValue; // Explicitly store reference to FieldValue
 
 /**
  * Updates the active student counter for a specific boarding school
